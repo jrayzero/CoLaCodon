@@ -180,6 +180,15 @@ types::TypePtr TypeContext::findMember(const string &typeName,
   return nullptr;
 }
 
+bool TypeContext::classHasAttr(const string &typeName, const string &attr) const {
+  auto m = cache->classes.find(typeName);
+  if (m != cache->classes.end()) {
+    auto &ast = m->second.ast;
+    return ast->hasAttr(attr);
+  }
+  return false;
+}
+
 types::FuncTypePtr
 TypeContext::findBestMethod(const Expr *expr, const string &member,
                             const vector<pair<string, types::TypePtr>> &args) {

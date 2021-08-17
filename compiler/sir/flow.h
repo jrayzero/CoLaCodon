@@ -49,6 +49,8 @@ public:
   /// @return a pointer to the last instruction/flow
   const Value *back() const { return series.back(); }
 
+  int getSize() const { return series.size(); }
+
   /// Inserts an instruction/flow at the given position.
   /// @param pos the position
   /// @param v the flow or instruction

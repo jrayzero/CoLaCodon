@@ -132,6 +132,7 @@ void PassManager::invalidate(const std::string &key) {
 }
 
 void PassManager::registerStandardPasses() {
+  std::cerr << "Register standard passes" << std::endl;
   // Pythonic
   registerPass(std::make_unique<pythonic::DictArithmeticOptimization>());
   registerPass(std::make_unique<pythonic::StrAdditionOptimization>());

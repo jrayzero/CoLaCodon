@@ -104,7 +104,9 @@ int RecordType::getMemberIndex(const std::string &n) const {
   auto it = std::find_if(fields.begin(), fields.end(),
                          [n](auto &x) { return x.getName() == n; });
   int index = std::distance(fields.begin(), it);
-  return (index < fields.size()) ? index : -1;
+  int ret = (index < fields.size()) ? index : -1;
+  seqassert(ret != -1, "unable to find field for " + n);
+  return ret;
 }
 
 void RecordType::realize(std::vector<Type *> mTypes, std::vector<std::string> mNames) {

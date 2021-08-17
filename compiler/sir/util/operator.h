@@ -174,7 +174,7 @@ public:
     itStack.clear();
   }
 
-private:
+    //private:
   // JESS note: the code as is doesn't catch some corner cases, usually due to
   // replacing with a seriesflow, especially one that includes a clone of the original instr.
   // So I added in a bunch more see checks

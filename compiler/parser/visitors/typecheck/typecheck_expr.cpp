@@ -64,7 +64,7 @@ ExprPtr TypecheckVisitor::transformType(ExprPtr &expr) {
   expr = transform(const_cast<ExprPtr &>(expr), true);
   if (expr) {
     if (!expr->isType())
-      error("expected type expression");
+      error("TypecheckVisitor: expected type expression");
     auto t = ctx->instantiate(expr.get(), expr->getType());
     expr->setType(t);
   }
@@ -1343,12 +1343,14 @@ pair<bool, ExprPtr> TypecheckVisitor::transformSpecialCall(CallExpr *expr) {
     expr->args[0].value = transformType(expr->args[0].value);
     auto typ = expr->args[0].value->getType()->getClass();
     ctx->allowActivation = oldActivation;
-    if (!typ)
+    if (!typ) {
       return {true, nullptr};
-    else
+    } else {
       return {true, transform(N<BoolExpr>(
-                        !ctx->findMethod(typ->getClass()->name, member).empty() ||
-                        ctx->findMember(typ->getClass()->name, member)))};
+                                          ctx->classHasAttr(typ->getClass()->name, member) ||
+                                          !ctx->findMethod(typ->getClass()->name, member).empty() ||
+                                          ctx->findMember(typ->getClass()->name, member)))};
+    }
   } else if (val == "compile_error") {
     error("custom error: {}", expr->args[0].value->getString()->value);
   }

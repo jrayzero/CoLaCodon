@@ -45,7 +45,6 @@ void RDInspector::analyze() {
 std::unordered_set<id_t> RDInspector::getReachingDefinitions(Var *var, Value *loc) {
   if (invalid.find(var->getId()) != invalid.end() || var->isGlobal())
     return std::unordered_set<id_t>();
-
   auto *blk = cfg->getBlock(loc);
   if (!blk)
     return std::unordered_set<id_t>();

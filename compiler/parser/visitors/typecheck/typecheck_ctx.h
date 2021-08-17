@@ -133,6 +133,8 @@ public:
   /// Special cases: __elemsize__ and __atomic__.
   types::TypePtr findMember(const string &typeName, const string &member) const;
 
+  bool classHasAttr(const string &typeName, const string &attr) const;
+
   /// Picks the best method of a given expression that matches the given argument
   /// types. Prefers methods whose signatures are closer to the given arguments:
   /// e.g. foo(int) will match (int) better that a foo(T).
