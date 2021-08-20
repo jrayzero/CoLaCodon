@@ -323,6 +323,8 @@ private:
   Type *rType;
   /// argument types
   std::vector<Type *> argTypes;
+  /// whether the function is variadic (e.g. "printf" in C)
+  bool variadic;
 
 public:
   static const char NodeId;
@@ -330,11 +332,15 @@ public:
   /// Constructs a function type.
   /// @param rType the function's return type
   /// @param argTypes the function's arg types
-  FuncType(std::string name, Type *rType, std::vector<Type *> argTypes)
-      : AcceptorExtend(std::move(name)), rType(rType), argTypes(std::move(argTypes)) {}
+  FuncType(std::string name, Type *rType, std::vector<Type *> argTypes,
+           bool variadic = false)
+      : AcceptorExtend(std::move(name)), rType(rType), argTypes(std::move(argTypes)),
+        variadic(variadic) {}
 
   /// @return the function's return type
   Type *getReturnType() const { return rType; }
+  /// @return true if the function is variadic
+  bool isVariadic() const { return variadic; }
 
   /// @return iterator to the first argument
   const_iterator begin() const { return argTypes.begin(); }
