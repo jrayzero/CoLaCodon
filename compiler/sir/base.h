@@ -111,6 +111,14 @@ public:
     setAttribute(std::move(value), AttributeType::AttributeName);
   }
 
+  void removeAttribute(const std::string &key) {
+    auto *actual = getActual();
+    auto loc = actual->attributes.find(key);
+    if (loc != actual->attributes.end()) {
+      actual->attributes.erase(loc);
+    }
+  }
+
   /// @param n the name
   /// @return true if the attribute is in the store
   bool hasAttribute(const std::string &n) const {
