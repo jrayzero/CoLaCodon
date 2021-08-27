@@ -68,7 +68,6 @@ void ConstPropPass::handle(VarValue *v) {
     util::CloneVisitor cv(M);
     replacement = cv.clone(constDef);
   }
-
   v->replaceAll(replacement);
 }
 

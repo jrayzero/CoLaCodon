@@ -230,6 +230,7 @@ void CFVisitor::visit(const ImperativeForFlow *v) {
       analyze::dataflow::SyntheticAssignInstr::KNOWN));
 
   auto *loopCheck = graph->newBlock("forCheck");
+  process(v->getEnd());
   graph->getCurrentBlock()->successors_insert(loopCheck);
   loopCheck->successors_insert(end);
 

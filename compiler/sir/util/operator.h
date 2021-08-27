@@ -32,12 +32,13 @@ private:
   /// stack of iterators
   std::vector<decltype(SeriesFlow().begin())> itStack;
   /// true if should visit children first
-  bool childrenFirst;
 
 protected:
   void defaultVisit(Node *) override {}
 
 public:
+
+    bool childrenFirst;
   /// Constructs an operator.
   /// @param childrenFirst true if children should be visited first
   explicit Operator(bool childrenFirst = false) : childrenFirst(childrenFirst) {}
