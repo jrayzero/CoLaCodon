@@ -137,6 +137,16 @@ void CloneVisitor::visit(const ForFlow *v) {
   result = loop;
 }
 
+void CloneVisitor::visit(const PreambledForFlow *v) {
+  auto *loop = Nt(v, nullptr, nullptr, nullptr, nullptr);
+  forceRemap(v, loop);
+  loop->setIter(clone(v->getIter()));
+  loop->setBody(clone(v->getBody()));
+  loop->setVar(clone(v->getVar()));
+  loop->setPreamble(cast<SeriesFlow>(clone(v->getPreamble())));
+  result = loop;
+}
+
 void CloneVisitor::visit(const ImperativeForFlow *v) {
   auto *loop = Nt(v, nullptr, v->getStep(), nullptr, nullptr, nullptr);
   forceRemap(v, loop);

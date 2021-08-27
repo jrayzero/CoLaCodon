@@ -91,6 +91,7 @@ public:
   LAMBDA_VISIT(IfFlow);
   LAMBDA_VISIT(WhileFlow);
   LAMBDA_VISIT(ForFlow);
+  LAMBDA_VISIT(PreambledForFlow);
   LAMBDA_VISIT(ImperativeForFlow);
   LAMBDA_VISIT(TryCatchFlow);
   LAMBDA_VISIT(PipelineFlow);

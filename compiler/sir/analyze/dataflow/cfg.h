@@ -452,6 +452,7 @@ public:
   void visit(const IfFlow *v) override;
   void visit(const WhileFlow *v) override;
   void visit(const ForFlow *v) override;
+  void visit(const PreambledForFlow *v) override;
   void visit(const ImperativeForFlow *v) override;
 
   void visit(const TryCatchFlow *v) override;

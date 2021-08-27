@@ -166,6 +166,68 @@ protected:
   int doReplaceUsedVariable(id_t id, Var *newVar) override;
 };
 
+/// Flow representing a for loop with a preamble holding the assignments
+/// that extract data from the var tuple.
+class PreambledForFlow : public AcceptorExtend<PreambledForFlow, Flow> {
+private:
+  
+  /// the iterator
+  Value *iter;
+  /// the body
+  Value *body;
+
+  /// the variable
+  Var *var;
+
+  SeriesFlow *preamble;
+
+public:
+  static const char NodeId;
+
+  /// Constructs a for loop.
+  /// @param iter the iterator
+  /// @param body the body
+  /// @param var the variable
+  /// @param name the flow's name
+ PreambledForFlow(Value *iter, Flow *body, Var *var, SeriesFlow *preamble, std::string name = "")
+   : AcceptorExtend(std::move(name)), iter(iter), body(body), var(var), preamble(preamble) {}
+
+  /// @return the iter
+  Value *getIter() { return iter; }
+  /// @return the iter
+  const Value *getIter() const { return iter; }
+  /// Sets the iter.
+  /// @param f the new iter
+  void setIter(Value *f) { iter = f; }
+
+  /// @return the body
+  Flow *getBody() { return cast<Flow>(body); }
+  /// @return the body
+  const Flow *getBody() const { return cast<Flow>(body); }
+  /// Sets the body.
+  /// @param f the new body
+  void setBody(Flow *f) { body = f; }
+
+  /// @return the var
+  Var *getVar() { return var; }
+  /// @return the var
+  const Var *getVar() const { return var; }
+  /// Sets the var.
+  /// @param c the new var
+  void setVar(Var *c) { var = c; }
+
+  SeriesFlow *getPreamble() { return preamble; }
+  const SeriesFlow *getPreamble() const { return preamble; }  
+  void setPreamble(SeriesFlow *flow) { preamble = flow; }
+
+protected:
+    std::vector<Value *> doGetUsedValues() const override { return {iter, preamble, body}; }
+  int doReplaceUsedValue(id_t id, Value *newValue) override;
+
+  std::vector<Var *> doGetUsedVariables() const override { return {var}; }
+  int doReplaceUsedVariable(id_t id, Var *newVar) override;
+};
+
 /// Flow representing an imperative for loop.
 class ImperativeForFlow : public AcceptorExtend<ImperativeForFlow, Flow> {
 private:

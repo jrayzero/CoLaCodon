@@ -218,35 +218,6 @@ void CFVisitor::visit(const ForFlow *v) {
   graph->setCurrentBlock(end);
 }
 
-void CFVisitor::visit(const PreambledForFlow *v) {
-  auto *original = graph->getCurrentBlock();
-  auto *end = graph->newBlock("endFor");
-
-  auto *loopBegin = graph->newBlock("forBegin", true);
-  original->successors_insert(loopBegin);
-  process(v->getIter());
-
-  auto *loopCheck = graph->newBlock("forCheck");
-  graph->getCurrentBlock()->successors_insert(loopCheck);
-  loopCheck->successors_insert(end);
-
-  auto *loopNext = graph->newBlock("forNext");
-  loopCheck->successors_insert(loopNext);
-  loopNext->push_back(graph->N<analyze::dataflow::SyntheticAssignInstr>(
-      const_cast<Var *>(v->getVar()), const_cast<Value *>(v->getIter()),
-      analyze::dataflow::SyntheticAssignInstr::NEXT_VALUE));
-
-  loopStack.emplace_back(loopCheck, end, v->getId(), tryCatchStack.size() - 1);
-  auto *loopBody = graph->newBlock("forBody", true);
-  loopNext->successors_insert(loopBody);
-  process(v->getPreamble());
-  process(v->getBody());
-  graph->getCurrentBlock()->successors_insert(loopCheck);
-  loopStack.pop_back();
-
-  graph->setCurrentBlock(end);
-}
-
 void CFVisitor::visit(const ImperativeForFlow *v) {
   auto *original = graph->getCurrentBlock();
   auto *end = graph->newBlock("endFor");

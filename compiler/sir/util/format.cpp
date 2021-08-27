@@ -171,6 +171,10 @@ public:
     fmt::print(os, FMT_STRING("(for {}\n{}\n{}\n)"), makeFormatter(v->getIter()),
                makeFormatter(v->getVar()), makeFormatter(v->getBody()));
   }
+  void visit(const PreambledForFlow *v) override {
+    fmt::print(os, FMT_STRING("(for {}\n{}\n{}\n{}\n)"), makeFormatter(v->getIter()),
+               makeFormatter(v->getVar()), makeFormatter(v->getPreamble()), makeFormatter(v->getBody()));
+  }  
   void visit(const ImperativeForFlow *v) override {
     fmt::print(os, FMT_STRING("(imp_for {}\n{}\n{}\n{}\n{}\n)"),
                makeFormatter(v->getStart()), v->getStep(), makeFormatter(v->getEnd()),

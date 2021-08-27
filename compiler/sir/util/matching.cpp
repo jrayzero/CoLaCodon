@@ -107,6 +107,11 @@ public:
     result = process(x->getIter(), y->getIter()) &&
              process(x->getBody(), y->getBody()) && process(x->getVar(), y->getVar());
   }
+  VISIT(PreambledForFlow);
+  void handle(const PreambledForFlow *x, const PreambledForFlow *y) {
+    result = process(x->getIter(), y->getIter()) &&
+      process(x->getBody(), y->getBody()) && process(x->getVar(), y->getVar()) && process(x->getPreamble(), y->getPreamble());
+  }
   VISIT(ImperativeForFlow);
   void handle(const ImperativeForFlow *x, const ImperativeForFlow *y) {
     result = process(x->getVar(), y->getVar()) && process(x->getBody(), y->getBody()) &&

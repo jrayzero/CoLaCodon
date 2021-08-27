@@ -75,6 +75,37 @@ int ForFlow::doReplaceUsedVariable(id_t id, Var *newVar) {
   return 0;
 }
 
+const char PreambledForFlow::NodeId = 0;
+
+int PreambledForFlow::doReplaceUsedValue(id_t id, Value *newValue) {
+  auto count = 0;
+  if (iter->getId() == id) {
+    iter = newValue;
+    ++count;
+  }
+  if (body->getId() == id) {
+    auto *f = cast<Flow>(newValue);
+    seqassert(f, "{} is not a flow", *newValue);
+    body = f;
+    ++count;
+  }
+  if (preamble->getId() == id) {
+    auto *f = cast<SeriesFlow>(newValue);
+    seqassert(f, "{} is not a seriesflow", *newValue);
+    preamble = f;
+    ++count;
+  }  
+  return count;
+}
+
+int PreambledForFlow::doReplaceUsedVariable(id_t id, Var *newVar) {
+  if (var->getId() == id) {
+    var = newVar;
+    return 1;
+  }
+  return 0;
+}
+
 const char ImperativeForFlow::NodeId = 0;
 
 int ImperativeForFlow::doReplaceUsedValue(id_t id, Value *newValue) {
