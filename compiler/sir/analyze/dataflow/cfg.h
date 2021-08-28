@@ -443,7 +443,7 @@ public:
 
   analyze::dataflow::CFGraph *getGraph() { return graph; }
   
-  void visit(const BodiedFunc *f) override { process(f->getBody()); }
+  void visit(const BodiedFunc *f) override;// { process(f->getBody()); }
 
   DEFAULT_VISIT(VarValue)
   DEFAULT_VISIT(PointerValue)
