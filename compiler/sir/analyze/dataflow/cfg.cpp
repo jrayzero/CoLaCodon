@@ -155,14 +155,6 @@ void CFVisitor::visit(const SeriesFlow *v) {
   }
 }
 
-void CFVisitor::visit(const BodiedFunc *f) {
-  auto *blk = graph->getCurrentBlock();
-  for (auto it = f->arg_begin(); it != f->arg_end(); it++) {    
-    blk->push_back(graph->N<analyze::dataflow::SyntheticAssignInstr>(const_cast<Var*>(*it), const_cast<VarValue*>(f->getModule()->Nr<VarValue>(*it))));
-  }
-  process(f->getBody());
-}
-
 void CFVisitor::visit(const IfFlow *v) {
   process(v->getCond());
   auto *original = graph->getCurrentBlock();
