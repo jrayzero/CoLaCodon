@@ -1,8 +1,8 @@
 #pragma once
 
 #define SEQ_VERSION_MAJOR 0
-#define SEQ_VERSION_MINOR 10
-#define SEQ_VERSION_PATCH 3
+#define SEQ_VERSION_MINOR 11
+#define SEQ_VERSION_PATCH 0
 
 #include <cassert>
 #include <climits>
@@ -38,6 +38,16 @@ extern int _level;
     if (_dbg_level & (1 << 4))                                                         \
       DBG(c, ##__VA_ARGS__);                                                           \
   }
+#define LOG_IR(c, ...)                                                                 \
+  {                                                                                    \
+    if (_dbg_level & (1 << 6))                                                         \
+      DBG(c, ##__VA_ARGS__);                                                           \
+  }
+#define LOG_USER(c, ...)                                                               \
+  {                                                                                    \
+    if (_dbg_level & (1 << 7))                                                         \
+      DBG(c, ##__VA_ARGS__);                                                           \
+  }
 #define CAST(s, T) dynamic_cast<T *>(s.get())
 
 #ifndef NDEBUG
@@ -54,15 +64,16 @@ void _seqassert(const char *expr_str, const char *file, int line,
 namespace seq {
 struct SrcInfo {
   std::string file;
-  int line, endLine;
-  int col, endCol;
+  int line;
+  int col;
+  int len;
   int id; /// used to differentiate different
-  SrcInfo(std::string file, int line, int endLine, int col, int endCol)
-      : file(std::move(file)), line(line), endLine(endLine), col(col), endCol(endCol) {
+  SrcInfo(std::string file, int line, int col, int len)
+      : file(std::move(file)), line(line), col(col), len(len) {
     static int _id(0);
     id = _id++;
   };
-  SrcInfo() : SrcInfo("", 0, 0, 0, 0){};
+  SrcInfo() : SrcInfo("", 0, 0, 0){};
   friend std::ostream &operator<<(std::ostream &out, const seq::SrcInfo &c) {
     char buf[PATH_MAX + 1];
     strncpy(buf, c.file.c_str(), PATH_MAX);
@@ -93,20 +104,4 @@ void compilationError(const std::string &msg, const std::string &file = "",
 
 void compilationWarning(const std::string &msg, const std::string &file = "",
                         int line = 0, int col = 0, bool terminate = false);
-
-namespace exc {
-class SeqException : public SrcObject, public std::runtime_error {
-public:
-  SeqException(const std::string &msg, SrcInfo info) noexcept
-      : SrcObject(), std::runtime_error(msg) {
-    setSrcInfo(std::move(info));
-  }
-
-  explicit SeqException(const std::string &msg) noexcept : SeqException(msg, {}) {}
-
-  SeqException(const SeqException &e) noexcept
-      : SrcObject(e), std::runtime_error(e) // NOLINT
-  {}
-};
-} // namespace exc
 } // namespace seq

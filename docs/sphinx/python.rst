@@ -13,8 +13,12 @@ Python shared library:
 
     export SEQ_PYTHON=/path/to/libpython.X.Y.so
 
-For example, with a ``brew``-installed Python 3.8 on macOS, this might be
-``/usr/local/Cellar/python@3.8/3.8.8_1/Frameworks/Python.framework/Versions/3.8/lib/libpython3.8.dylib``.
+For example, with a ``brew``-installed Python 3.9 on macOS, this might be
+
+.. code-block:: bash
+
+    /usr/local/opt/python@3.9/Frameworks/Python.framework/Versions/3.9/lib/libpython3.9.dylib
+
 Note that only Python versions 3.6 and later are supported.
 
 ``from python import``
@@ -27,23 +31,20 @@ Let's say we have a Python function defined in *mymodule.py*:
     def multiply(a, b):
         return a * b
 
-We can call this function in Seq using ``from python import``:
+We can call this function in Seq using ``from python import`` and indicating the appropriate
+call and return types:
 
 .. code-block:: seq
 
-    from python import mymodule.multiply() -> int
-    print multiply(3, 4)  # 12
+    from python import mymodule.multiply(int, int) -> int
+    print(multiply(3, 4))  # 12
 
 (Be sure the ``PYTHONPATH`` environment variable includes the path of *mymodule.py*!)
-
-Be sure to pass ``()`` to ``from python import`` regardless of the number of arguments the Python function takes;
-Seq will pass all arguments at invocation time (e.g. ``multiply(1, 2)``). This is useful if the number
-of arguments to a given Python functions is variable.
 
 ``@python``
 -----------
 
-Seq programs can contains functions that will be executed by Python via ``pydef``:
+Seq programs can contain functions that will be executed by Python via ``pydef``:
 
 .. code-block:: seq
 
@@ -51,7 +52,7 @@ Seq programs can contains functions that will be executed by Python via ``pydef`
     def multiply(a: int, b: int) -> int:
         return a * b
 
-    print multiply(3, 4)  # 12
+    print(multiply(3, 4))  # 12
 
 This makes calling Python modules like NumPy very easy:
 
@@ -62,4 +63,4 @@ This makes calling Python modules like NumPy very easy:
         from numpy import arange
         return list(arange(n))
 
-    print myrange(5)  # [0, 1, 2, 3, 4]
+    print(myrange(5))  # [0, 1, 2, 3, 4]

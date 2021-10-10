@@ -29,9 +29,9 @@ copyright = u'2019-2021, seq-lang'
 author = u'seq-lang'
 
 # The short X.Y version
-version = u'0.10'
+version = u'0.11'
 # The full version, including alpha/beta/rc tags
-release = u'0.10.3'
+release = u'0.11.0'
 
 # Logo path
 html_logo = 'logo.png'
@@ -88,15 +88,17 @@ pygments_style = 'sphinx'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'sphinx_book_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
 html_theme_options = {
-    'style_nav_header_background': '#333131',
-    "collapse_navigation" : False
+    "repository_url": "https://github.com/seq-lang/seq",
+    "repository_branch": "develop",
+    "path_to_docs": "docs/sphinx/",
+    "use_repository_button": True,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
