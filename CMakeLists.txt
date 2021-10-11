@@ -92,7 +92,6 @@ set(SEQ_HPPFILES
     compiler/parser/visitors/visitor.h
     compiler/seq/pipeline.h
     compiler/seq/revcomp.h
-    compiler/seq/seq.h
     compiler/sir/analyze/analysis.h
     compiler/sir/analyze/dataflow/cfg.h
     compiler/sir/analyze/dataflow/dominator.h
@@ -188,7 +187,6 @@ set(SEQ_CPPFILES
     compiler/parser/visitors/visitor.cpp
     compiler/seq/pipeline.cpp
     compiler/seq/revcomp.cpp
-    compiler/seq/seq.cpp
     compiler/sir/attribute.cpp
     compiler/sir/analyze/analysis.cpp
     compiler/sir/analyze/dataflow/cfg.cpp
