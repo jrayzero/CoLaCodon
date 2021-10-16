@@ -456,8 +456,6 @@ void SimplifyVisitor::visit(FunctionStmt *stmt) {
       attr.set(Attr::Property);
     else if (d->isId(Attr::ForceRealize))
       attr.set(Attr::ForceRealize);
-    else if (d->isId("elemwise"))
-      attr.set("elemwise");
     else {
       // Let's check if this is a attribute
       auto dt = transform(clone(d));
@@ -715,8 +713,6 @@ void SimplifyVisitor::visit(ClassStmt *stmt) {
         error("extend is only allowed at the toplevel");
     } else if (d->isId(Attr::Internal)) {
       attr.set(Attr::Internal);
-    } else if (d->isId("elem")) {
-      attr.set("elem");
     }
   }
   for (int i = 1; i < hasMagic.size(); i++)

@@ -129,6 +129,11 @@ struct SideEfectAnalyzer : public util::ConstVisitor {
     set(v, s);
   }
 
+  void visit(const PreambledForFlow *v) override {
+    bool s = process(v->getIter()) | process(v->getBody()) | process(v->getPreamble());
+    set(v, s);
+  }
+
   void visit(const TryCatchFlow *v) override {
     bool s = process(v->getBody()) | process(v->getFinally());
     for (auto &x : *v) {
