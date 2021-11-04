@@ -11,6 +11,7 @@ def seq_str_uint(a: int) -> str: pass
 class int:
     @pure
     @llvm
+    @propagate
     def __new__() -> int:
         ret i64 0
     def __new__[T](what: T) -> int: # lowest priority!
@@ -19,6 +20,7 @@ class int:
         return self
     @pure
     @llvm
+    @propagate
     def __float__(self) -> float:
         %tmp = sitofp i64 %self to double
         ret double %tmp
@@ -30,6 +32,7 @@ class int:
         return self
     @pure
     @llvm
+    @propagate
     def __bool__(self) -> bool:
         %0 = icmp ne i64 %self, 0
         %1 = zext i1 %0 to i8
@@ -40,6 +43,7 @@ class int:
         return 0 - self
     @pure
     @llvm
+    @propagate
     def __abs__(self) -> int:
         %0 = icmp sgt i64 %self, 0
         %1 = sub i64 0, %self
@@ -47,11 +51,13 @@ class int:
         ret i64 %2
     @pure
     @llvm
+    @propagate
     def __lshift__(self, other: int) -> int:
         %0 = shl i64 %self, %other
         ret i64 %0
     @pure
     @llvm
+    @propagate
     def __rshift__(self, other: int) -> int:
         %0 = ashr i64 %self, %other
         ret i64 %0
@@ -59,18 +65,21 @@ class int:
     @commutative
     @associative
     @llvm
+    @propagate
     def __add__(self, b: int) -> int:
         %tmp = add i64 %self, %b
         ret i64 %tmp
     @pure
     @commutative
     @llvm
+    @propagate
     def __add__(self, other: float) -> float:
         %0 = sitofp i64 %self to double
         %1 = fadd double %0, %other
         ret double %1
     @pure
     @llvm
+    @propagate
     def __sub__(self, b: int) -> int:
         %tmp = sub i64 %self, %b
         ret i64 %tmp

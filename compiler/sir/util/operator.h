@@ -25,8 +25,6 @@ namespace util {
 /// Pass that visits all values in a module.
 class Operator : public Visitor {
 private:
-  /// IDs of previously visited nodes
-  std::unordered_set<id_t> seen;
   /// stack of IR nodes being visited
   std::vector<Node *> nodeStack;
   /// stack of iterators
@@ -35,7 +33,8 @@ private:
 
 protected:
   void defaultVisit(Node *) override {}
-
+  /// IDs of previously visited nodes
+  std::unordered_set<id_t> seen;
 public:
 
     bool childrenFirst;

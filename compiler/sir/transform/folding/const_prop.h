@@ -14,7 +14,7 @@ private:
   std::string reachingDefKey;
   /// Key of the global variables analysis
   std::string globalVarsKey;
-
+  bool did_propagate;
 public:
   static const std::string KEY;
 
@@ -25,6 +25,11 @@ public:
 
   std::string getKey() const override { return KEY; }
   void handle(VarValue *v) override;
+  void run(Module *module) override {
+    did_propagate = false;
+    OperatorPass::run(module);
+  }
+  bool shouldRepeat() const override { return did_propagate; }
 };
 
 } // namespace folding

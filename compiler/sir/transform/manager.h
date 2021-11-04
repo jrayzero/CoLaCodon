@@ -105,16 +105,16 @@ public:
   explicit PassManager(Init init, std::vector<std::string> disabled = {})
       : km(), passes(), analyses(), executionOrder(), results(),
         disabled(std::move(disabled)) {
-    switch (init) {
-    case Init::EMPTY:
-      break;
-    case Init::DEBUG:
-      registerStandardPasses(true);
-      break;
-    case Init::RELEASE:
-      registerStandardPasses(false);
-      break;
-    }
+//    switch (init) {
+//    case Init::EMPTY:
+//      break;
+//    case Init::DEBUG:
+//      registerStandardPasses(true);
+//      break;
+//    case Init::RELEASE:
+//      registerStandardPasses(false);
+//      break;
+//    }
   }
 
   explicit PassManager(bool debug = false, std::vector<std::string> disabled = {})
@@ -157,9 +157,10 @@ public:
     return std::find(disabled.begin(), disabled.end(), key) != disabled.end();
   }
 
+  void registerStandardPasses(bool debug = false);
+
 private:
   void runPass(Module *module, const std::string &name);
-  void registerStandardPasses(bool debug = false);
   void runAnalysis(Module *module, const std::string &name);
   void invalidate(const std::string &key);
 };

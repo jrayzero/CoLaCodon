@@ -17,12 +17,13 @@ private:
   Module *module;
   /// true if break/continue loops should be cloned
   bool cloneLoop;
-
+  // true if shouldn't return a copy of previous clone
+  bool alwaysClone;
 public:
   /// Constructs a clone visitor.
   /// @param module the module
   /// @param cloneLoop true if break/continue loops should be cloned
-  explicit CloneVisitor(Module *module, bool cloneLoop = true) : module(module) {}
+  explicit CloneVisitor(Module *module, bool cloneLoop = true, bool alwaysClone = false) : module(module) {}
 
   virtual ~CloneVisitor() noexcept = default;
 
@@ -76,7 +77,7 @@ public:
       return nullptr;
 
     auto id = other->getId();
-    if (ctx.find(id) == ctx.end()) {
+    if (alwaysClone || ctx.find(id) == ctx.end()) {
       other->accept(*this);
       ctx[id] = result;
 

@@ -68,6 +68,7 @@ void ConstPropPass::handle(VarValue *v) {
     replacement = cv.clone(constDef);
   }
   v->replaceAll(replacement);
+  did_propagate = true;
 }
 
 } // namespace folding
