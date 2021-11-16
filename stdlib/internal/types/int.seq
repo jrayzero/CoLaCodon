@@ -1,4 +1,4 @@
-from internal.attributes import commutative, associative, distributive
+from internal.attributes import commutative, associative, distributive,propagate
 
 @pure
 @C
@@ -85,6 +85,7 @@ class int:
         ret i64 %tmp
     @pure
     @llvm
+    @propagate
     def __sub__(self, other: float) -> float:
         %0 = sitofp i64 %self to double
         %1 = fsub double %0, %other
@@ -94,35 +95,42 @@ class int:
     @associative
     @distributive
     @llvm
+    @propagate
     def __mul__(self, b: int) -> int:
         %tmp = mul i64 %self, %b
         ret i64 %tmp
     @pure
     @commutative
     @llvm
+    @propagate
     def __mul__(self, other: float) -> float:
         %0 = sitofp i64 %self to double
         %1 = fmul double %0, %other
         ret double %1
     @pure
     @llvm
+    @propagate
     def __floordiv__(self, b: int) -> int:
         %tmp = sdiv i64 %self, %b
         ret i64 %tmp
     @pure
     @llvm
+    @propagate
     def floordiv2(self, b: int) -> int:
         %tmp = sdiv i64 %self, %b
         ret i64 %tmp
     @llvm
+    @propagate
     def floordiv3(self, b: int) -> int:
         %tmp = sdiv i64 %self, %b
         ret i64 %tmp
     @llvm
+    @propagate
     def floordiv4(self, b: int) -> int:
         %tmp = sdiv i64 %self, %b
         ret i64 %tmp                
     @llvm
+    @propagate
     def __floordiv__(self, other: float) -> float:
         declare double @llvm.floor.f64(double)
         %0 = sitofp i64 %self to double
@@ -131,6 +139,7 @@ class int:
         ret double %2
     @pure
     @llvm
+    @propagate
     def __truediv__(self, other: int) -> float:
         %0 = sitofp i64 %self to double
         %1 = sitofp i64 %other to double
@@ -138,27 +147,32 @@ class int:
         ret double %2
     @pure
     @llvm
+    @propagate
     def __truediv__(self, other: float) -> float:
         %0 = sitofp i64 %self to double
         %1 = fdiv double %0, %other
         ret double %1
     @pure
     @llvm
+    @propagate
     def __mod__(a: int, b: int) -> int:
         %tmp = srem i64 %a, %b
         ret i64 %tmp
     @pure
     @llvm
+    @propagate
     def mod3(a: int, b: int) -> int:
         %tmp = srem i64 %a, %b
         ret i64 %tmp        
     @llvm
+    @propagate
     def __mod__(self, other: float) -> float:
         %0 = sitofp i64 %self to double
         %1 = frem double %0, %other
         ret double %1
     @pure
     @llvm
+    @propagate
     def __invert__(a: int) -> int:
         %tmp = xor i64 %a, -1
         ret i64 %tmp
@@ -166,6 +180,7 @@ class int:
     @commutative
     @associative
     @llvm
+    @propagate
     def __and__(a: int, b: int) -> int:
         %tmp = and i64 %a, %b
         ret i64 %tmp
@@ -173,6 +188,7 @@ class int:
     @commutative
     @associative
     @llvm
+    @propagate
     def __or__(a: int, b: int) -> int:
         %tmp = or i64 %a, %b
         ret i64 %tmp
@@ -180,6 +196,7 @@ class int:
     @commutative
     @associative
     @llvm
+    @propagate
     def __xor__(a: int, b: int) -> int:
         %tmp = xor i64 %a, %b
         ret i64 %tmp
@@ -215,12 +232,14 @@ class int:
         ret i64 %tmp
     @pure
     @llvm
+    @propagate
     def __eq__(a: int, b: int) -> bool:
         %tmp = icmp eq i64 %a, %b
         %res = zext i1 %tmp to i8
         ret i8 %res
     @pure
     @llvm
+    @propagate
     def __eq__(self, b: float) -> bool:
         %0 = sitofp i64 %self to double
         %1 = fcmp oeq double %0, %b
@@ -228,12 +247,14 @@ class int:
         ret i8 %2
     @pure
     @llvm
+    @propagate
     def __ne__(a: int, b: int) -> bool:
         %tmp = icmp ne i64 %a, %b
         %res = zext i1 %tmp to i8
         ret i8 %res
     @pure
     @llvm
+    @propagate
     def __ne__(self, b: float) -> bool:
         %0 = sitofp i64 %self to double
         %1 = fcmp one double %0, %b
@@ -241,12 +262,14 @@ class int:
         ret i8 %2
     @pure
     @llvm
+    @propagate
     def __lt__(a: int, b: int) -> bool:
         %tmp = icmp slt i64 %a, %b
         %res = zext i1 %tmp to i8
         ret i8 %res
     @pure
     @llvm
+    @propagate
     def __lt__(self, b: float) -> bool:
         %0 = sitofp i64 %self to double
         %1 = fcmp olt double %0, %b
@@ -254,12 +277,14 @@ class int:
         ret i8 %2
     @pure
     @llvm
+    @propagate
     def __gt__(a: int, b: int) -> bool:
         %tmp = icmp sgt i64 %a, %b
         %res = zext i1 %tmp to i8
         ret i8 %res
     @pure
     @llvm
+    @propagate
     def __gt__(self, b: float) -> bool:
         %0 = sitofp i64 %self to double
         %1 = fcmp ogt double %0, %b
@@ -267,12 +292,14 @@ class int:
         ret i8 %2
     @pure
     @llvm
+    @propagate
     def __le__(a: int, b: int) -> bool:
         %tmp = icmp sle i64 %a, %b
         %res = zext i1 %tmp to i8
         ret i8 %res
     @pure
     @llvm
+    @propagate
     def __le__(self, b: float) -> bool:
         %0 = sitofp i64 %self to double
         %1 = fcmp ole double %0, %b
@@ -280,12 +307,14 @@ class int:
         ret i8 %2
     @pure
     @llvm
+    @propagate
     def __ge__(a: int, b: int) -> bool:
         %tmp = icmp sge i64 %a, %b
         %res = zext i1 %tmp to i8
         ret i8 %res
     @pure
     @llvm
+    @propagate
     def __ge__(self, b: float) -> bool:
         %0 = sitofp i64 %self to double
         %1 = fcmp oge double %0, %b

@@ -23,7 +23,7 @@ public:
   /// Constructs a clone visitor.
   /// @param module the module
   /// @param cloneLoop true if break/continue loops should be cloned
-  explicit CloneVisitor(Module *module, bool cloneLoop = true, bool alwaysClone = false) : module(module) {}
+  explicit CloneVisitor(Module *module, bool cloneLoop = true, bool alwaysClone = false) : module(module), cloneLoop(cloneLoop), alwaysClone(alwaysClone) {}
 
   virtual ~CloneVisitor() noexcept = default;
 

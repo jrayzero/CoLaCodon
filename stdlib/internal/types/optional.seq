@@ -1,10 +1,14 @@
+from internal.attributes import propagate
+
 @extend
 class Optional:
+    @propagate
     def __new__() -> Optional[T]:
         if isinstance(T, ByVal):
             return __internal__.opt_tuple_new(T)
         else:
             return __internal__.opt_ref_new(T)
+    @propagate
     def __new__(what: T) -> Optional[T]:
         if isinstance(T, ByVal):
             return __internal__.opt_tuple_new_arg(what, T)

@@ -38,7 +38,7 @@ def distributive():
 def C():
     pass
 
-# The propagate annot means that the function can be freely copy propagated around. It implies that the annotated
+# The propagate annot means that the function can be freely copy propagated around (assuming the parameters are also propagatable). It implies that the annotated
 # function is also pure
 @__attribute__
 def propagate():

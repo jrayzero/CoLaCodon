@@ -33,7 +33,7 @@ void GlobalDemotionPass::run(Module *M) {
       func->accept(globals);
 
       for (auto *g : globals.vars) {
-        LOG_IR("[{}] global {} used in {}", KEY, *g, func->getName());
+//        LOG_IR("[{}] global {} used in {}", KEY, *g, func->getName());
         auto it = localGlobals.find(g);
         if (it == localGlobals.end()) {
           localGlobals.emplace(g, func);
@@ -52,7 +52,7 @@ void GlobalDemotionPass::run(Module *M) {
     if (auto *func = cast<BodiedFunc>(it.second)) {
       func->push_back(it.first);
       ++numDemotions;
-      LOG_IR("[{}] demoted {} to a local of {}", KEY, *it.first, func->getName());
+//      LOG_IR("[{}] demoted {} to a local of {}", KEY, *it.first, func->getName());
     }
   }
 }
