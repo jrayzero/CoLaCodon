@@ -134,6 +134,11 @@ struct SideEfectAnalyzer : public util::ConstVisitor {
     set(v, s);
   }
 
+  void visit(const WaveFlow *v) override {
+    bool s = process(v->getLocation()) | process(v->getGridItems()) | process(v->getBody());
+    set(v, s);
+  }  
+
   void visit(const TryCatchFlow *v) override {
     bool s = process(v->getBody()) | process(v->getFinally());
     for (auto &x : *v) {
@@ -237,6 +242,12 @@ struct SideEfectAnalyzer : public util::ConstVisitor {
 
   void visit(const ReturnInstr *v) override {
     process(v->getValue());
+    set(v, true);
+  }
+
+  void visit(const DependsOnInstr *v) override {
+    process(v->getLocation());
+    process(v->getDepends());
     set(v, true);
   }
 

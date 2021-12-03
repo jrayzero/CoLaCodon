@@ -571,5 +571,38 @@ protected:
   int doReplaceUsedValue(id_t id, Value *newValue) override;
 };
 
+class DependsOnInstr : public AcceptorExtend<DependsOnInstr, Instr> {
+private:
+  Value *location;
+  Value *depends;
+public:
+
+  DependsOnInstr(Value *location, Value *depends, std::string name = "") : 
+    AcceptorExtend(std::move(name)), location(location), depends(depends) { }
+
+  static const char NodeId;
+
+  /// @return the iter
+  Value *getLocation() { return location; }
+  /// @return the location
+  const Value *getLocation() const { return location; }
+  /// Sets the location.
+  /// @param f the new location
+  void setLocation(Value *f) { location = f; }
+
+  /// @return the depends
+  Value *getDepends() { return depends; }
+  /// @return the depends
+  const Value *getDepends() const { return depends; }
+  /// Sets the depends.
+  /// @param f the new depends
+  void setDepends(Value *f) { depends = f; }
+
+protected:
+  std::vector<Value *> doGetUsedValues() const override { return {location, depends}; }
+  int doReplaceUsedValue(id_t id, Value *newValue) override;
+
+};
+
 } // namespace ir
 } // namespace seq

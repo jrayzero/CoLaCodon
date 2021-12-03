@@ -90,6 +90,7 @@ public:
   LAMBDA_VISIT(IfFlow);
   LAMBDA_VISIT(WhileFlow);
   LAMBDA_VISIT(ForFlow);
+  LAMBDA_VISIT(WaveFlow);
   LAMBDA_VISIT(PreambledForFlow);
   LAMBDA_VISIT(ImperativeForFlow);
   LAMBDA_VISIT(TryCatchFlow);
@@ -117,6 +118,7 @@ public:
   LAMBDA_VISIT(YieldInstr);
   LAMBDA_VISIT(ThrowInstr);
   LAMBDA_VISIT(FlowInstr);
+  LAMBDA_VISIT(DependsOnInstr);
   LAMBDA_VISIT(dsl::CustomInstr);
 
   template <typename Node> void process(Node *v) { v->accept(*this); }

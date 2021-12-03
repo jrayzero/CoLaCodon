@@ -261,5 +261,20 @@ int FlowInstr::doReplaceUsedValue(id_t id, Value *newValue) {
   return replacements;
 }
 
+const char DependsOnInstr::NodeId = 0;
+
+int DependsOnInstr::doReplaceUsedValue(id_t id, Value *newValue) {
+  auto replacements = 0;
+  if (location->getId() == id) {
+    setLocation(newValue);
+    ++replacements;
+  }
+  if (depends->getId() == id) {
+    setDepends(newValue);
+    ++replacements;
+  }
+  return replacements;  
+}
+
 } // namespace ir
 } // namespace seq

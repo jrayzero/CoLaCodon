@@ -73,6 +73,9 @@ struct TypeContext : public Context<TypecheckItem> {
   /// (e.g. class A: def __init__(a: A = A())).
   set<string> defaultCallDepth;
 
+  // these should never be nested
+  bool in_depends = false;
+
 public:
   explicit TypeContext(shared_ptr<Cache> cache);
 

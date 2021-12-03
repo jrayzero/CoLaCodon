@@ -25,7 +25,7 @@ void DeadCodeCleanupPass::handle(SeriesFlow *v) {
   auto it = v->begin();
   while (it != v->end()) {
     if (!r->hasSideEffect(*it)) {
-      LOG_IR("[{}] no side effect, deleting: {}", KEY, **it);
+//      LOG_IR("[{}] no side effect, deleting: {}", KEY, **it);
       numReplacements++;
       it = v->erase(it);
     } else {

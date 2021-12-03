@@ -164,6 +164,30 @@ string ForStmt::toString(int indent) const {
 }
 ACCEPT_IMPL(ForStmt, ASTVisitor);
 
+WaveStmt::WaveStmt(ExprPtr var, ExprPtr location, ExprPtr grid_dims, StmtPtr suite)
+  : Stmt(), var(move(var)), location(move(location)), grid_dims(move(grid_dims)), suite(move(suite)) { }
+WaveStmt::WaveStmt(const WaveStmt &stmt)
+  : Stmt(stmt), var(ast::clone(stmt.var)), location(ast::clone(stmt.location)), grid_dims(ast::clone(stmt.grid_dims)),
+    suite(ast::clone(stmt.suite)) { }
+string WaveStmt::toString(int indent) const {
+  string pad = indent > 0 ? ("\n" + string(indent + INDENT_SIZE, ' ')) : " ";
+  string attr;
+  if (!attr.empty())
+    attr = " #:attr" + attr;
+  return format("(wave {} {}{}{}{}{})", var->toString(), location->toString(), grid_dims->toString(), attr, pad,
+		suite->toString(indent >= 0 ? indent + INDENT_SIZE : -1));
+}
+ACCEPT_IMPL(WaveStmt, ASTVisitor);
+
+DependsOnStmt::DependsOnStmt(ExprPtr location, ExprPtr depends) : location(move(location)), depends(move(depends)) { }
+DependsOnStmt::DependsOnStmt(const DependsOnStmt &stmt) : location(ast::clone(stmt.location)), depends(ast::clone(stmt.depends)) { }
+string DependsOnStmt::toString(int indent) const {
+  string pad = indent > 0 ? ("\n" + string(indent + INDENT_SIZE, ' ')) : " ";
+  string attr;
+  return format("({} depends on {})", location->toString(), depends->toString());
+}
+ACCEPT_IMPL(DependsOnStmt, ASTVisitor);
+
 IfStmt::IfStmt(ExprPtr cond, StmtPtr ifSuite, StmtPtr elseSuite)
     : Stmt(), cond(move(cond)), ifSuite(move(ifSuite)), elseSuite(move(elseSuite)) {}
 IfStmt::IfStmt(const IfStmt &stmt)

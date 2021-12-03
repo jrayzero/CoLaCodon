@@ -339,7 +339,8 @@ public:
   /// codegenMagic() method below).
   void visit(ClassStmt *) override;
   void visit(CustomStmt *) override;
-
+  void visit(WaveStmt *) override;
+  void visit(DependsOnStmt *) override;
   using CallbackASTVisitor<ExprPtr, StmtPtr>::transform;
 
 private:

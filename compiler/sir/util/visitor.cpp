@@ -21,6 +21,7 @@ void Visitor::visit(SeriesFlow *x) { defaultVisit(x); }
 void Visitor::visit(IfFlow *x) { defaultVisit(x); }
 void Visitor::visit(WhileFlow *x) { defaultVisit(x); }
 void Visitor::visit(ForFlow *x) { defaultVisit(x); }
+void Visitor::visit(WaveFlow *x) { defaultVisit(x); }
 void Visitor::visit(PreambledForFlow *x) { defaultVisit(x); }
 void Visitor::visit(ImperativeForFlow *x) { defaultVisit(x); }
 void Visitor::visit(TryCatchFlow *x) { defaultVisit(x); }
@@ -47,6 +48,7 @@ void Visitor::visit(TypePropertyInstr *x) { defaultVisit(x); }
 void Visitor::visit(YieldInstr *x) { defaultVisit(x); }
 void Visitor::visit(ThrowInstr *x) { defaultVisit(x); }
 void Visitor::visit(FlowInstr *x) { defaultVisit(x); }
+void Visitor::visit(DependsOnInstr *x) { defaultVisit(x); }
 void Visitor::visit(dsl::CustomInstr *x) { defaultVisit(x); }
 void Visitor::visit(types::Type *x) { defaultVisit(x); }
 void Visitor::visit(types::PrimitiveType *x) { defaultVisit(x); }
@@ -79,6 +81,7 @@ void ConstVisitor::visit(const SeriesFlow *x) { defaultVisit(x); }
 void ConstVisitor::visit(const IfFlow *x) { defaultVisit(x); }
 void ConstVisitor::visit(const WhileFlow *x) { defaultVisit(x); }
 void ConstVisitor::visit(const ForFlow *x) { defaultVisit(x); }
+void ConstVisitor::visit(const WaveFlow *x) { defaultVisit(x); }
 void ConstVisitor::visit(const PreambledForFlow *x) { defaultVisit(x); }
 void ConstVisitor::visit(const ImperativeForFlow *x) { defaultVisit(x); }
 void ConstVisitor::visit(const TryCatchFlow *x) { defaultVisit(x); }
@@ -105,6 +108,7 @@ void ConstVisitor::visit(const TypePropertyInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const YieldInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const ThrowInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const FlowInstr *x) { defaultVisit(x); }
+void ConstVisitor::visit(const DependsOnInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const dsl::CustomInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const types::Type *x) { defaultVisit(x); }
 void ConstVisitor::visit(const types::PrimitiveType *x) { defaultVisit(x); }

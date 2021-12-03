@@ -1746,5 +1746,36 @@ vector<StmtPtr> SimplifyVisitor::getClassMethods(const StmtPtr &s) {
   return v;
 }
 
+void SimplifyVisitor::visit(WaveStmt *stmt) {
+  auto loc = transform(stmt->location);
+  auto grid_dims = transform(stmt->grid_dims);
+  StmtPtr assign = nullptr, waveStmt = nullptr;
+  ctx->wave_loops.push("wave");
+  ctx->addBlock();
+  if (auto i = stmt->var->getId()) {
+    ctx->add(SimplifyItem::Var, i->value, ctx->generateCanonicalName(i->value));
+    waveStmt = N<WaveStmt>(transform(stmt->var), clone(loc), clone(grid_dims), transform(stmt->suite));
+  } else {
+    string varName = ctx->cache->getTemporaryVar("wave");
+    ctx->add(SimplifyItem::Var, varName, varName);
+    auto var = N<IdExpr>(varName);
+    vector<StmtPtr> stmts;
+    stmts.push_back(N<AssignStmt>(clone(stmt->var), clone(var), nullptr, true));
+    stmts.push_back(clone(stmt->suite));
+    waveStmt = N<WaveStmt>(clone(var), clone(loc), clone(grid_dims), transform(N<SuiteStmt>(stmts)));
+  }
+  ctx->popBlock();
+  ctx->wave_loops.pop();
+  resultStmt = waveStmt;
+}
+
+void SimplifyVisitor::visit(DependsOnStmt *stmt) {
+  if (ctx->wave_loops.empty())
+    error("depends on must be in wave body");
+  if (stmt->depends->getNone())
+    error("depends on cannot be None!");    
+  resultStmt = N<DependsOnStmt>(transform(stmt->location), transform(stmt->depends));
+}
+
 } // namespace ast
 } // namespace seq

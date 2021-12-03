@@ -114,6 +114,8 @@ public:
   void visit(AssertStmt *) override;
   void visit(WhileStmt *) override;
   void visit(ForStmt *) override;
+  void visit(WaveStmt *) override;
+  void visit(DependsOnStmt *) override;
   void visit(IfStmt *) override;
   void visit(MatchStmt *) override;
   void visit(ImportStmt *) override;

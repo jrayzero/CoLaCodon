@@ -304,6 +304,12 @@ void FormatVisitor::visit(ForStmt *stmt) {
                        transform(stmt->suite.get(), 1));
 }
 
+void FormatVisitor::visit(WaveStmt *stmt) {
+  result = fmt::format("{} {} {} {} {}:{}{}", keyword("wave"), transform(stmt->var),
+                       keyword("in"), transform(stmt->location), transform(stmt->grid_dims), newline(),
+                       transform(stmt->suite.get(), 1));
+}
+
 void FormatVisitor::visit(IfStmt *stmt) {
   result = fmt::format("{} {}:{}{}{}", keyword("if"), transform(stmt->cond), newline(),
                        transform(stmt->ifSuite.get(), 1),
@@ -311,7 +317,10 @@ void FormatVisitor::visit(IfStmt *stmt) {
                                                 transform(stmt->elseSuite.get(), 1))
                                        : "");
 }
-
+void FormatVisitor::visit(DependsOnStmt *stmt) {
+  result = fmt::format("{} {} {}", transform(stmt->location), keyword("depends on"), 
+		       transform(stmt->depends));
+}
 void FormatVisitor::visit(MatchStmt *stmt) {
   string s;
   for (auto &c : stmt->cases)

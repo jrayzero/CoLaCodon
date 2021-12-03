@@ -452,6 +452,7 @@ public:
   void visit(const ForFlow *v) override;
   void visit(const PreambledForFlow *v) override;
   void visit(const ImperativeForFlow *v) override;
+  void visit(const WaveFlow *v) override;
 
   void visit(const TryCatchFlow *v) override;
   void visit(const PipelineFlow *v) override;
@@ -479,6 +480,7 @@ public:
   void visit(const YieldInstr *v) override;
   void visit(const ThrowInstr *v) override;
   void visit(const FlowInstr *v) override;
+  void visit(const DependsOnInstr *v) override;
   void visit(const dsl::CustomInstr *v) override;
 
   template <typename NodeType> void process(const NodeType *v) {

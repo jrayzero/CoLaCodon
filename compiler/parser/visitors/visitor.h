@@ -77,6 +77,8 @@ public:
   virtual void visit(AssertStmt *);
   virtual void visit(WhileStmt *);
   virtual void visit(ForStmt *);
+  virtual void visit(WaveStmt *);
+  virtual void visit(DependsOnStmt *);
   virtual void visit(IfStmt *);
   virtual void visit(MatchStmt *);
   virtual void visit(ImportStmt *);
@@ -201,6 +203,8 @@ struct ReplaceASTVisitor : public ASTVisitor {
   void visit(AssertStmt *) override;
   void visit(WhileStmt *) override;
   void visit(ForStmt *) override;
+  void visit(WaveStmt *) override;
+  void visit(DependsOnStmt *) override;
   void visit(IfStmt *) override;
   void visit(MatchStmt *) override;
   void visit(ImportStmt *) override;

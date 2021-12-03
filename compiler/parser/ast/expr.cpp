@@ -336,7 +336,9 @@ string DotExpr::toString() const {
 ACCEPT_IMPL(DotExpr, ASTVisitor);
 
 SliceExpr::SliceExpr(ExprPtr start, ExprPtr stop, ExprPtr step)
-    : Expr(), start(move(start)), stop(move(stop)), step(move(step)) {}
+    : Expr(), start(move(start)), stop(move(stop)), step(move(step)) {
+
+}
 SliceExpr::SliceExpr(const SliceExpr &expr)
     : Expr(expr), start(ast::clone(expr.start)), stop(ast::clone(expr.stop)),
       step(ast::clone(expr.step)) {}

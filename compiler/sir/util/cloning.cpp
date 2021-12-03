@@ -146,6 +146,16 @@ void CloneVisitor::visit(const ForFlow *v) {
   result = loop;
 }
 
+void CloneVisitor::visit(const WaveFlow *v) {
+  auto *loop = Nt(v, nullptr, nullptr, nullptr, nullptr);
+  forceRemap(v, loop);
+  loop->setLocation(clone(v->getLocation()));
+  loop->setGridItems(clone(v->getGridItems()));
+  loop->setBody(clone(v->getBody()));
+  loop->setVar(clone(v->getVar()));
+  result = loop;
+}
+
 void CloneVisitor::visit(const PreambledForFlow *v) {
   auto *loop = Nt(v, nullptr, nullptr, nullptr, nullptr);
   forceRemap(v, loop);
@@ -264,6 +274,10 @@ void CloneVisitor::visit(const ThrowInstr *v) { result = Nt(v, clone(v->getValue
 
 void CloneVisitor::visit(const FlowInstr *v) {
   result = Nt(v, clone(v->getFlow()), clone(v->getValue()));
+}
+
+void CloneVisitor::visit(const DependsOnInstr *v) {
+  result = Nt(v, clone(v->getLocation()), clone(v->getDepends()));
 }
 
 void CloneVisitor::visit(const dsl::CustomInstr *v) { result = v->doClone(*this); }

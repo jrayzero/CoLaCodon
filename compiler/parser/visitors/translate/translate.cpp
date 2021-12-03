@@ -317,6 +317,24 @@ void TranslateVisitor::visit(ForStmt *stmt) {
   result = loop;
 }
 
+void TranslateVisitor::visit(WaveStmt *stmt) {
+  seqassert(stmt->var->getId(), "expected IdExpr, got {}", stmt->var->toString());
+  auto varName = stmt->var->getId()->value;
+  auto var = make<ir::Var>(stmt, getType(stmt->var->getType()), false, varName);
+  ctx->getBase()->push_back(var);
+  auto bodySeries = make<ir::SeriesFlow>(stmt, "body");
+  auto loop = make<ir::WaveFlow>(stmt, transform(stmt->location), transform(stmt->grid_dims), bodySeries, var);
+  ctx->add(TranslateItem::Var, varName, var);
+  ctx->addSeries(cast<ir::SeriesFlow>(loop->getBody()));
+  transform(stmt->suite);
+  ctx->popSeries();
+  result = loop;
+}
+
+void TranslateVisitor::visit(DependsOnStmt *stmt) {
+  result = make<ir::DependsOnInstr>(stmt, transform(stmt->location), transform(stmt->depends));
+}
+
 void TranslateVisitor::visit(IfStmt *stmt) {
   auto cond = transform(stmt->cond);
   auto trueSeries = make<ir::SeriesFlow>(stmt, "ifstmt_true");

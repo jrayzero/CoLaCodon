@@ -62,6 +62,7 @@ small_stmt <-
   / 'continue' &(SPACE / ';' / EOL) { return any(ast<ContinueStmt>(LOC)); }
   / global_stmt
   / yield_stmt
+  / dependson_stmt
   / assert_stmt
   / del_stmt
   / return_stmt
@@ -109,6 +110,8 @@ yield_stmt <-
   / 'yield' (SPACE expressions)? {
     return ast<YieldStmt>(LOC, !VS.empty() ? ac_expr(V0) : nullptr);
   }
+dependson_stmt <-
+  / expression SPACE 'depends' SPACE 'on' SPACE expression { return ast<DependsOnStmt>(LOC, ac_expr(V0), ac_expr(V1)); }
 assert_stmt <- 'assert' SPACE expression (_ ',' _ expression)? {
   return ast<AssertStmt>(LOC, ac_expr(V0), VS.size() > 1 ? ac_expr(V1) : nullptr);
 }
@@ -201,6 +204,7 @@ compound_stmt <-
   / class
   / with_stmt
   / for
+  / wavefor_stmt
   / try_stmt
   / while_stmt
   / match_stmt
@@ -243,6 +247,14 @@ for_stmt <- ('for' SPACE star_targets)
             (SAMEDENT 'else' (SPACE 'not' SPACE 'break')* _ ':' _ suite)? {
   return ast<ForStmt>(LOC,
     ac_expr(V0), ac_expr(V1), ac_stmt(V2), VS.size() > 3 ? ac_stmt(VS[3]) : nullptr
+  );
+}
+# TODO make this take multiple locs using star_expressions
+wavefor_stmt <- ('for' SPACE star_targets)
+            (SPACE 'in' SPACE expression SPACE 'by' SPACE expression  _ ':' _ suite) 
+	    {
+  return ast<WaveStmt>(LOC,
+    ac_expr(V0), ac_expr(V1), ac_expr(V2), ac_stmt(VS[3])
   );
 }
 with_stmt <- 'with' SPACE (with_parens_item / with_item) _ ':' _ suite {

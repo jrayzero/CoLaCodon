@@ -238,6 +238,10 @@ void CFVisitor::visit(const ForFlow *v) {
   graph->setCurrentBlock(end);
 }
 
+void CFVisitor::visit(const WaveFlow *v) {
+  std::runtime_error("WaveFlow should be transformed before cfg");
+}
+
 void CFVisitor::visit(const PreambledForFlow *v) {
   auto *original = graph->getCurrentBlock();
   auto *end = graph->newBlock("endFor");
@@ -423,6 +427,12 @@ void CFVisitor::visit(const ReturnInstr *v) {
   if (v->getValue())
     process(v->getValue());
   defaultJump(nullptr, -1);
+  defaultInsert(v);
+}
+
+void CFVisitor::visit(const DependsOnInstr *v) {
+  process(v->getLocation());
+  process(v->getDepends());
   defaultInsert(v);
 }
 

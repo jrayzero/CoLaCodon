@@ -269,6 +269,28 @@ struct ForStmt : public Stmt {
   ACCEPT(ASTVisitor);
 };
 
+struct WaveStmt : public Stmt {
+  ExprPtr var;
+  ExprPtr location;
+  ExprPtr grid_dims;
+  StmtPtr suite;
+
+  WaveStmt(ExprPtr var, ExprPtr location, ExprPtr grid_dims, StmtPtr suite);
+  WaveStmt(const WaveStmt &stmt);
+
+  string toString(int indent) const override;
+  ACCEPT(ASTVisitor);
+};
+
+struct DependsOnStmt : public Stmt {
+  ExprPtr location;
+  ExprPtr depends;
+  DependsOnStmt(ExprPtr location, ExprPtr depends);
+  DependsOnStmt(const DependsOnStmt &stmt); 
+  string toString(int indent) const override;
+  ACCEPT(ASTVisitor);  
+};
+
 /// If block statement (if cond: suite; (elif cond: suite)...).
 /// @example if a: foo()
 /// @example if a: foo()

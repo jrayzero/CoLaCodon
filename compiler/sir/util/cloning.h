@@ -41,6 +41,7 @@ public:
   void visit(const IfFlow *v) override;
   void visit(const WhileFlow *v) override;
   void visit(const ForFlow *v) override;
+  void visit(const WaveFlow *v) override;  
   void visit(const PreambledForFlow *v) override;  
   void visit(const ImperativeForFlow *v) override;
   void visit(const TryCatchFlow *v) override;
@@ -67,6 +68,7 @@ public:
   void visit(const YieldInstr *v) override;
   void visit(const ThrowInstr *v) override;
   void visit(const FlowInstr *v) override;
+  void visit(const DependsOnInstr *v) override;
   void visit(const dsl::CustomInstr *v) override;
 
   /// Clones a value, returning the previous value if other has already been cloned.

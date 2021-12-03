@@ -87,6 +87,8 @@ struct SimplifyContext : public Context<SimplifyItem> {
   /// in generators and lambda functions. A stack is needed because there might be
   /// nested generator or lambda constructs.
   vector<std::map<string, string>> captures;
+  // a stack of wave loops for checking depends things
+  std::stack<string> wave_loops;
   /// True if standard library is being loaded.
   bool isStdlibLoading;
   /// Current module name (Python's __name__) and its source. The default module is

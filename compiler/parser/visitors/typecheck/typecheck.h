@@ -170,6 +170,8 @@ public:
   /// Parse a type stub and create a corresponding generic type.
   void visit(ClassStmt *) override;
 
+  void visit(WaveStmt *) override;
+  void visit(DependsOnStmt *) override;
   using CallbackASTVisitor<ExprPtr, StmtPtr>::transform;
 
 private:

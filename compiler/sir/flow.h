@@ -671,6 +671,69 @@ protected:
   int doReplaceUsedValue(id_t id, Value *newValue) override;
 };
 
+
+class WaveFlow : public AcceptorExtend<WaveFlow, Flow> {
+private:
+  Value *location;
+  Value *gridItems;
+  /// the body
+  Value *body;
+  /// the variable
+  Var *var;
+
+public:
+  static const char NodeId;
+
+  /// Constructs a for loop.
+  /// @param iter the iterator
+  /// @param body the body
+  /// @param var the variable
+  /// @param name the flow's name
+  WaveFlow(Value *location, Value *gridItems, Flow *body, Var *var,
+          std::string name = "")
+      : AcceptorExtend(std::move(name)), location(location), gridItems(gridItems), body(body), var(var) { }
+
+  /// @return the iter
+  Value *getLocation() { return location; }
+  /// @return the location
+  const Value *getLocation() const { return location; }
+  /// Sets the location.
+  /// @param f the new location
+  void setLocation(Value *f) { location = f; }
+
+  /// @return the gridItems
+  Value *getGridItems() { return gridItems; }
+  /// @return the gridItems
+  const Value *getGridItems() const { return gridItems; }
+  /// Sets the gridItems.
+  /// @param f the new gridItems
+  void setGridItems(Value *f) { gridItems = f; }
+
+  /// @return the body
+  Flow *getBody() { return cast<Flow>(body); }
+  /// @return the body
+  const Flow *getBody() const { return cast<Flow>(body); }
+  /// Sets the body.
+  /// @param f the new body
+  void setBody(Flow *f) { body = f; }
+
+  /// @return the var
+  Var *getVar() { return var; }
+  /// @return the var
+  const Var *getVar() const { return var; }
+  /// Sets the var.
+  /// @param c the new var
+  void setVar(Var *c) { var = c; }
+
+protected:
+  std::vector<Value *> doGetUsedValues() const override;
+  int doReplaceUsedValue(id_t id, Value *newValue) override;
+
+  std::vector<Var *> doGetUsedVariables() const override { return {var}; }
+  int doReplaceUsedVariable(id_t id, Var *newVar) override;
+};
+
+
 } // namespace ir
 } // namespace seq
 

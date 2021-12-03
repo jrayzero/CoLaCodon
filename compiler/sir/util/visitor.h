@@ -58,7 +58,8 @@ class SeriesFlow;
 class IfFlow;
 class WhileFlow;
 class ForFlow;
- class PreambledForFlow;
+class WaveFlow;
+class PreambledForFlow;
 class ImperativeForFlow;
 class TryCatchFlow;
 class PipelineFlow;
@@ -82,6 +83,7 @@ class ReturnInstr;
 class YieldInstr;
 class ThrowInstr;
 class FlowInstr;
+class DependsOnInstr;
 
 namespace util {
 
@@ -114,6 +116,7 @@ public:
   VISIT(IfFlow);
   VISIT(WhileFlow);
   VISIT(ForFlow);
+  VISIT(WaveFlow);
   VISIT(PreambledForFlow);
   VISIT(ImperativeForFlow);
   VISIT(TryCatchFlow);
@@ -142,6 +145,7 @@ public:
   VISIT(YieldInstr);
   VISIT(ThrowInstr);
   VISIT(FlowInstr);
+  VISIT(DependsOnInstr);
   VISIT(dsl::CustomInstr);
 
   VISIT(types::Type);
@@ -189,6 +193,7 @@ public:
   CONST_VISIT(IfFlow);
   CONST_VISIT(WhileFlow);
   CONST_VISIT(ForFlow);
+  CONST_VISIT(WaveFlow);
   CONST_VISIT(PreambledForFlow);
   CONST_VISIT(ImperativeForFlow);
   CONST_VISIT(TryCatchFlow);
@@ -217,6 +222,7 @@ public:
   CONST_VISIT(YieldInstr);
   CONST_VISIT(ThrowInstr);
   CONST_VISIT(FlowInstr);
+  CONST_VISIT(DependsOnInstr);
   CONST_VISIT(dsl::CustomInstr);
 
   CONST_VISIT(types::Type);

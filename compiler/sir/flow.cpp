@@ -333,5 +333,43 @@ int PipelineFlow::doReplaceUsedValue(id_t id, Value *newValue) {
   return replacements;
 }
 
+const char WaveFlow::NodeId = 0;
+
+std::vector<Value *> WaveFlow::doGetUsedValues() const {
+  std::vector<Value *> ret;
+  ret.push_back(location);
+  ret.push_back(gridItems);
+  ret.push_back(body);
+  return ret;
+}
+
+int WaveFlow::doReplaceUsedValue(id_t id, Value *newValue) {
+  auto count = 0;
+  if (location->getId() == id) {
+    location = newValue;
+    ++count;
+  }
+  if (gridItems->getId() == id) {
+    gridItems = newValue;
+    ++count;
+  }
+  if (body->getId() == id) {
+    auto *f = cast<Flow>(newValue);
+    seqassert(f, "{} is not a flow", *newValue);
+    body = f;
+    ++count;
+  }
+  return count;
+}
+
+int WaveFlow::doReplaceUsedVariable(id_t id, Var *newVar) {
+  if (var->getId() == id) {
+    var = newVar;
+    return 1;
+  }
+  return 0;
+}
+
+
 } // namespace ir
 } // namespace seq

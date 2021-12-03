@@ -63,6 +63,8 @@ void ASTVisitor::visit(YieldStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(AssertStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(WhileStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(ForStmt *stmt) { defaultVisit(stmt); }
+void ASTVisitor::visit(WaveStmt *stmt) { defaultVisit(stmt); }
+void ASTVisitor::visit(DependsOnStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(IfStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(MatchStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(ImportStmt *stmt) { defaultVisit(stmt); }
@@ -224,6 +226,16 @@ void ReplaceASTVisitor::visit(ForStmt *stmt) {
   transform(stmt->decorator);
   for (auto &a : stmt->ompArgs)
     transform(a.value);
+}
+void ReplaceASTVisitor::visit(WaveStmt *stmt) {
+  transform(stmt->var);
+  transform(stmt->location);
+  transform(stmt->grid_dims);
+  transform(stmt->suite);
+}
+void ReplaceASTVisitor::visit(DependsOnStmt *stmt) {
+  transform(stmt->location);
+  transform(stmt->depends);
 }
 void ReplaceASTVisitor::visit(IfStmt *stmt) {
   transform(stmt->cond);

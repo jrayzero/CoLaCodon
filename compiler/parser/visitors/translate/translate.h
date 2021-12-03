@@ -64,6 +64,8 @@ public:
   void visit(YieldStmt *) override;
   void visit(WhileStmt *) override;
   void visit(ForStmt *) override;
+  void visit(WaveStmt *) override;
+  void visit(DependsOnStmt *) override;
   void visit(IfStmt *) override;
   void visit(UpdateStmt *) override;
   void visit(TryStmt *) override;

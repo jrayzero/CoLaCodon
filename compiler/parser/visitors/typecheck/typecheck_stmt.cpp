@@ -572,5 +572,38 @@ void TypecheckVisitor::visit(ClassStmt *stmt) {
   stmt->done = true;
 }
 
+void TypecheckVisitor::visit(WaveStmt *stmt) {
+  stmt->location = transform(stmt->location);
+  stmt->grid_dims = transform(stmt->grid_dims);
+  if (!stmt->grid_dims->getType()->canRealize())
+    return;
+  if (!stmt->location->getType()->canRealize())
+    return;  
+  // the type of the var is a Tuple over location type and grid dims type
+  TypePtr varType = ctx->addUnbound(stmt->var.get(), ctx->typecheckLevel);
+  auto tup = transform(N<TupleExpr>(std::vector<ExprPtr>{stmt->location,stmt->grid_dims}));
+  unify(varType, tup->getType());  
+  string varName;
+  if (auto e = stmt->var->getId())
+    varName = e->value;
+  seqassert(!varName.empty(), "empty wave variable {}", stmt->var->toString());
+  unify(stmt->var->type, varType);
+  ctx->add(TypecheckItem::Var, varName, varType);
+  stmt->suite = transform(stmt->suite);
+  stmt->done = stmt->grid_dims->done && stmt->suite->done;
+}
+
+void TypecheckVisitor::visit(DependsOnStmt *stmt) {
+  stmt->location = transform(stmt->location);  
+  ctx->in_depends = true;
+  stmt->depends = transform(stmt->depends);
+  ctx->in_depends = false;
+  if (!stmt->location->getType()->canRealize())
+    return;
+  if (!stmt->depends->getType()->canRealize())
+    return;
+  stmt->done = true;
+}
+
 } // namespace ast
 } // namespace seq
