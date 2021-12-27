@@ -80,6 +80,9 @@ public:
   /// Sets the parent type.
   /// @param p the new parent
   void setParentType(types::Type *p) { parentType = p; }
+
+  void setArgs(std::list<Var*> args) { this->args = move(args); }
+
 };
 
 class BodiedFunc : public AcceptorExtend<BodiedFunc, Func> {
