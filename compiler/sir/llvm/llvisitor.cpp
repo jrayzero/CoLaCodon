@@ -432,10 +432,10 @@ void LLVMVisitor::writeToBitcodeFile(const std::string &filename) {
 void LLVMVisitor::writeToLLFile(const std::string &filename, bool optimize) {
   if (optimize)
     runLLVMPipeline();
-//  auto fo = fopen(filename.c_str(), "w");
-//  llvm::raw_fd_ostream fout(fileno(fo), true);
-//  fout << *module;
-//  fout.close();
+  auto fo = fopen(filename.c_str(), "w");
+  llvm::raw_fd_ostream fout(fileno(fo), true);
+  fout << *module;
+  fout.close();
 }
 
 namespace {
