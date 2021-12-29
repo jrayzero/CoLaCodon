@@ -470,7 +470,8 @@ void addEnvVarPathsToLinkerArgs(std::vector<std::string> &args,
     pathStr.split(split, ":");
 
     for (const auto &subPath : split) {
-      args.push_back(("-L" + subPath).str());
+      if (!subPath.empty())
+	args.push_back(("-L" + subPath).str());
     }
   }
 }
