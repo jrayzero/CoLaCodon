@@ -333,6 +333,9 @@ public:
   /// @param t the new type
   void setType(types::Type *t) { type = t; }
 
+  //types::Type *getType() { return type; }
+  //const types::Type *getType() const { return type; }
+
 protected:
   types::Type *doGetType() const override { return type; }
   std::vector<types::Type *> doGetUsedTypes() const override { return {type}; }

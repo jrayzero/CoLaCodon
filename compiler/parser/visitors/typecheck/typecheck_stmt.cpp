@@ -579,9 +579,12 @@ void TypecheckVisitor::visit(WaveStmt *stmt) {
     return;
   if (!stmt->location->getType()->canRealize())
     return;  
-  // the type of the var is a Tuple over location type and grid dims type
+  // the type of the var is a Tuple over (location,grid), so we may need
+  // to do a transform on the tuple since the first part could be a block or a view  
   TypePtr varType = ctx->addUnbound(stmt->var.get(), ctx->typecheckLevel);
-  auto tup = transform(N<TupleExpr>(std::vector<ExprPtr>{stmt->location,stmt->grid_dims}));
+  auto as_loc = transform(N<CallExpr>(N<DotExpr>(stmt->location, "as_loc")));
+  stmt->location = as_loc;
+  auto tup = transform(N<TupleExpr>(std::vector<ExprPtr>{as_loc,stmt->grid_dims}));
   unify(varType, tup->getType());  
   string varName;
   if (auto e = stmt->var->getId())

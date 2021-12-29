@@ -282,6 +282,11 @@ bool SideEffectResult::hasSideEffect(Value *v) const {
   return it == result.end() || it->second;
 }
 
+bool SideEffectResult::hasSideEffect(const Value *v) const {
+  auto it = result.find(v->getId());
+  return it == result.end() || it->second;
+}
+
 std::unique_ptr<Result> SideEffectAnalysis::run(const Module *m) {
   VarUseAnalyzer vua;
   const_cast<Module *>(m)->accept(vua);
