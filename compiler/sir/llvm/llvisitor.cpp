@@ -270,6 +270,7 @@ void LLVMVisitor::process(const Node *x) {
 }
 
 void LLVMVisitor::verify() {
+  dump("/tmp/wtf.ll");
   const bool broken = llvm::verifyModule(*module, &llvm::errs());
   seqassert(!broken, "module broken");
 }
@@ -338,10 +339,10 @@ void LLVMVisitor::runLLVMOptimizationPasses() {
   unsigned sizeLevel = 0;
   llvm::PassManagerBuilder pmb;
 
-//  if (!db.debug) {
-  if (db.debug) {
-    std::cerr << "[NOTICE] debug set, but still compiling with -O3 for LLVM" << std::endl;
-  }
+  if (!db.debug) {
+//  if (db.debug) {
+//    std::cerr << "[NOTICE] debug set, but still compiling with -O3 for LLVM" << std::endl;
+//  }
     pmb.OptLevel = optLevel;
     pmb.SizeLevel = sizeLevel;
     pmb.Inliner = llvm::createFunctionInliningPass(optLevel, sizeLevel, false);
@@ -349,9 +350,9 @@ void LLVMVisitor::runLLVMOptimizationPasses() {
     pmb.LoopVectorize = true;
     pmb.SLPVectorize = true;
     // pmb.MergeFunctions = true;
-//  } else {
-//    pmb.OptLevel = 0;
-//  }
+  } else {
+    pmb.OptLevel = 0;
+  }
 
   if (machine) {
     machine->adjustPassManager(pmb);
@@ -431,10 +432,10 @@ void LLVMVisitor::writeToBitcodeFile(const std::string &filename) {
 void LLVMVisitor::writeToLLFile(const std::string &filename, bool optimize) {
   if (optimize)
     runLLVMPipeline();
-  auto fo = fopen(filename.c_str(), "w");
-  llvm::raw_fd_ostream fout(fileno(fo), true);
-  fout << *module;
-  fout.close();
+//  auto fo = fopen(filename.c_str(), "w");
+//  llvm::raw_fd_ostream fout(fileno(fo), true);
+//  fout << *module;
+//  fout.close();
 }
 
 namespace {

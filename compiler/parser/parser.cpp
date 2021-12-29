@@ -56,11 +56,11 @@ ir::Module *parse(const string &argv0, const string &file, const string &code,
     auto cache = make_shared<ast::Cache>(argv0);
     ast::StmtPtr codeStmt = isCode ? ast::parseCode(cache, abs, code, startLine)
                                    : ast::parseFile(cache, abs);
-    if (_dbg_level) {
+/*    if (_dbg_level) {
       auto fo = fopen("_dump.sexp", "w");
       fmt::print(fo, "{}\n", codeStmt->toString(0));
       fclose(fo);
-    }
+    }*/
 
     using namespace std::chrono;
     cache->module0 = file;
@@ -77,14 +77,14 @@ ir::Module *parse(const string &argv0, const string &file, const string &code,
                (duration_cast<milliseconds>(high_resolution_clock::now() - t).count() -
                 _ocaml_time) /
                    1000.0);
-      if (_dbg_level) {
+/*      if (_dbg_level) {
         auto fo = fopen("_dump_simplify.sexp", "w");
         fmt::print(fo, "{}\n", transformed->toString(0));
         fclose(fo);
         fo = fopen("_dump_simplify.seq", "w");
         fmt::print(fo, "{}", ast::FormatVisitor::apply(transformed, cache));
         fclose(fo);
-      }
+      }*/
     }
 
     t = high_resolution_clock::now();
@@ -93,7 +93,7 @@ ir::Module *parse(const string &argv0, const string &file, const string &code,
       LOG_TIME("[T] typecheck = {:.1f}",
                duration_cast<milliseconds>(high_resolution_clock::now() - t).count() /
                    1000.0);
-      if (_dbg_level) {
+/*      if (_dbg_level) {
         auto fo = fopen("_dump_typecheck.seq", "w");
         fmt::print(fo, "{}", ast::FormatVisitor::apply(typechecked, cache));
         fclose(fo);
@@ -103,7 +103,7 @@ ir::Module *parse(const string &argv0, const string &file, const string &code,
           for (auto &r : f.second.realizations)
             fmt::print(fo, "{}\n", r.second->ast->toString(0));
         fclose(fo);
-      }
+      }*/
     }
 
     t = high_resolution_clock::now();
@@ -114,13 +114,13 @@ ir::Module *parse(const string &argv0, const string &file, const string &code,
       LOG_TIME("[T] translate   = {:.1f}",
                duration_cast<milliseconds>(high_resolution_clock::now() - t).count() /
                    1000.0);
-    if (_dbg_level) {
+/*    if (_dbg_level) {
       auto out = seq::ir::util::format(module);
       std::ofstream os("_dump_sir.lisp");
       os << out;
       os.close();
       os.close();
-    }
+    }*/
 
     _isTest = isTest;
     return module;
