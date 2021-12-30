@@ -96,6 +96,7 @@ void PassManager::run(Module *module) {
 }
 
 void PassManager::runPass(Module *module, const std::string &name) {
+  std::cerr << "Running pass " << name << std::endl;
   auto &meta = passes[name];
 
   auto run = true;
