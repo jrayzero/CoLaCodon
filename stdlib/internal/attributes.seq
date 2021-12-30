@@ -38,14 +38,6 @@ def distributive():
 def C():
     pass
 
-# The propagate annot means that the function can be freely copy propagated around (assuming the parameters are also propagatable). It implies that the annotated
-# function is also pure
 @__attribute__
-def propagate():
-    pass
-
-# Means that we can directly extract the arguments to the function and basically ignore the function call. Really
-# only should be used with name tuple's __new__ functions where the function just returns the tuple
-@__attribute__
-def extract():
+def cola_opt():
     pass

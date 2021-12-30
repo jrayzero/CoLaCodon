@@ -1,14 +1,14 @@
-from internal.attributes import propagate
+from internal.attributes import cola_opt
 
 @extend
 class Optional:
-    @propagate
+    @cola_opt
     def __new__() -> Optional[T]:
         if isinstance(T, ByVal):
             return __internal__.opt_tuple_new(T)
         else:
             return __internal__.opt_ref_new(T)
-    @propagate
+    @cola_opt
     def __new__(what: T) -> Optional[T]:
         if isinstance(T, ByVal):
             return __internal__.opt_tuple_new_arg(what, T)
