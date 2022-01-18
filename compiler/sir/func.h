@@ -99,6 +99,9 @@ public:
 
   using AcceptorExtend::AcceptorExtend;
 
+  void clearSymbols() { symbols.clear(); }
+  int numArgs() { return args.size(); }
+
   /// @return iterator to the first symbol
   auto begin() { return symbols.begin(); }
   /// @return iterator beyond the last symbol
