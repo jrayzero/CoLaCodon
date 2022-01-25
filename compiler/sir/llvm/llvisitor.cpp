@@ -340,9 +340,6 @@ void LLVMVisitor::runLLVMOptimizationPasses() {
   llvm::PassManagerBuilder pmb;
 
   if (!db.debug) {
-//  if (db.debug) {
-//    std::cerr << "[NOTICE] debug set, but still compiling with -O3 for LLVM" << std::endl;
-//  }
     pmb.OptLevel = optLevel;
     pmb.SizeLevel = sizeLevel;
     pmb.Inliner = llvm::createFunctionInliningPass(optLevel, sizeLevel, false);
@@ -351,7 +348,11 @@ void LLVMVisitor::runLLVMOptimizationPasses() {
     pmb.SLPVectorize = true;
     // pmb.MergeFunctions = true;
   } else {
-    pmb.OptLevel = 0;
+    if (db.debug) {
+      std::cerr << "[WARNING] debug set, but still compiling with -O3 for LLVM" << std::endl;
+    }
+    //    pmb.OptLevel = 0;
+    pmb.OptLevel = optLevel;
   }
 
   if (machine) {
