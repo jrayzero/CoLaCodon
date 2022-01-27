@@ -348,11 +348,7 @@ void LLVMVisitor::runLLVMOptimizationPasses() {
     pmb.SLPVectorize = true;
     // pmb.MergeFunctions = true;
   } else {
-    if (db.debug) {
-      std::cerr << "[WARNING] debug set, but still compiling with -O3 for LLVM" << std::endl;
-    }
-    //    pmb.OptLevel = 0;
-    pmb.OptLevel = optLevel;
+    pmb.OptLevel = 0;
   }
 
   if (machine) {
