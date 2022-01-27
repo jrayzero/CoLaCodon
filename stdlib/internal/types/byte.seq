@@ -73,3 +73,25 @@ class byte:
     def __float__(self) -> float:
         %0 = uitofp i8 %self to double
         ret double %0
+    @pure
+    @commutative
+    @associative
+    @llvm
+    def __add__(self, other: byte) -> byte:
+        %0 = add i8 %self, %other
+        ret i8 %0
+    @pure
+    @llvm
+    def __sub__(self, other: byte) -> byte:
+        %0 = sub i8 %self, %other
+        ret i8 %0
+    @pure
+    @llvm
+    def __lshift__(self, other: int) -> byte:
+        %0 = shl i8 %self, %other
+        ret i8 %0
+    @pure
+    @llvm
+    def __mul__(self, other: byte) -> byte:
+        %0 = mul i8 %self, %other
+        retur i8 %0

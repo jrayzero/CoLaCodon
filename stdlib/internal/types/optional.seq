@@ -2,12 +2,14 @@ from internal.attributes import cola_opt
 
 @extend
 class Optional:
+    @pure
     @cola_opt
     def __new__() -> Optional[T]:
         if isinstance(T, ByVal):
             return __internal__.opt_tuple_new(T)
         else:
             return __internal__.opt_ref_new(T)
+    @pure
     @cola_opt
     def __new__(what: T) -> Optional[T]:
         if isinstance(T, ByVal):
