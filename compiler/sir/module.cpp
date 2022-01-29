@@ -97,6 +97,19 @@ const std::string Module::CALL_MAGIC_NAME = "__call__";
 const std::string Module::NEW_MAGIC_NAME = "__new__";
 const std::string Module::INIT_MAGIC_NAME = "__init__";
 
+const std::string Module::RADD_MAGIC_NAME = "__radd__";
+const std::string Module::RSUB_MAGIC_NAME = "__rsub__";
+const std::string Module::RMUL_MAGIC_NAME = "__rmul__";
+const std::string Module::RTRUE_DIV_MAGIC_NAME = "__rtruediv__";
+const std::string Module::RFLOOR_DIV_MAGIC_NAME = "__rfloordiv__";
+const std::string Module::RMOD_MAGIC_NAME = "__rmod__";
+const std::string Module::RPOW_MAGIC_NAME = "__rpow__";
+const std::string Module::RLSHIFT_MAGIC_NAME = "__rlshift__";
+const std::string Module::RRSHIFT_MAGIC_NAME = "__rrshift__";
+const std::string Module::RAND_MAGIC_NAME = "__rand__";
+const std::string Module::ROR_MAGIC_NAME = "__ror__";
+const std::string Module::RXOR_MAGIC_NAME = "__rxor__";
+
 const char Module::NodeId = 0;
 
 Module::Module(std::string name, std::shared_ptr<ast::Cache> cache)

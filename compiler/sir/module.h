@@ -60,6 +60,19 @@ public:
   static const std::string OR_MAGIC_NAME;
   static const std::string XOR_MAGIC_NAME;
 
+  static const std::string RADD_MAGIC_NAME;
+  static const std::string RSUB_MAGIC_NAME;
+  static const std::string RMUL_MAGIC_NAME;
+  static const std::string RTRUE_DIV_MAGIC_NAME;
+  static const std::string RFLOOR_DIV_MAGIC_NAME;
+  static const std::string RMOD_MAGIC_NAME;
+  static const std::string RPOW_MAGIC_NAME;
+  static const std::string RLSHIFT_MAGIC_NAME;
+  static const std::string RRSHIFT_MAGIC_NAME;
+  static const std::string RAND_MAGIC_NAME;
+  static const std::string ROR_MAGIC_NAME;
+  static const std::string RXOR_MAGIC_NAME;
+
   static const std::string INT_MAGIC_NAME;
   static const std::string FLOAT_MAGIC_NAME;
   static const std::string BOOL_MAGIC_NAME;
