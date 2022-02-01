@@ -1,6 +1,7 @@
 # Seq runtime functions
 from C import seq_print(str)
 from C import seq_print_full(str, cobj)
+from C import seq_write_bytes(int, int, cobj)
 @pure
 @C
 def seq_strdup(a: cobj) -> str: pass
