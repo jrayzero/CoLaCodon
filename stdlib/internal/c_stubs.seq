@@ -24,7 +24,7 @@ def seq_time() -> int: pass
 @C
 def seq_time_monotonic() -> int: pass
 @C
-def c_time_monotonic() -> int: pass
+def C_time_monotonic() -> int: pass
 @pure
 @C
 def seq_pid() -> int: pass

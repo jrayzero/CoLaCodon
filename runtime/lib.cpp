@@ -65,10 +65,10 @@ SEQ_FUNC seq_int_t seq_time() {
   return nanos;
 }
 
-SEQ_FUNC seq_int_t seq_time_monotonic() {
-  auto duration = chrono::steady_clock::now().time_since_epoch();
-  seq_int_t nanos = chrono::duration_cast<chrono::nanoseconds>(duration).count();
-  return nanos;
+SEQ_FUNC seq_int_t C_time_monotonic() {
+  struct timespec t;
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return 1e9 * t.tv_sec + t.tv_nsec;
 }
 
 extern char **environ;
