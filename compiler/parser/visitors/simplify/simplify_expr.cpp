@@ -550,6 +550,7 @@ void SimplifyVisitor::visit(CallExpr *expr) {
     arg1.name = expr->args[1].name;
     arg1.value = rhs;
     resultExpr = N<CallExpr>(transform(expr->expr), vector<CallExpr::Arg>{arg0,arg1});
+    ctx->labels.clear();
     return;
   }
 
