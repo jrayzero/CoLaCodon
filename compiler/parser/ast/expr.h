@@ -241,14 +241,15 @@ struct StringExpr : public Expr {
 /// Identifier expression (value).
 struct IdExpr : public Expr {
   string value;
+  bool is_label; // for cola
 
-  explicit IdExpr(string value);
+  explicit IdExpr(string value, bool is_label = false);
   IdExpr(const IdExpr &expr) = default;
 
   string toString() const override;
   ACCEPT(ASTVisitor);
 
-  bool isId(const string &val) const override { return this->value == val; }
+  bool isId(const string &val) const override { return this->value == val; } 
   const IdExpr *getId() const override { return this; }
 };
 

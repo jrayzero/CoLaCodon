@@ -102,6 +102,12 @@ struct SimplifyContext : public Context<SimplifyItem> {
   /// Replacement expressions.
   unordered_map<string, ExprPtr> *substitutions;
 
+  // It'd be weird to have a setitem nested within a setitem, but I suppose it can generally happen because
+// of FlowInstrs. So track them and fail appropriately if find a label in a bad s[ot;
+  int lhs_setitems = 0;
+  int rhs_setitems = 0;
+  vector<string> labels;
+
 public:
   SimplifyContext(string filename, shared_ptr<Cache> cache);
 

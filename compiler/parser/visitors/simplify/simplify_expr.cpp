@@ -108,9 +108,31 @@ void SimplifyVisitor::visit(IdExpr *expr) {
     resultExpr->markType();
     return;
   }
+  if (expr->is_label) {
+    if (ctx->lhs_setitems == 1) {
+      // we are on the left hand side of a top-level setitem, which is an allowed context for the label
+      if (find(ctx->labels.begin(), ctx->labels.end(), expr->value) != ctx->labels.end()) {
+	error("Multiple uses of label '{}' on the lhs of a setitem not allowed.", expr->value);
+      }
+      ctx->labels.push_back(expr->value);
+    } else if (ctx->rhs_setitems == 1) {
+      // we are on the rhs side of a top-level setitem, which is an allowed context for the label      
+      // this label should already exist from the lhs side though
+      auto loc = find(ctx->labels.begin(), ctx->labels.end(), expr->value);      
+      if (loc == ctx->labels.end()) {
+	error("label '{}' used on rhs of setitem not found", expr->value); 
+      }
+    }
+    // cool, we're all good. Now this can go through the typechecker as a "Label" type
+    resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("ColaLabel"),"__new__"),
+				       N<StringExpr>(expr->value)));
+//    resultExpr = N<IdExpr>(expr->value, true);
+    return;
+  }
   auto val = ctx->find(expr->value);
-  if (!val)
+  if (!val) {
     error("identifier '{}' not found", expr->value);
+  }
   auto canonicalName = val->canonicalName;
 
   // If we are accessing an outer non-global variable, raise an error unless
@@ -509,6 +531,28 @@ void SimplifyVisitor::visit(CallExpr *expr) {
     return;
   }
 
+  // cola:  we'll just allow this for any setitem right now, even though we only want cola setitem in the end
+  // Correct usage of labels will be looked at later on.
+
+  if (expr->expr->getDot() && expr->expr->getDot()->member == "__setitem__") {
+    CallExpr::Arg arg0,arg1;
+    // arg0 = idxs, arg1 = rhs
+    ctx->lhs_setitems++;
+    // gather any label ids
+    auto idx = transform(expr->args[0].value);
+    ctx->lhs_setitems--;
+    ctx->rhs_setitems++;    
+    // convert any unknown rhs ids to labels (if they exist on the lhs)
+    auto rhs = transform(expr->args[1].value);
+    ctx->rhs_setitems--;
+    arg0.name = expr->args[0].name;
+    arg0.value = idx;
+    arg1.name = expr->args[1].name;
+    arg1.value = rhs;
+    resultExpr = N<CallExpr>(transform(expr->expr), vector<CallExpr::Arg>{arg0,arg1});
+    return;
+  }
+
   auto e = transform(expr->expr, true);
   // 8. namedtuple
   if (e->isId("std.collections.namedtuple")) {
@@ -573,6 +617,8 @@ void SimplifyVisitor::visit(CallExpr *expr) {
       args.push_back({i.name, transform(i.value, true)});
   }
   resultExpr = N<CallExpr>(e, args);
+
+
 }
 
 void SimplifyVisitor::visit(DotExpr *expr) {

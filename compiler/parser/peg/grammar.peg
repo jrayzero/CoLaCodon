@@ -558,6 +558,7 @@ atom <-
   / STRING (SPACE STRING)* {
     return ast<StringExpr>(LOC, VS.transform<pair<string, string>>());
   }
+  / '!' NAME { return ast<IdExpr>(LOC, ac<string>(V0), true); } 
   / id { return ac_expr(V0); }
   / 'True' { return ast<BoolExpr>(LOC, true); }
   / 'False' { return ast<BoolExpr>(LOC, false);}

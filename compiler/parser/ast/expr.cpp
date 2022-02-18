@@ -131,8 +131,8 @@ string StringExpr::getValue() const {
 }
 ACCEPT_IMPL(StringExpr, ASTVisitor);
 
-IdExpr::IdExpr(string value) : Expr(), value(move(value)) {}
-string IdExpr::toString() const { return wrapType(format("id '{}", value)); }
+IdExpr::IdExpr(string value, bool is_label) : Expr(), value(move(value)), is_label(is_label) {}
+string IdExpr::toString() const { return wrapType(format("id '{} {}", value, is_label)); }
 ACCEPT_IMPL(IdExpr, ASTVisitor);
 
 StarExpr::StarExpr(ExprPtr what) : Expr(), what(move(what)) {}
