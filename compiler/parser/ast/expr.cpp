@@ -131,7 +131,9 @@ string StringExpr::getValue() const {
 }
 ACCEPT_IMPL(StringExpr, ASTVisitor);
 
-IdExpr::IdExpr(string value, bool is_label) : Expr(), value(move(value)), is_label(is_label) {}
+IdExpr::IdExpr(string value) : Expr(), value(move(value)), is_label(false), labelSlice(nullptr) {}
+IdExpr::IdExpr(string value, bool is_label) : Expr(), value(move(value)), is_label(is_label), labelSlice(nullptr) {}
+IdExpr::IdExpr(string value, bool is_label, ExprPtr labelSlice) : Expr(), value(move(value)), is_label(is_label), labelSlice(labelSlice) {}
 string IdExpr::toString() const { return wrapType(format("id '{} {}", value, is_label)); }
 ACCEPT_IMPL(IdExpr, ASTVisitor);
 

@@ -242,8 +242,11 @@ struct StringExpr : public Expr {
 struct IdExpr : public Expr {
   string value;
   bool is_label; // for cola
+  ExprPtr labelSlice; // for cola
 
-  explicit IdExpr(string value, bool is_label = false);
+  explicit IdExpr(string value);
+  explicit IdExpr(string value, bool is_label);
+  explicit IdExpr(string value, bool is_label, ExprPtr label_slice);
   IdExpr(const IdExpr &expr) = default;
 
   string toString() const override;

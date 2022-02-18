@@ -124,8 +124,10 @@ void SimplifyVisitor::visit(IdExpr *expr) {
       }
     }
     // cool, we're all good. Now this can go through the typechecker as a "Label" type
-    resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("ColaLabel"),"__new__"),
-				       N<StringExpr>(expr->value)));
+    resultExpr = expr->labelSlice ? transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("ColaLabel"),"__new__"),
+							  N<StringExpr>(expr->value), expr->labelSlice)) : 
+      transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("ColaLabel"),"__new__"),
+			    N<StringExpr>(expr->value)));
 //    resultExpr = N<IdExpr>(expr->value, true);
     return;
   }

@@ -558,7 +558,7 @@ atom <-
   / STRING (SPACE STRING)* {
     return ast<StringExpr>(LOC, VS.transform<pair<string, string>>());
   }
-  / '!' NAME { return ast<IdExpr>(LOC, ac<string>(V0), true); } 
+  / '!' NAME labelslice? { return ast<IdExpr>(LOC, ac<string>(V0), true, VS.size() > 1 ? ac_expr(V1) : nullptr); } 
   / id { return ac_expr(V0); }
   / 'True' { return ast<BoolExpr>(LOC, true); }
   / 'False' { return ast<BoolExpr>(LOC, false);}
@@ -580,6 +580,7 @@ atom <-
 parentheses <- (
   tuple / yield / named / genexp / listexpr / listcomp / dict / set / dictcomp / setcomp
 )
+labelslice <- '(' slice ')'
 tuple <-
   / '(' _ ')' { return ast<TupleExpr>(LOC, VS.transform<ExprPtr>()); }
   / '(' _ tlist(',', star_named_expression) _ ')' { return wrap_tuple(VS, LOC); }
