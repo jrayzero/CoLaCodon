@@ -123,12 +123,11 @@ void SimplifyVisitor::visit(IdExpr *expr) {
 	error("label '{}' used on rhs of setitem not found", expr->value); 
       }
     }
-    // cool, we're all good. Now this can go through the typechecker as a "Label" type
-    resultExpr = expr->labelSlice ? transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("ColaLabel"),"__new__"),
+    // cool, we're all good. Now this can go through the typechecker
+    resultExpr = expr->labelSlice ? transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("Einsum"),"__new__"),
 							  N<StringExpr>(expr->value), expr->labelSlice)) : 
-      transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("ColaLabel"),"__new__"),
+      transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("Einsum"),"__new__"),
 			    N<StringExpr>(expr->value)));
-//    resultExpr = N<IdExpr>(expr->value, true);
     return;
   }
   auto val = ctx->find(expr->value);
