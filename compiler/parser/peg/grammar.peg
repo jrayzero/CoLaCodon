@@ -554,11 +554,15 @@ slice <-
   }
   / expression { return ac_expr(V0); }
 slice_part <- expression? { return VS.size() ? V0 : make_any<ExprPtr>(nullptr); }
+einsumIdx <- '(' slice ')'
+reduceXform <- '(' lambdef ')'
 atom <-
   / STRING (SPACE STRING)* {
     return ast<StringExpr>(LOC, VS.transform<pair<string, string>>());
   }
-  / '!' NAME labelslice? { return ast<IdExpr>(LOC, ac<string>(V0), true, VS.size() > 1 ? ac_expr(V1) : nullptr); } 
+  / '!!' OPNAME einsumIdx reduceXform { return ast<IdExpr>(LOC, ac<string>(V0), false, true, ac_expr(V1), ac_expr(V2)); }
+  / '!!' OPNAME einsumIdx? { return ast<IdExpr>(LOC, ac<string>(V0), false, true, VS.size() > 1 ? ac_expr(V1) : nullptr); }
+  / '!' NAME einsumIdx? { return ast<IdExpr>(LOC, ac<string>(V0), true, false, VS.size() > 1 ? ac_expr(V1) : nullptr); } 
   / id { return ac_expr(V0); }
   / 'True' { return ast<BoolExpr>(LOC, true); }
   / 'False' { return ast<BoolExpr>(LOC, false);}
@@ -580,7 +584,6 @@ atom <-
 parentheses <- (
   tuple / yield / named / genexp / listexpr / listcomp / dict / set / dictcomp / setcomp
 )
-labelslice <- '(' slice ')'
 tuple <-
   / '(' _ ')' { return ast<TupleExpr>(LOC, VS.transform<ExprPtr>()); }
   / '(' _ tlist(',', star_named_expression) _ ')' { return wrap_tuple(VS, LOC); }
@@ -702,6 +705,8 @@ EXPFLOAT <- (PTFLOAT / DECINT) [eE] <'+' / '-'>? DECINT
 NAME <-
   / keyword [a-zA-Z_0-9]+ { return string(VS.sv()); }
   / !keyword <[a-zA-Z_] [a-zA-Z_0-9]*> { return VS.token_to_string(); }
+OPNAME <-
+  / '+' { return VS.token_to_string(); }
 STRING <- <NAME? STR> {
   auto p = pair(
     ac<string>(VS.size() > 1 ? V1 : V0),

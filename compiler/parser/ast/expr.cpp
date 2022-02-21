@@ -131,10 +131,11 @@ string StringExpr::getValue() const {
 }
 ACCEPT_IMPL(StringExpr, ASTVisitor);
 
-IdExpr::IdExpr(string value) : Expr(), value(move(value)), is_label(false), labelSlice(nullptr) {}
-IdExpr::IdExpr(string value, bool is_label) : Expr(), value(move(value)), is_label(is_label), labelSlice(nullptr) {}
-IdExpr::IdExpr(string value, bool is_label, ExprPtr labelSlice) : Expr(), value(move(value)), is_label(is_label), labelSlice(labelSlice) {}
-string IdExpr::toString() const { return wrapType(format("id '{} {}", value, is_label)); }
+IdExpr::IdExpr(string value) : Expr(), value(move(value)), isEinsum(false), isReduction(false), idx(nullptr), reduceXform(nullptr) {}
+IdExpr::IdExpr(string value, bool isEinsum, bool isReduction) : Expr(), value(move(value)), isEinsum(isEinsum), isReduction(isReduction), idx(nullptr), reduceXform(nullptr) {}
+IdExpr::IdExpr(string value, bool isEinsum, bool isReduction, ExprPtr idx) : Expr(), value(move(value)), isEinsum(isEinsum), isReduction(isReduction), idx(idx), reduceXform(nullptr) {}
+IdExpr::IdExpr(string value, bool isEinsum, bool isReduction, ExprPtr idx, ExprPtr reduceXform) : Expr(), value(move(value)), isEinsum(isEinsum), isReduction(isReduction), idx(idx), reduceXform(reduceXform) {}
+string IdExpr::toString() const { return wrapType(format("id '{} {} {} {} {}", value, isEinsum, isReduction, idx, reduceXform)); }
 ACCEPT_IMPL(IdExpr, ASTVisitor);
 
 StarExpr::StarExpr(ExprPtr what) : Expr(), what(move(what)) {}

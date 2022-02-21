@@ -108,26 +108,40 @@ void SimplifyVisitor::visit(IdExpr *expr) {
     resultExpr->markType();
     return;
   }
-  if (expr->is_label) {
-    if (ctx->lhs_setitems == 1) {
+  if (expr->isEinsum) {
+    // All checking for valid use will happen in the IR
+/*    if (ctx->lhs_setitems == 1) {
       // we are on the left hand side of a top-level setitem, which is an allowed context for the label
-      if (find(ctx->labels.begin(), ctx->labels.end(), expr->value) != ctx->labels.end()) {
+      if (find(ctx->einsumSymbols.begin(), ctx->einsumSymbols.end(), expr->value) != ctx->einsumSymbols.end()) {
 	error("Multiple uses of label '{}' on the lhs of a setitem not allowed.", expr->value);
       }
-      ctx->labels.push_back(expr->value);
+      ctx->einsumSymbols.push_back(expr->value);
     } else if (ctx->rhs_setitems == 1) {
       // we are on the rhs side of a top-level setitem, which is an allowed context for the label      
       // this label should already exist from the lhs side though
-      auto loc = find(ctx->labels.begin(), ctx->labels.end(), expr->value);      
-      if (loc == ctx->labels.end()) {
+      auto loc = find(ctx->einsumSymbols.begin(), ctx->einsumSymbols.end(), expr->value);      
+      if (loc == ctx->einsumSymbols.end()) {
 	error("label '{}' used on rhs of setitem not found", expr->value); 
       }
-    }
+    }*/
     // cool, we're all good. Now this can go through the typechecker
-    resultExpr = expr->labelSlice ? transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("Einsum"),"__new__"),
-							  N<StringExpr>(expr->value), expr->labelSlice)) : 
+    resultExpr = expr->idx ? transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("Einsum"),"__new__"),
+							  N<StringExpr>(expr->value), transform(expr->idx))) : 
       transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("Einsum"),"__new__"),
 			    N<StringExpr>(expr->value)));
+    return;
+  }
+  if (expr->isReduction) {
+    if (expr->idx && expr->reduceXform) {
+      resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinsumReduce"),"__new__"),
+					 N<StringExpr>(expr->value), transform(expr->idx), transform(expr->reduceXform)));
+    } else if (expr->idx) {
+      resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinsumReduce"),"__new__"),
+					 N<StringExpr>(expr->value), transform(expr->idx)));      
+    } else {
+      resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinsumReduce"),"__new__"),
+					 N<StringExpr>(expr->value)));   
+    }
     return;
   }
   auto val = ctx->find(expr->value);
@@ -533,9 +547,9 @@ void SimplifyVisitor::visit(CallExpr *expr) {
   }
 
   // cola:  we'll just allow this for any setitem right now, even though we only want cola setitem in the end
-  // Correct usage of labels will be looked at later on.
+  // Correct usage of einsum will be looked at later on.
 
-  if (expr->expr->getDot() && expr->expr->getDot()->member == "__setitem__") {
+/*  if (expr->expr->getDot() && expr->expr->getDot()->member == "__setitem__") {
     CallExpr::Arg arg0,arg1;
     // arg0 = idxs, arg1 = rhs
     ctx->lhs_setitems++;
@@ -553,7 +567,7 @@ void SimplifyVisitor::visit(CallExpr *expr) {
     resultExpr = N<CallExpr>(transform(expr->expr), vector<CallExpr::Arg>{arg0,arg1});
     ctx->labels.clear();
     return;
-  }
+  }*/
 
   auto e = transform(expr->expr, true);
   // 8. namedtuple

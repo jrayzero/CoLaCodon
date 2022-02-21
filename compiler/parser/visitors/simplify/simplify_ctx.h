@@ -106,7 +106,7 @@ struct SimplifyContext : public Context<SimplifyItem> {
 // of FlowInstrs. So track them and fail appropriately if find a label in a bad s[ot;
   int lhs_setitems = 0;
   int rhs_setitems = 0;
-  vector<string> labels;
+  vector<string> einsumSymbols;
 
 public:
   SimplifyContext(string filename, shared_ptr<Cache> cache);
