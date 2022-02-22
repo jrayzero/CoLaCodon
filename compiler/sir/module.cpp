@@ -263,6 +263,8 @@ types::Type *Module::getTupleType(std::vector<types::Type *> args) {
 
 Value *Module::getInt(int64_t v) { return Nr<IntConst>(v, getIntType()); }
 
+Value *Module::getByte(uint8_t v) { return Nr<ByteConst>(v, getByteType()); }
+
 Value *Module::getFloat(double v) { return Nr<FloatConst>(v, getFloatType()); }
 
 Value *Module::getBool(bool v) { return Nr<BoolConst>(v, getBoolType()); }

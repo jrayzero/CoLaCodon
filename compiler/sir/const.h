@@ -52,6 +52,7 @@ public:
 };
 
 using IntConst = TemplatedConst<int64_t>;
+using ByteConst = TemplatedConst<uint8_t>;
 using FloatConst = TemplatedConst<double>;
 using BoolConst = TemplatedConst<bool>;
 using StringConst = TemplatedConst<std::string>;

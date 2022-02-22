@@ -364,8 +364,12 @@ public:
   /// @return a bool constant
   Value *getBool(bool v);
   /// @param v the value
+  /// @return a byte constant
+  Value *getByte(uint8_t v);  
+  /// @param v the value
   /// @return a string constant
   Value *getString(std::string v);
+
 
   /// Gets a dummy function type. Should generally not be used as no type-checker
   /// information is generated.
