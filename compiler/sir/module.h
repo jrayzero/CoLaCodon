@@ -128,7 +128,6 @@ public:
   Var *getArgVar() { return argVar.get(); }
   /// @return the arg var
   const Var *getArgVar() const { return argVar.get(); }
-
   /// @return iterator to the first symbol
   auto begin() { return util::raw_ptr_adaptor(vars.begin()); }
   /// @return iterator beyond the last symbol
@@ -165,6 +164,10 @@ public:
     auto it = varMap.find(v->getId());
     vars.erase(it->second);
     varMap.erase(it);
+  }
+
+  std::unordered_map<id_t, std::list<std::unique_ptr<Var>>::iterator> &getVarMap() {
+    return varMap;
   }
 
   /// @return iterator to the first value

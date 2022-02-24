@@ -41,3 +41,7 @@ def C():
 @__attribute__
 def cola_opt():
     pass
+
+@__attribute__
+def nocodegen():
+    pass
