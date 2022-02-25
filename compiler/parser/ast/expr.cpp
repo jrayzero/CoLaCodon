@@ -131,11 +131,13 @@ string StringExpr::getValue() const {
 }
 ACCEPT_IMPL(StringExpr, ASTVisitor);
 
-IdExpr::IdExpr(string value) : Expr(), value(move(value)), isEinsum(false), isReduction(false), idx(nullptr), reduceXform(nullptr) {}
-IdExpr::IdExpr(string value, bool isEinsum, bool isReduction) : Expr(), value(move(value)), isEinsum(isEinsum), isReduction(isReduction), idx(nullptr), reduceXform(nullptr) {}
-IdExpr::IdExpr(string value, bool isEinsum, bool isReduction, ExprPtr idx) : Expr(), value(move(value)), isEinsum(isEinsum), isReduction(isReduction), idx(idx), reduceXform(nullptr) {}
-IdExpr::IdExpr(string value, bool isEinsum, bool isReduction, ExprPtr idx, ExprPtr reduceXform) : Expr(), value(move(value)), isEinsum(isEinsum), isReduction(isReduction), idx(idx), reduceXform(reduceXform) {}
-string IdExpr::toString() const { return wrapType(format("id '{} {} {} {} {}", value, isEinsum, isReduction, idx, reduceXform)); }
+IdExpr::IdExpr(string value) : Expr(), value(move(value)), isUsage(false), isDef(false),
+			       isReduction(false), expr(nullptr) { }
+IdExpr::IdExpr(string value, bool isUsage, bool isDef, bool isReduction) :
+  Expr(), value(move(value)), isUsage(isUsage), isDef(isDef), isReduction(isReduction), expr(nullptr) { }
+IdExpr::IdExpr(string value, bool isUsage, bool isDef, bool isReduction, ExprPtr expr) :
+  Expr(), value(move(value)), isUsage(isUsage), isDef(isDef), isReduction(isReduction), expr(move(expr)) { }
+string IdExpr::toString() const { return wrapType(format("id '{}", value)); }
 ACCEPT_IMPL(IdExpr, ASTVisitor);
 
 StarExpr::StarExpr(ExprPtr what) : Expr(), what(move(what)) {}

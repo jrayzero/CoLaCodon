@@ -241,16 +241,15 @@ struct StringExpr : public Expr {
 /// Identifier expression (value).
 struct IdExpr : public Expr {
   string value;
- // for cola
-  bool isEinsum;
+  // for cola
+  bool isUsage;
+  bool isDef;
   bool isReduction; 
-  ExprPtr idx;
-  ExprPtr reduceXform;
+  ExprPtr expr;
 
   explicit IdExpr(string value);
-  explicit IdExpr(string value, bool isEinsum, bool isReduction);
-  explicit IdExpr(string value, bool isEinsum, bool isReduction, ExprPtr idx);
-  explicit IdExpr(string value, bool isEinsum, bool isReduction, ExprPtr idx, ExprPtr reduceXform);
+  explicit IdExpr(string value, bool isUsage, bool isDef, bool isReduction);
+  explicit IdExpr(string value, bool isUsage, bool isDef, bool isReduction, ExprPtr expr);
   IdExpr(const IdExpr &expr) = default;
 
   string toString() const override;

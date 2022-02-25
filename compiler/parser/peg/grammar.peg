@@ -554,15 +554,14 @@ slice <-
   }
   / expression { return ac_expr(V0); }
 slice_part <- expression? { return VS.size() ? V0 : make_any<ExprPtr>(nullptr); }
-einsumIdx <- '(' slice ')'
-reduceXform <- '(' lambdef ')'
 atom <-
   / STRING (SPACE STRING)* {
     return ast<StringExpr>(LOC, VS.transform<pair<string, string>>());
   }
-  / '!!' OPNAME einsumIdx reduceXform { return ast<IdExpr>(LOC, ac<string>(V0), false, true, ac_expr(V1), ac_expr(V2)); }
-  / '!!' OPNAME einsumIdx? { return ast<IdExpr>(LOC, ac<string>(V0), false, true, VS.size() > 1 ? ac_expr(V1) : nullptr); }
-  / '!' NAME einsumIdx? { return ast<IdExpr>(LOC, ac<string>(V0), true, false, VS.size() > 1 ? ac_expr(V1) : nullptr); } 
+  / '!' OPNAME '(' expression ')' { return ast<IdExpr>(LOC, ac<string>(V0), false, false, true, ac_expr(V1)); }
+  / '!' OPNAME { return ast<IdExpr>(LOC, ac<string>(V0), false, false, true); }    
+  / '!' NAME '(' expression ')' { return ast<IdExpr>(LOC, ac<string>(V0), true, false, false, ac_expr(V1)); }
+  / '!' NAME { return ast<IdExpr>(LOC, ac<string>(V0), true, false, false); }     
   / id { return ac_expr(V0); }
   / 'True' { return ast<BoolExpr>(LOC, true); }
   / 'False' { return ast<BoolExpr>(LOC, false);}

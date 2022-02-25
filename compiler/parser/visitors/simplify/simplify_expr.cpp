@@ -108,42 +108,23 @@ void SimplifyVisitor::visit(IdExpr *expr) {
     resultExpr->markType();
     return;
   }
-  if (expr->isEinsum) {
-    // All checking for valid use will happen in the IR
-/*    if (ctx->lhs_setitems == 1) {
-      // we are on the left hand side of a top-level setitem, which is an allowed context for the label
-      if (find(ctx->einsumSymbols.begin(), ctx->einsumSymbols.end(), expr->value) != ctx->einsumSymbols.end()) {
-	error("Multiple uses of label '{}' on the lhs of a setitem not allowed.", expr->value);
-      }
-      ctx->einsumSymbols.push_back(expr->value);
-    } else if (ctx->rhs_setitems == 1) {
-      // we are on the rhs side of a top-level setitem, which is an allowed context for the label      
-      // this label should already exist from the lhs side though
-      auto loc = find(ctx->einsumSymbols.begin(), ctx->einsumSymbols.end(), expr->value);      
-      if (loc == ctx->einsumSymbols.end()) {
-	error("label '{}' used on rhs of setitem not found", expr->value); 
-      }
-    }*/
-    // cool, we're all good. Now this can go through the typechecker
-    resultExpr = expr->idx ? transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("Einsum"),"__new__"),
-							  N<StringExpr>(expr->value), transform(expr->idx))) : 
-      transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("Einsum"),"__new__"),
-			    N<StringExpr>(expr->value)));
+  if (expr->isUsage) {
+    resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopUsage"),"__new__"),
+				       N<StringExpr>(expr->value)));
+    return;
+  }
+  if (expr->isDef) {
+    resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopDef"), "__new__"),
+				       N<StringExpr>(expr->value), transform(expr->expr), N<FloatExpr>(0.0)));
     return;
   }
   if (expr->isReduction) {
-    if (expr->idx && expr->reduceXform) {
-      resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinsumReduce"),"__new__"),
-					 N<StringExpr>(expr->value), transform(expr->idx), transform(expr->reduceXform)));
-    } else if (expr->idx) {
-      resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinsumReduce"),"__new__"),
-					 N<StringExpr>(expr->value), transform(expr->idx)));      
-    } else {
-      resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinsumReduce"),"__new__"),
-					 N<StringExpr>(expr->value)));   
-    }
-    return;
+    resultExpr = expr->expr ? transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopReduce"), "__new__"),
+						    N<StringExpr>(expr->value), transform(expr->expr), N<FloatExpr>(0.0))) :
+      transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopDef"), "__new__"),
+			    N<StringExpr>(expr->value)));
   }
+
   auto val = ctx->find(expr->value);
   if (!val) {
     error("identifier '{}' not found", expr->value);
