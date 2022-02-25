@@ -493,7 +493,11 @@ void LLVMVisitor::writeToExecutable(const std::string &filename,
   for (const auto &arg : extraArgs) {
     command.push_back(arg);
   }
-
+  std::stringstream ss;
+  for (const auto &arg : command) {
+    ss << arg << " ";
+  }
+  std::cerr << ss.str() << std::endl;
   executeCommand(command);
 
 #if __APPLE__
