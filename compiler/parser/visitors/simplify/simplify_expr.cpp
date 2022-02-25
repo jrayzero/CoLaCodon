@@ -109,20 +109,24 @@ void SimplifyVisitor::visit(IdExpr *expr) {
     return;
   }
   if (expr->isUsage) {
-    resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopUsage"),"__new__"),
+    resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopUsage"),"build"),
 				       N<StringExpr>(expr->value)));
     return;
   }
   if (expr->isDef) {
-    resultExpr = transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopDef"), "__new__"),
-				       N<StringExpr>(expr->value), transform(expr->expr), N<FloatExpr>(0.0)));
+    resultExpr = expr->expr->getId() && expr->expr->getId()->isDef ?
+      transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopDef"), "build"),
+			    N<StringExpr>(expr->value), transform(expr->expr))) :
+      transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopDef"), "build2"),
+			    N<StringExpr>(expr->value), transform(expr->expr)));      		
     return;
   }
   if (expr->isReduction) {
-    resultExpr = expr->expr ? transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopReduce"), "__new__"),
-						    N<StringExpr>(expr->value), transform(expr->expr), N<FloatExpr>(0.0))) :
-      transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopDef"), "__new__"),
+    resultExpr = expr->expr ? transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopReduce"), "build"),
+						    N<StringExpr>(expr->value), transform(expr->expr))) :
+      transform(N<CallExpr>(N<DotExpr>(N<IdExpr>("EinopReduce"), "build2"),
 			    N<StringExpr>(expr->value)));
+    return;
   }
 
   auto val = ctx->find(expr->value);

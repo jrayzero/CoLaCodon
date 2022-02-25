@@ -881,7 +881,7 @@ void LLVMVisitor::visit(const Module *x) {
 void LLVMVisitor::makeLLVMFunction(const Func *x) {
   auto *fnAttributes = x->getAttribute<KeyValueAttribute>();
   if (fnAttributes && fnAttributes->has("std.internal.attributes.nocodegen")) {
-    std::cerr << "Skipping codegen for signature " << x->getName() << std::endl;
+    //    std::cerr << "Skipping codegen for signature " << x->getName() << std::endl;
     return; // do not codegen ANY of this function
   }    
   auto *srcInfo = getSrcInfo(x);
@@ -1158,7 +1158,7 @@ void LLVMVisitor::visit(const BodiedFunc *x) {
   func = module->getFunction(getNameForFunction(x)); // inserted during module visit
   auto *fnAttributes = x->getAttribute<KeyValueAttribute>();
   if (fnAttributes && fnAttributes->has("std.internal.attributes.nocodegen")) {
-    std::cerr << "Skipping codegen for " << x->getName() << std::endl;
+    //    std::cerr << "Skipping codegen for " << x->getName() << std::endl;
     return; // do not codegen ANY of this function
   }  
   coro = {};

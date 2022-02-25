@@ -560,7 +560,7 @@ atom <-
   }
   / '!' OPNAME '(' expression ')' { return ast<IdExpr>(LOC, ac<string>(V0), false, false, true, ac_expr(V1)); }
   / '!' OPNAME { return ast<IdExpr>(LOC, ac<string>(V0), false, false, true); }    
-  / '!' NAME '(' expression ')' { return ast<IdExpr>(LOC, ac<string>(V0), true, false, false, ac_expr(V1)); }
+  / '!' NAME '(' expression ')' { return ast<IdExpr>(LOC, ac<string>(V0), false, true, false, ac_expr(V1)); }
   / '!' NAME { return ast<IdExpr>(LOC, ac<string>(V0), true, false, false); }     
   / id { return ac_expr(V0); }
   / 'True' { return ast<BoolExpr>(LOC, true); }
