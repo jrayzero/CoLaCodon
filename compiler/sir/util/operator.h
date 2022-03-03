@@ -120,6 +120,7 @@ public:
   LAMBDA_VISIT(FlowInstr);
   LAMBDA_VISIT(DependsOnInstr);
   LAMBDA_VISIT(dsl::CustomInstr);
+  virtual void handle(ButterflyLane *) { }
 
   template <typename Node> void process(Node *v) { v->accept(*this); }
 
