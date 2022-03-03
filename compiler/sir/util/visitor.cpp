@@ -49,6 +49,7 @@ void Visitor::visit(YieldInstr *x) { defaultVisit(x); }
 void Visitor::visit(ThrowInstr *x) { defaultVisit(x); }
 void Visitor::visit(FlowInstr *x) { defaultVisit(x); }
 void Visitor::visit(DependsOnInstr *x) { defaultVisit(x); }
+void Visitor::visit(ButterflyRule *x) { /*For the most part I want to skip this, except for very specific passes*/ }
 void Visitor::visit(dsl::CustomInstr *x) { defaultVisit(x); }
 void Visitor::visit(types::Type *x) { defaultVisit(x); }
 void Visitor::visit(types::PrimitiveType *x) { defaultVisit(x); }
@@ -108,6 +109,7 @@ void ConstVisitor::visit(const TypePropertyInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const YieldInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const ThrowInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const FlowInstr *x) { defaultVisit(x); }
+void ConstVisitor::visit(const ButterflyRule *x) { /*For the most part I want to skip this, except for very specific passes*/ }
 void ConstVisitor::visit(const DependsOnInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const dsl::CustomInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const types::Type *x) { defaultVisit(x); }

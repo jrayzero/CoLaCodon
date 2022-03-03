@@ -447,5 +447,7 @@ string StackAllocExpr::toString() const {
 }
 ACCEPT_IMPL(StackAllocExpr, ASTVisitor);
 
+ACCEPT_IMPL(ButterflyExpr, ASTVisitor);
+
 } // namespace ast
 } // namespace seq

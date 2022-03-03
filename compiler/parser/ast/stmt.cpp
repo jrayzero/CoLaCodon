@@ -304,6 +304,7 @@ const string Attr::Capture = ".__capture__";
 const string Attr::Extend = "extend";
 const string Attr::Tuple = "tuple";
 const string Attr::Test = "std.internal.attributes.test";
+const string Attr::Butterfly = "std.internal.attributes.butterfly";
 
 FunctionStmt::FunctionStmt(string name, ExprPtr ret, vector<Param> args, StmtPtr suite,
                            Attr attributes, vector<ExprPtr> decorators)

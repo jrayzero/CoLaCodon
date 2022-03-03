@@ -52,6 +52,7 @@ private:
   void defaultVisit(Stmt *s) override;
 
 public:
+  void visit(ButterflyExpr *) override;
   /// Set type to bool.
   void visit(BoolExpr *) override;
   /// Set type to int.

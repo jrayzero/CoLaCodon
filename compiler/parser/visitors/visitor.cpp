@@ -77,6 +77,8 @@ void ASTVisitor::visit(YieldFromStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(WithStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(CustomStmt *stmt) { defaultVisit(stmt); }
 
+void ASTVisitor::visit(ButterflyExpr *expr) { defaultVisit(expr); }
+
 void ReplaceASTVisitor::visit(NoneExpr *expr) {}
 void ReplaceASTVisitor::visit(BoolExpr *expr) {}
 void ReplaceASTVisitor::visit(IntExpr *expr) {}
@@ -299,6 +301,12 @@ void ReplaceASTVisitor::visit(WithStmt *stmt) {
 void ReplaceASTVisitor::visit(CustomStmt *stmt) {
   transform(stmt->expr);
   transform(stmt->suite);
+}
+
+void ReplaceASTVisitor::visit(ButterflyExpr *expr) {
+  for (auto &e : expr->exprs) {
+    transform(e);
+  }
 }
 
 } // namespace ast

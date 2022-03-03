@@ -41,6 +41,23 @@ int AssignInstr::doReplaceUsedVariable(id_t id, Var *newVar) {
   return 0;
 }
 
+const char ButterflyRule::NodeId = 0;
+
+int ButterflyRule::doReplaceUsedValue(id_t id, Value *newValue) {
+  int repls = 0;
+  vector<Value*> repl_vals;
+  for (auto *r : ruleComps) {
+    if (r->getId() == id) {
+      repl_vals.push_back(newValue);
+      repls++;
+    } else {
+      repl_vals.push_back(r);
+    }
+  }
+  ruleComps = move(repl_vals);
+  return repls;
+}
+
 const char ExtractInstr::NodeId = 0;
 
 types::Type *ExtractInstr::doGetType() const {

@@ -67,6 +67,29 @@ protected:
   int doReplaceUsedVariable(id_t id, Var *newVar) override;
 };
 
+/// Represents a butterfly expression with a butterfly function
+class ButterflyRule : public AcceptorExtend<ButterflyRule, Instr> {
+private:
+  /// Individual components of the rule
+  vector<Value*> ruleComps;
+  /// True if a row rule, false if a column rule
+  /// Set during an IR pass rather than from the AST, so defaults to false
+  bool isRow; 
+public:
+  static const char NodeId;
+  explicit ButterflyRule(vector<Value*> ruleComps) : 
+    AcceptorExtend(""), ruleComps(move(ruleComps)), isRow(false) { }
+
+  bool getIsRow() const { return isRow; }
+  void setIsRow(bool isRow) { this->isRow = isRow; }
+  vector<Value*> getRuleComps() { return ruleComps; }
+  vector<Value*> getRuleComps() const { return ruleComps; }
+
+protected:
+  std::vector<Value *> doGetUsedValues() const override { return ruleComps; }
+  int doReplaceUsedValue(id_t id, Value *newValue) override;
+};
+
 /// Instr representing loading the field of a value.
 class ExtractInstr : public AcceptorExtend<ExtractInstr, Instr> {
 private:

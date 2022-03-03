@@ -45,3 +45,7 @@ def cola_opt():
 @__attribute__
 def nocodegen():
     pass
+
+@__attribute__
+def butterfly():
+    pass

@@ -410,6 +410,17 @@ void TranslateVisitor::visit(ClassStmt *stmt) {
   // Methods will be handled by FunctionStmt visitor.
 }
 
+void TranslateVisitor::visit(ButterflyExpr *expr) {
+  // This doesn't translate into a node itself. Rather it gets added to the containing function body,
+  // which should be an @butterfly annotated function
+  seqassert(ctx->inButterfly, "Butterfly expressions must be in function definitions marked with @butterfly");
+  vector<ir::Value*> vals;
+  for (auto &e : expr->exprs) {
+    vals.push_back(transform(e));
+  }    
+  result = make<ir::ButterflyRule>(expr, vals);  
+}
+
 /************************************************************************************/
 
 seq::ir::types::Type *TranslateVisitor::getType(const types::TypePtr &t) {
@@ -422,6 +433,11 @@ seq::ir::types::Type *TranslateVisitor::getType(const types::TypePtr &t) {
 
 void TranslateVisitor::transformFunction(types::FuncType *type, FunctionStmt *ast,
                                          ir::Func *func) {
+  if (ast->attributes.has(Attr::Butterfly)) {
+    std::cerr << "Found butterfly" << std::endl;
+    seqassert(!ctx->inButterfly, "Cannot have nested butterfly functions");      
+    ctx->inButterfly = true;
+  }
   vector<string> names;
   vector<int> indices;
   vector<SrcInfo> srcInfos;
@@ -451,6 +467,9 @@ void TranslateVisitor::transformFunction(types::FuncType *type, FunctionStmt *as
     // LOG("{} -> {}", ast->name, a);
     attr[a] = "";
   }
+  if (ast->attributes.has(Attr::Butterfly)) {
+    attr["nonpure"] = "";
+  }
   func->setAttribute(make_unique<ir::KeyValueAttribute>(attr));
   for (int i = 0; i < names.size(); i++)
     func->getArgVar(names[i])->setSrcInfo(ast->args[indices[i]].getSrcInfo());
@@ -460,14 +479,17 @@ void TranslateVisitor::transformFunction(types::FuncType *type, FunctionStmt *as
     for (auto i = 0; i < names.size(); i++)
       ctx->add(TranslateItem::Var, ast->args[indices[i]].name,
                func->getArgVar(names[i]));
-    auto body = make<ir::SeriesFlow>(ast, "body");
     ctx->bases.push_back(cast<ir::BodiedFunc>(func));
+    auto body = make<ir::SeriesFlow>(ast, "body");
     ctx->addSeries(body);
     transform(ast->suite);
     ctx->popSeries();
     ctx->bases.pop_back();
     cast<ir::BodiedFunc>(func)->setBody(body);
     ctx->popBlock();
+  }
+  if (ast->attributes.has(Attr::Butterfly)) {
+    ctx->inButterfly = false;
   }
 }
 

@@ -437,6 +437,7 @@ struct Attr {
   const static string Tuple;
   // Standard library attributes
   const static string Test;
+  const static string Butterfly;
   // Function module
   string module;
   // Parent class (set for methods only)

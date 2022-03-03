@@ -106,6 +106,8 @@ private:
   void defaultVisit(Stmt *s) override;
 
 public:
+
+  void visit(ButterflyExpr *) override;
   /// Transform None to:
   ///   Optional().
   void visit(NoneExpr *) override;

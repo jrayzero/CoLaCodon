@@ -56,6 +56,8 @@ struct TranslateContext : public Context<TranslateItem> {
   /// Stack of IR series (blocks).
   vector<seq::ir::SeriesFlow *> series;
 
+  bool inButterfly = false;
+
 public:
   TranslateContext(shared_ptr<Cache> cache, seq::ir::SeriesFlow *series,
                    seq::ir::BodiedFunc *base);
@@ -68,7 +70,7 @@ public:
 
   /// Convenience method for adding a series.
   void addSeries(seq::ir::SeriesFlow *s);
-  void popSeries();
+  void popSeries();  
 
 public:
   seq::ir::Module *getModule() const;

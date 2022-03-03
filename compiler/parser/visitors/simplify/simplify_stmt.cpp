@@ -987,6 +987,14 @@ void SimplifyVisitor::visit(ClassStmt *stmt) {
 }
 
 void SimplifyVisitor::visit(CustomStmt *stmt) {
+
+  if (stmt->keyword == "row" || stmt->keyword == "col") {
+    // defer to translate to check stuff    
+    std::cerr << "Found " << stmt->keyword << std::endl;
+    resultStmt = N<CustomStmt>(stmt->keyword, nullptr, transform(stmt->suite));
+    return;
+  }
+
   if (stmt->suite) {
     auto fn = ctx->cache->customBlockStmts.find(stmt->keyword);
     seqassert(fn != ctx->cache->customBlockStmts.end(), "unknown keyword {}",
