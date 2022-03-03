@@ -41,12 +41,12 @@ int AssignInstr::doReplaceUsedVariable(id_t id, Var *newVar) {
   return 0;
 }
 
-const char ButterflyRule::NodeId = 0;
+const char ButterflyLane::NodeId = 0;
 
-int ButterflyRule::doReplaceUsedValue(id_t id, Value *newValue) {
+int ButterflyLane::doReplaceUsedValue(id_t id, Value *newValue) {
   int repls = 0;
   vector<Value*> repl_vals;
-  for (auto *r : ruleComps) {
+  for (auto *r : rules) {
     if (r->getId() == id) {
       repl_vals.push_back(newValue);
       repls++;
@@ -54,7 +54,7 @@ int ButterflyRule::doReplaceUsedValue(id_t id, Value *newValue) {
       repl_vals.push_back(r);
     }
   }
-  ruleComps = move(repl_vals);
+  rules = move(repl_vals);
   return repls;
 }
 

@@ -414,11 +414,11 @@ void TranslateVisitor::visit(ButterflyExpr *expr) {
   // This doesn't translate into a node itself. Rather it gets added to the containing function body,
   // which should be an @butterfly annotated function
   seqassert(ctx->inButterfly, "Butterfly expressions must be in function definitions marked with @butterfly");
-  vector<ir::Value*> vals;
+  vector<ir::Value*> rules;
   for (auto &e : expr->exprs) {
-    vals.push_back(transform(e));
+    rules.push_back(transform(e));
   }    
-  result = make<ir::ButterflyRule>(expr, vals);  
+  result = make<ir::ButterflyLane>(expr, rules);  
 }
 
 /************************************************************************************/

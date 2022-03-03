@@ -68,25 +68,25 @@ protected:
 };
 
 /// Represents a butterfly expression with a butterfly function
-class ButterflyRule : public AcceptorExtend<ButterflyRule, Instr> {
+class ButterflyLane : public AcceptorExtend<ButterflyLane, Instr> {
 private:
-  /// Individual components of the rule
-  vector<Value*> ruleComps;
+  /// Individual rules within the lane
+  vector<Value*> rules;
   /// True if a row rule, false if a column rule
   /// Set during an IR pass rather than from the AST, so defaults to false
   bool isRow; 
 public:
   static const char NodeId;
-  explicit ButterflyRule(vector<Value*> ruleComps) : 
-    AcceptorExtend(""), ruleComps(move(ruleComps)), isRow(false) { }
+  explicit ButterflyLane(vector<Value*> rules) : 
+    AcceptorExtend(""), rules(move(rules)), isRow(false) { }
 
   bool getIsRow() const { return isRow; }
   void setIsRow(bool isRow) { this->isRow = isRow; }
-  vector<Value*> getRuleComps() { return ruleComps; }
-  vector<Value*> getRuleComps() const { return ruleComps; }
+  vector<Value*> getRules() { return rules; }
+  vector<Value*> getRules() const { return rules; }
 
 protected:
-  std::vector<Value *> doGetUsedValues() const override { return ruleComps; }
+  std::vector<Value *> doGetUsedValues() const override { return rules; }
   int doReplaceUsedValue(id_t id, Value *newValue) override;
 };
 

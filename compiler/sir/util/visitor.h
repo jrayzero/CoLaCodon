@@ -84,7 +84,7 @@ class YieldInstr;
 class ThrowInstr;
 class FlowInstr;
 class DependsOnInstr;
-class ButterflyRule;
+class ButterflyLane;
 
 namespace util {
 
@@ -147,7 +147,7 @@ public:
   VISIT(ThrowInstr);
   VISIT(FlowInstr);
   VISIT(DependsOnInstr);
-  VISIT(ButterflyRule);
+  VISIT(ButterflyLane);
   VISIT(dsl::CustomInstr);
 
   VISIT(types::Type);
@@ -225,7 +225,7 @@ public:
   CONST_VISIT(ThrowInstr);
   CONST_VISIT(FlowInstr);
   CONST_VISIT(DependsOnInstr);
-  CONST_VISIT(ButterflyRule);
+  CONST_VISIT(ButterflyLane);
   CONST_VISIT(dsl::CustomInstr);
 
   CONST_VISIT(types::Type);
