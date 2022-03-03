@@ -100,19 +100,6 @@ class int:
     def __floordiv__(self, b: int) -> int:
         %tmp = sdiv i64 %self, %b
         ret i64 %tmp
-    @pure
-    @llvm
-    def floordiv2(self, b: int) -> int:
-        %tmp = sdiv i64 %self, %b
-        ret i64 %tmp
-    @llvm
-    def floordiv3(self, b: int) -> int:
-        %tmp = sdiv i64 %self, %b
-        ret i64 %tmp
-    @llvm
-    def floordiv4(self, b: int) -> int:
-        %tmp = sdiv i64 %self, %b
-        ret i64 %tmp                
     @llvm
     def __floordiv__(self, other: float) -> float:
         declare double @llvm.floor.f64(double)
@@ -138,11 +125,6 @@ class int:
     def __mod__(a: int, b: int) -> int:
         %tmp = srem i64 %a, %b
         ret i64 %tmp
-    @pure
-    @llvm
-    def mod3(a: int, b: int) -> int:
-        %tmp = srem i64 %a, %b
-        ret i64 %tmp        
     @llvm
     def __mod__(self, other: float) -> float:
         %0 = sitofp i64 %self to double
