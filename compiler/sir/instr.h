@@ -84,7 +84,7 @@ public:
 
 public:
   static const char NodeId;
-  ButterflyLane(vector<ButterflyRule> rules, bool isRow) : 
+  ButterflyLane(vector<ButterflyRule> rules, bool isRow, string name="") : 
     AcceptorExtend(""), rules(move(rules)), isRow(isRow) { }
   vector<ButterflyRule> getRules() { return rules; }
   vector<ButterflyRule> getRules() const { return rules; }

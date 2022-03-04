@@ -69,6 +69,7 @@ public:
   void visit(const ThrowInstr *v) override;
   void visit(const FlowInstr *v) override;
   void visit(const DependsOnInstr *v) override;
+  void visit(const ButterflyLane *v) override;
   void visit(const dsl::CustomInstr *v) override;
 
   /// Clones a value, returning the previous value if other has already been cloned.

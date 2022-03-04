@@ -280,6 +280,14 @@ void CloneVisitor::visit(const DependsOnInstr *v) {
   result = Nt(v, clone(v->getLocation()), clone(v->getDepends()));
 }
 
+void CloneVisitor::visit(const ButterflyLane *v) {
+  vector<ButterflyLane::ButterflyRule> rules;
+  for (auto &r : v->getRules()) {
+    rules.push_back({r.op, clone(r.expr)});
+  }
+  result = Nt(v, move(rules), v->getIsRow());
+}
+
 void CloneVisitor::visit(const dsl::CustomInstr *v) { result = v->doClone(*this); }
 
 } // namespace util
