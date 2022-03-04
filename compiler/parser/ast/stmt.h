@@ -80,13 +80,19 @@ public:
 using StmtPtr = shared_ptr<Stmt>;
 
 /// Represents one lane of a butterfly computation
-struct ButterflyStmt : Stmt {
-  vector<ExprPtr> exprs;
-  string op;
-  ButterflyStmt(vector<ExprPtr> exprs, string op) : 
-    Stmt(), exprs(move(exprs)), op(move(op)) { }
+struct ButterflyStmt : public Stmt {
+  struct ButterflyRule {
+    string op;
+    ExprPtr expr;
+    ButterflyRule clone() const {
+      return {op, ast::clone(expr)}; 
+    }
+  };
+  vector<ButterflyRule> rules;
+  explicit ButterflyStmt(vector<ButterflyRule> rules) : 
+    Stmt(), rules(move(rules)) { }
   ButterflyStmt(const ButterflyStmt &stmt) : 
-    Stmt(stmt), exprs(ast::clone(stmt.exprs)), op(stmt.op) { }
+    Stmt(stmt), rules(ast::clone_nop(stmt.rules)) { }
   string toString(int indent) const override {
     return "butterflystmt"; 
   }

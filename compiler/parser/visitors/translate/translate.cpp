@@ -434,11 +434,11 @@ void TranslateVisitor::visit(ButterflyStmt *stmt) {
   // which should be an @butterfly annotated function
   seqassert(ctx->inButterflyFunc, "Butterfly statements must be in function definitions marked with @butterfly");
   seqassert(ctx->inButterflyRowBlock || ctx->inButterflyColBlock, "Butterfly statements may only be within a butterfly row (brow) or column (bcol)");
-  vector<ir::Value*> rules;
-  for (auto &e : stmt->exprs) {
-    rules.push_back(transform(e));
+  vector<ir::ButterflyLane::ButterflyRule> rules;
+  for (auto &e : stmt->rules) {
+    rules.push_back({e.op, transform(e.expr)});
   }    
-  result = make<ir::ButterflyLane>(stmt, rules, ctx->inButterflyRowBlock, stmt->op);  
+  result = make<ir::ButterflyLane>(stmt, rules, ctx->inButterflyRowBlock);  
 }
 
 /************************************************************************************/

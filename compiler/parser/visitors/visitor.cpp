@@ -184,8 +184,8 @@ void ReplaceASTVisitor::visit(StmtExpr *expr) {
   transform(expr->expr);
 }
 void ReplaceASTVisitor::visit(ButterflyStmt *stmt) {
-  for (auto &e : stmt->exprs) {
-    transform(e);
+  for (auto &e : stmt->rules) {
+    transform(e.expr);
   }
 }
 void ReplaceASTVisitor::visit(SuiteStmt *stmt) {

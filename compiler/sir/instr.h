@@ -69,36 +69,38 @@ protected:
 
 /// Represents a butterfly expression with a butterfly function
 class ButterflyLane : public AcceptorExtend<ButterflyLane, Instr> {
-private:
+public:
+  struct ButterflyRule {
+    string op;
+    Value *expr;
+  };
   /// Individual rules within the lane
-  vector<Value*> rules;
+  vector<ButterflyRule> rules;
   /// True if a row rule, false if a column rule
   /// Set during an IR pass rather than from the AST, so defaults to false
   bool isRow; 
-  /// string version of operation
-  string sop;
-  /// IR version of operation
-  Value *op;
   /// The element type of the block/view argument
   types::Type *elemType;
+
 public:
   static const char NodeId;
-  ButterflyLane(vector<Value*> rules, bool isRow, string sop) : 
-    AcceptorExtend(""), rules(move(rules)), isRow(isRow), sop(move(sop)) { }
-
+  ButterflyLane(vector<ButterflyRule> rules, bool isRow) : 
+    AcceptorExtend(""), rules(move(rules)), isRow(isRow) { }
+  vector<ButterflyRule> getRules() { return rules; }
+  vector<ButterflyRule> getRules() const { return rules; }
   bool getIsRow() const { return isRow; }
   void setIsRow(bool isRow) { this->isRow = isRow; }
-  string getSop() const { return sop; }
-  void setOp(Value *op) { this->op = op; }
-  Value *getOp() { return op; }
-  Value *getOp() const { return op; }
-  vector<Value*> getRules() { return rules; }
-  vector<Value*> getRules() const { return rules; }
   types::Type *getElemType() { return elemType; }
   void setElemType(types::Type *e) { elemType = e; }
 
 protected:
-  std::vector<Value *> doGetUsedValues() const override { return rules; }
+  std::vector<Value *> doGetUsedValues() const override { 
+    vector<Value*> vals;
+    for (auto &r : rules) {
+      vals.push_back(r.expr);
+    }
+    return vals;
+  }
   int doReplaceUsedValue(id_t id, Value *newValue) override;
 };
 

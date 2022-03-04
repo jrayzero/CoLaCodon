@@ -45,16 +45,12 @@ const char ButterflyLane::NodeId = 0;
 
 int ButterflyLane::doReplaceUsedValue(id_t id, Value *newValue) {
   int repls = 0;
-  vector<Value*> repl_vals;
-  for (auto *r : rules) {
-    if (r->getId() == id) {
-      repl_vals.push_back(newValue);
+  for (auto &r : rules) {
+    if (r.expr->getId() == id) {
+      r.expr = newValue;
       repls++;
-    } else {
-      repl_vals.push_back(r);
     }
   }
-  rules = move(repl_vals);
   return repls;
 }
 

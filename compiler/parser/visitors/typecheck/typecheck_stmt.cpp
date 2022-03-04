@@ -61,14 +61,14 @@ void TypecheckVisitor::defaultVisit(Stmt *s) {
 /**************************************************************************************/
 
 void TypecheckVisitor::visit(ButterflyStmt *stmt) {
-  vector<ExprPtr> exprs;
+  vector<ButterflyStmt::ButterflyRule> rules;
   bool done = true;
-  for (auto &e : stmt->exprs) {
-    auto te = transform(e);
+  for (auto &e : stmt->rules) {
+    auto te = transform(e.expr);
     done &= te->done;
-    exprs.push_back(move(te));
+    rules.push_back({e.op, move(te)});
   }
-  stmt->exprs = move(exprs);
+  stmt->rules = move(rules);
   stmt->done = done;
 }
 

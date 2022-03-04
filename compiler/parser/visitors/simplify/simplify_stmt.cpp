@@ -70,11 +70,11 @@ void SimplifyVisitor::defaultVisit(Stmt *s) { resultStmt = s->clone(); }
 /**************************************************************************************/
 
 void SimplifyVisitor::visit(ButterflyStmt *stmt) {
-  vector<ExprPtr> exprs;
-  for (auto &e : stmt->exprs) {
-    exprs.push_back(transform(e));
+  vector<ButterflyStmt::ButterflyRule> rules;
+  for (auto &e : stmt->rules) {
+    rules.push_back({e.op, transform(e.expr)});
   }
-  resultStmt = N<ButterflyStmt>(exprs, stmt->op);
+  resultStmt = N<ButterflyStmt>(rules);
 }
 
 void SimplifyVisitor::visit(SuiteStmt *stmt) {
