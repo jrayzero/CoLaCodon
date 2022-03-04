@@ -6,6 +6,7 @@
 %preamble {
   #include "parser/peg/rules.h"
   #include <any>
+  #include <string>
   using namespace std;
   using namespace seq::ast;
 
@@ -36,6 +37,12 @@
       return ac_expr(V0);
     return ast<TupleExpr>(LOC, VS.transform<ExprPtr>());
   }
+  auto butterfly(peg::SemanticValues &VS, std::string op, const seq::SrcInfo &LOC) {
+    vector<ExprPtr> v;
+    for (int i = 0; i < VS.size(); i++)
+      v.push_back(ac_expr(VS[i]));
+    return ast<ButterflyStmt>(LOC, move(v), op);
+  }
 }
 program <- (statements (_ EOL)* / (_ EOL)*) !. {
   if (VS.empty())
@@ -56,6 +63,7 @@ simple_stmt <- tlist(';', small_stmt) _ EOL {
   return ast<SuiteStmt>(LOC, VS.transform<StmtPtr>());
 }
 small_stmt <-
+  / butterfly_stmt
   / assignment
   / 'pass' &(SPACE / ';' / EOL) { return any(ast<SuiteStmt>(LOC)); }
   / 'break' &(SPACE / ';' / EOL) { return any(ast<BreakStmt>(LOC)); }
@@ -77,6 +85,10 @@ small_stmt <-
       throw peg::parse_error(s.c_str());
     }
     return any(ast<CustomStmt>(LOC, kwd, ac_expr(V1), nullptr));
+  }
+butterfly_stmt <-
+  / expression (_ <'|+>'> _ expression)+ {
+    return butterfly(VS, "+", LOC);
   }
 assignment <-
   / id _ ':' _ expression (_ '=' _ star_expressions)? {
@@ -425,11 +437,14 @@ custom_stmt <-
   }
   / NAME _ ':' _ suite {
     auto kwd = ac<string>(V0);
+    if (kwd == "brow" || kwd == "bcol") {
+      return ast<CustomStmt>(LOC, kwd, nullptr, ac_stmt(V1));
+    }
     if (!CTX.hasCustomStmtKeyword(kwd, false)) {
       auto s = "keyword '" + kwd + "' not recognized";
       throw peg::parse_error(s.c_str());
     }
-    return ast<CustomStmt>(LOC, kwd, nullptr, ac_stmt(V2));
+    return ast<CustomStmt>(LOC, kwd, nullptr, ac_stmt(V1));
   }
 
 ########################################################################################
@@ -442,7 +457,7 @@ expression <-
   / disjunction SPACE 'if' SPACE disjunction SPACE 'else' SPACE expression {
     return ast<IfExpr>(LOC, ac_expr(V1), ac_expr(V0), ac_expr(V2));
   }
-  / pipe { return ac_expr(V0); }
+  / disjunction { return ac_expr(V0); }
 # TODO: make it more pythonic
 lambdef <- 
   / 'lambda' SPACE list(',', NAME) _ ':' _ expression {
@@ -453,14 +468,6 @@ lambdef <-
   / 'lambda' _ ':' _ expression {
     return ast<LambdaExpr>(LOC, vector<string>{}, ac_expr(VS.back()));
   }
-pipe <-
-  / disjunction (_ <'|>'> _ disjunction)+ {
-    vector<ExprPtr> v;
-    for (int i = 0; i < VS.size(); i++)
-      v.push_back(ac_expr(VS[i]));
-    return ast<ButterflyExpr>(LOC, move(v));
-  }
-  / disjunction { return ac_expr(V0); }
 disjunction <-
   / conjunction (SPACE 'or' SPACE conjunction)+ {
     auto b = ast<BinaryExpr>(LOC, ac_expr(V0), "||", ac_expr(V1));

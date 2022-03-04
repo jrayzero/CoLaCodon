@@ -29,6 +29,8 @@ Stmt::Stmt() : done(false), age(-1) {}
 Stmt::Stmt(const seq::SrcInfo &s) : done(false) { setSrcInfo(s); }
 string Stmt::toString() const { return toString(-1); }
 
+ACCEPT_IMPL(ButterflyStmt, ASTVisitor);
+
 SuiteStmt::SuiteStmt(vector<StmtPtr> stmts, bool ownBlock)
     : Stmt(), ownBlock(ownBlock) {
   for (auto &s : stmts)

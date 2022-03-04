@@ -107,7 +107,6 @@ private:
 
 public:
 
-  void visit(ButterflyExpr *) override;
   /// Transform None to:
   ///   Optional().
   void visit(NoneExpr *) override;
@@ -225,6 +224,7 @@ public:
   /// Parse all statements in StmtExpr.
   void visit(StmtExpr *) override;
 
+  void visit(ButterflyStmt *) override;
   /// Transform all statements in a suite and flatten them (unless a suite is a variable
   /// scope).
   void visit(SuiteStmt *) override;

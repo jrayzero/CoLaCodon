@@ -49,6 +49,7 @@ void ASTVisitor::visit(RangeExpr *expr) { defaultVisit(expr); }
 void ASTVisitor::visit(InstantiateExpr *expr) { defaultVisit(expr); }
 void ASTVisitor::visit(StmtExpr *expr) { defaultVisit(expr); }
 
+void ASTVisitor::visit(ButterflyStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(SuiteStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(BreakStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(ContinueStmt *stmt) { defaultVisit(stmt); }
@@ -76,8 +77,6 @@ void ASTVisitor::visit(ClassStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(YieldFromStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(WithStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(CustomStmt *stmt) { defaultVisit(stmt); }
-
-void ASTVisitor::visit(ButterflyExpr *expr) { defaultVisit(expr); }
 
 void ReplaceASTVisitor::visit(NoneExpr *expr) {}
 void ReplaceASTVisitor::visit(BoolExpr *expr) {}
@@ -183,6 +182,11 @@ void ReplaceASTVisitor::visit(StmtExpr *expr) {
   for (auto &s : expr->stmts)
     transform(s);
   transform(expr->expr);
+}
+void ReplaceASTVisitor::visit(ButterflyStmt *stmt) {
+  for (auto &e : stmt->exprs) {
+    transform(e);
+  }
 }
 void ReplaceASTVisitor::visit(SuiteStmt *stmt) {
   for (auto &s : stmt->stmts)
@@ -301,12 +305,6 @@ void ReplaceASTVisitor::visit(WithStmt *stmt) {
 void ReplaceASTVisitor::visit(CustomStmt *stmt) {
   transform(stmt->expr);
   transform(stmt->suite);
-}
-
-void ReplaceASTVisitor::visit(ButterflyExpr *expr) {
-  for (auto &e : expr->exprs) {
-    transform(e);
-  }
 }
 
 } // namespace ast

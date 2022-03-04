@@ -29,7 +29,6 @@ protected:
   virtual void defaultVisit(Stmt *stmt);
 
 public:
-  virtual void visit(ButterflyExpr *);
   virtual void visit(NoneExpr *);
   virtual void visit(BoolExpr *);
   virtual void visit(IntExpr *);
@@ -64,6 +63,7 @@ public:
   virtual void visit(InstantiateExpr *);
   virtual void visit(StmtExpr *);
 
+  virtual void visit(ButterflyStmt *);
   virtual void visit(AssignMemberStmt *);
   virtual void visit(UpdateStmt *);
   virtual void visit(SuiteStmt *);
@@ -156,7 +156,6 @@ struct ReplaceASTVisitor : public ASTVisitor {
   virtual void transform(shared_ptr<Expr> &expr) = 0;
   virtual void transform(shared_ptr<Stmt> &stmt) = 0;
 
-  void visit(ButterflyExpr *) override;
   void visit(NoneExpr *) override;
   void visit(BoolExpr *) override;
   void visit(IntExpr *) override;
@@ -191,6 +190,7 @@ struct ReplaceASTVisitor : public ASTVisitor {
   void visit(InstantiateExpr *) override;
   void visit(StmtExpr *) override;
 
+  void visit(ButterflyStmt *) override;
   void visit(AssignMemberStmt *) override;
   void visit(UpdateStmt *) override;
   void visit(SuiteStmt *) override;

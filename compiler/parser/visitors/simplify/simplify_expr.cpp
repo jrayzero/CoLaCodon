@@ -357,14 +357,6 @@ void SimplifyVisitor::visit(ChainBinaryExpr *expr) {
   resultExpr = transform(b);
 }
 
-void SimplifyVisitor::visit(ButterflyExpr *expr) {
-  vector<ExprPtr> exprs;
-  for (auto &e : expr->exprs) {
-    exprs.push_back(transform(e));
-  }
-  resultExpr = N<ButterflyExpr>(exprs);
-}
-
 void SimplifyVisitor::visit(PipeExpr *expr) {
   vector<PipeExpr::Pipe> p;
   for (auto &i : expr->items) {

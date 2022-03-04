@@ -85,17 +85,6 @@ void TypecheckVisitor::defaultVisit(Expr *e) {
 
 /**************************************************************************************/
 
-void TypecheckVisitor::visit(ButterflyExpr *expr) {
-  vector<ExprPtr> exprs;
-  for (auto &e : expr->exprs) {
-    exprs.push_back(transform(e));
-  }
-  std::cerr << "Nexprs " << exprs.size() << std::endl;
-  expr->exprs = move(exprs);
-  expr->setType(ctx->findInternal("void"));
-  expr->done = true;
-}
-
 void TypecheckVisitor::visit(BoolExpr *expr) {
   unify(expr->type, ctx->findInternal("bool"));
   expr->done = true;

@@ -52,7 +52,6 @@ private:
   void defaultVisit(Stmt *s) override;
 
 public:
-  void visit(ButterflyExpr *) override;
   /// Set type to bool.
   void visit(BoolExpr *) override;
   /// Set type to int.
@@ -121,6 +120,7 @@ public:
   /// Use type of an inner expression.
   void visit(StmtExpr *) override;
 
+  void visit(ButterflyStmt *) override;
   void visit(SuiteStmt *) override;
   void visit(BreakStmt *) override;
   void visit(ContinueStmt *) override;
@@ -173,6 +173,7 @@ public:
 
   void visit(WaveStmt *) override;
   void visit(DependsOnStmt *) override;
+  void visit(CustomStmt *) override;
   using CallbackASTVisitor<ExprPtr, StmtPtr>::transform;
 
 private:

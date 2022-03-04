@@ -86,6 +86,11 @@ public:
       processSeriesFlowChildren(v);
   }
 
+  virtual void handle(seq::ir::ButterflyLane *v) {}
+  void visit(seq::ir::ButterflyLane *v) override {
+    handle(v);
+  }
+
   virtual void handle(seq::ir::SeriesFlow *v) {}
   LAMBDA_VISIT(IfFlow);
   LAMBDA_VISIT(WhileFlow);
@@ -120,7 +125,6 @@ public:
   LAMBDA_VISIT(FlowInstr);
   LAMBDA_VISIT(DependsOnInstr);
   LAMBDA_VISIT(dsl::CustomInstr);
-  virtual void handle(ButterflyLane *) { }
 
   template <typename Node> void process(Node *v) { v->accept(*this); }
 

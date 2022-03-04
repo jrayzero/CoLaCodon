@@ -56,7 +56,9 @@ struct TranslateContext : public Context<TranslateItem> {
   /// Stack of IR series (blocks).
   vector<seq::ir::SeriesFlow *> series;
 
-  bool inButterfly = false;
+  bool inButterflyFunc = false;
+  bool inButterflyRowBlock = false;
+  bool inButterflyColBlock = false; 
 
 public:
   TranslateContext(shared_ptr<Cache> cache, seq::ir::SeriesFlow *series,

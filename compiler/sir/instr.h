@@ -75,15 +75,27 @@ private:
   /// True if a row rule, false if a column rule
   /// Set during an IR pass rather than from the AST, so defaults to false
   bool isRow; 
+  /// string version of operation
+  string sop;
+  /// IR version of operation
+  Value *op;
+  /// The element type of the block/view argument
+  types::Type *elemType;
 public:
   static const char NodeId;
-  explicit ButterflyLane(vector<Value*> rules) : 
-    AcceptorExtend(""), rules(move(rules)), isRow(false) { }
+  ButterflyLane(vector<Value*> rules, bool isRow, string sop) : 
+    AcceptorExtend(""), rules(move(rules)), isRow(isRow), sop(move(sop)) { }
 
   bool getIsRow() const { return isRow; }
   void setIsRow(bool isRow) { this->isRow = isRow; }
+  string getSop() const { return sop; }
+  void setOp(Value *op) { this->op = op; }
+  Value *getOp() { return op; }
+  Value *getOp() const { return op; }
   vector<Value*> getRules() { return rules; }
   vector<Value*> getRules() const { return rules; }
+  types::Type *getElemType() { return elemType; }
+  void setElemType(types::Type *e) { elemType = e; }
 
 protected:
   std::vector<Value *> doGetUsedValues() const override { return rules; }

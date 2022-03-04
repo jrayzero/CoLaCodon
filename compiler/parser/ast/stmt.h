@@ -32,6 +32,7 @@ struct ClassStmt;
 struct ExprStmt;
 struct SuiteStmt;
 struct FunctionStmt;
+struct ButterflyStmt;
 
 /**
  * A Seq AST statement.
@@ -70,12 +71,27 @@ public:
   virtual const ExprStmt *getExpr() const { return nullptr; }
   virtual const SuiteStmt *getSuite() const { return nullptr; }
   virtual const FunctionStmt *getFunction() const { return nullptr; }
+  virtual const ButterflyStmt *getButterfly() const { return nullptr; }
 
   /// @return the first statement in a suite; if a statement is not a suite, returns the
   /// statement itself
   virtual const Stmt *firstInBlock() const { return this; }
 };
 using StmtPtr = shared_ptr<Stmt>;
+
+/// Represents one lane of a butterfly computation
+struct ButterflyStmt : Stmt {
+  vector<ExprPtr> exprs;
+  string op;
+  ButterflyStmt(vector<ExprPtr> exprs, string op) : 
+    Stmt(), exprs(move(exprs)), op(move(op)) { }
+  ButterflyStmt(const ButterflyStmt &stmt) : 
+    Stmt(stmt), exprs(ast::clone(stmt.exprs)), op(stmt.op) { }
+  string toString(int indent) const override {
+    return "butterflystmt"; 
+  }
+  ACCEPT(ASTVisitor);
+};
 
 /// Suite (block of statements) statement (stmt...).
 /// @example a = 5; foo(1)

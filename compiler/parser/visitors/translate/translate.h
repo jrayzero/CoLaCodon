@@ -41,8 +41,6 @@ private:
 
 public:
 
-  void visit(ButterflyExpr *expr) override;
-
   void visit(BoolExpr *) override;
   void visit(IntExpr *) override;
   void visit(FloatExpr *) override;
@@ -57,6 +55,8 @@ public:
   void visit(StmtExpr *) override;
   void visit(PipeExpr *) override;
 
+  void visit(CustomStmt *) override;
+  void visit(ButterflyStmt *) override;
   void visit(SuiteStmt *) override;
   void visit(BreakStmt *) override;
   void visit(ContinueStmt *) override;

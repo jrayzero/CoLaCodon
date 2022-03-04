@@ -60,6 +60,18 @@ void TypecheckVisitor::defaultVisit(Stmt *s) {
 
 /**************************************************************************************/
 
+void TypecheckVisitor::visit(ButterflyStmt *stmt) {
+  vector<ExprPtr> exprs;
+  bool done = true;
+  for (auto &e : stmt->exprs) {
+    auto te = transform(e);
+    done &= te->done;
+    exprs.push_back(move(te));
+  }
+  stmt->exprs = move(exprs);
+  stmt->done = done;
+}
+
 void TypecheckVisitor::visit(SuiteStmt *stmt) {
   vector<StmtPtr> stmts;
   stmt->done = true;
@@ -569,6 +581,14 @@ void TypecheckVisitor::visit(ClassStmt *stmt) {
     for (auto &m : ctx->cache->classes[stmt->name].fields)
       LOG_REALIZE("       - member: {}: {}", m.name, m.type->debugString(1));
   }
+  stmt->done = true;
+}
+
+void TypecheckVisitor::visit(CustomStmt *stmt) {
+  if (stmt->expr)
+    stmt->expr = transform(stmt->expr);
+  if (stmt->suite)
+    stmt->suite = transform(stmt->suite);
   stmt->done = true;
 }
 

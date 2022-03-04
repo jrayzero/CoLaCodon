@@ -410,15 +410,35 @@ void TranslateVisitor::visit(ClassStmt *stmt) {
   // Methods will be handled by FunctionStmt visitor.
 }
 
-void TranslateVisitor::visit(ButterflyExpr *expr) {
-  // This doesn't translate into a node itself. Rather it gets added to the containing function body,
+void TranslateVisitor::visit(CustomStmt *stmt) {
+  if (stmt->keyword == "brow") {
+    seqassert(ctx->inButterflyFunc, "Butterfly rows (brow) may only be used within an @butterfly function");
+    seqassert(!ctx->inButterflyRowBlock && !ctx->inButterflyColBlock, "Cannot have nested Butterfly Rows/Cols (brow/bcol)");
+    ctx->inButterflyRowBlock = true;
+    transform(stmt->suite);
+    ctx->inButterflyRowBlock = false;
+  } else if (stmt->keyword == "bcol") {
+    seqassert(ctx->inButterflyFunc, "Butterfly cols (bcol) may only be used within an @butterfly function");
+    seqassert(!ctx->inButterflyRowBlock && !ctx->inButterflyColBlock, "Cannot have nested Butterfly Rows/Cols");
+    ctx->inButterflyColBlock = true;
+    transform(stmt->suite);
+    ctx->inButterflyColBlock = false;
+  } else {
+    seqassert(false, "Unknown customstmt keyword: " + stmt->keyword);
+  }
+}
+
+void TranslateVisitor::visit(ButterflyStmt *stmt) {
+  // This doesn't translate into a node itself. 
+  // Rather it gets added to the containing function body,
   // which should be an @butterfly annotated function
-  seqassert(ctx->inButterfly, "Butterfly expressions must be in function definitions marked with @butterfly");
+  seqassert(ctx->inButterflyFunc, "Butterfly statements must be in function definitions marked with @butterfly");
+  seqassert(ctx->inButterflyRowBlock || ctx->inButterflyColBlock, "Butterfly statements may only be within a butterfly row (brow) or column (bcol)");
   vector<ir::Value*> rules;
-  for (auto &e : expr->exprs) {
+  for (auto &e : stmt->exprs) {
     rules.push_back(transform(e));
   }    
-  result = make<ir::ButterflyLane>(expr, rules);  
+  result = make<ir::ButterflyLane>(stmt, rules, ctx->inButterflyRowBlock, stmt->op);  
 }
 
 /************************************************************************************/
@@ -434,9 +454,8 @@ seq::ir::types::Type *TranslateVisitor::getType(const types::TypePtr &t) {
 void TranslateVisitor::transformFunction(types::FuncType *type, FunctionStmt *ast,
                                          ir::Func *func) {
   if (ast->attributes.has(Attr::Butterfly)) {
-    std::cerr << "Found butterfly" << std::endl;
-    seqassert(!ctx->inButterfly, "Cannot have nested butterfly functions");      
-    ctx->inButterfly = true;
+    seqassert(!ctx->inButterflyFunc, "Cannot have nested butterfly functions");      
+    ctx->inButterflyFunc = true;
   }
   vector<string> names;
   vector<int> indices;
@@ -489,7 +508,7 @@ void TranslateVisitor::transformFunction(types::FuncType *type, FunctionStmt *as
     ctx->popBlock();
   }
   if (ast->attributes.has(Attr::Butterfly)) {
-    ctx->inButterfly = false;
+    ctx->inButterflyFunc = false;
   }
 }
 

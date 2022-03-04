@@ -41,7 +41,6 @@ struct StmtExpr;
 struct StringExpr;
 struct TupleExpr;
 struct UnaryExpr;
-struct ButterflyExpr;
 struct Stmt;
 
 struct StaticValue {
@@ -132,21 +131,12 @@ public:
   virtual const StringExpr *getString() const { return nullptr; }
   virtual const TupleExpr *getTuple() const { return nullptr; }
   virtual const UnaryExpr *getUnary() const { return nullptr; }
-  virtual const ButterflyExpr *getButterfly() const { return nullptr; }
 
 protected:
   /// Add a type to S-expression string.
   string wrapType(const string &sexpr) const;
 };
 using ExprPtr = shared_ptr<Expr>;
-
-struct ButterflyExpr : Expr {
-  vector<ExprPtr> exprs;
-  explicit ButterflyExpr(vector<ExprPtr> exprs) : Expr(), exprs(move(exprs)) { }
-  ButterflyExpr(const ButterflyExpr &expr) : Expr(expr), exprs(ast::clone(expr.exprs)) { }
-  string toString() const override { return "butterflyexpr"; }
-  ACCEPT(ASTVisitor);
-};
 
 /// Function signature parameter helper node (name: type = deflt).
 struct Param : public seq::SrcObject {

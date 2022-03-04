@@ -69,6 +69,14 @@ void SimplifyVisitor::defaultVisit(Stmt *s) { resultStmt = s->clone(); }
 
 /**************************************************************************************/
 
+void SimplifyVisitor::visit(ButterflyStmt *stmt) {
+  vector<ExprPtr> exprs;
+  for (auto &e : stmt->exprs) {
+    exprs.push_back(transform(e));
+  }
+  resultStmt = N<ButterflyStmt>(exprs, stmt->op);
+}
+
 void SimplifyVisitor::visit(SuiteStmt *stmt) {
   vector<StmtPtr> r;
   // Make sure to add context blocks if this suite requires it...
@@ -988,9 +996,8 @@ void SimplifyVisitor::visit(ClassStmt *stmt) {
 
 void SimplifyVisitor::visit(CustomStmt *stmt) {
 
-  if (stmt->keyword == "row" || stmt->keyword == "col") {
+  if (stmt->keyword == "brow" || stmt->keyword == "bcol") {
     // defer to translate to check stuff    
-    std::cerr << "Found " << stmt->keyword << std::endl;
     resultStmt = N<CustomStmt>(stmt->keyword, nullptr, transform(stmt->suite));
     return;
   }
