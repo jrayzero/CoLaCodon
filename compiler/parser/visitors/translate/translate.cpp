@@ -308,6 +308,7 @@ void TranslateVisitor::visit(ForStmt *stmt) {
   auto bodySeries = make<ir::SeriesFlow>(stmt, "body");
 
   auto loop = make<ir::ForFlow>(stmt, transform(stmt->iter), bodySeries, var);
+  if (stmt->isGrid) loop->setIsGrid(true);
   if (os)
     loop->setSchedule(move(os));
   ctx->add(TranslateItem::Var, varName, var);
@@ -416,7 +417,7 @@ void TranslateVisitor::visit(CustomStmt *stmt) {
     ctx->addSeries(flow);
     transform(stmt->suite); // this will append to the ctx
     ctx->popSeries();
-    flow->is_pipeline = true;
+    flow->setIsPipeline(true);
     result = flow;
   } else {
     seqassert(false, "Unknown customstmt keyword: " + stmt->keyword);

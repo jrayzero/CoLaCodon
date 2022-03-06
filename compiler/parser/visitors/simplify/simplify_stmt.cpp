@@ -996,10 +996,27 @@ void SimplifyVisitor::visit(ClassStmt *stmt) {
 
 void SimplifyVisitor::visit(CustomStmt *stmt) {
 
-  if  (stmt->keyword == "pipeline" || stmt->keyword == "distribute" || stmt->keyword == "grid") {
-    seqassert(transform(stmt->suite), "");
+  if  (stmt->keyword == "pipeline" || stmt->keyword == "distribute") {
+    ctx->addBlock();
+    auto suite = N<SuiteStmt>(vector<StmtPtr>{stmt->suite}, true);
+    seqassert(suite, "");    
     resultStmt = N<CustomStmt>(stmt->keyword, stmt->expr ? transform(stmt->expr) : nullptr, 
-			       transform(stmt->suite));
+			       transform(suite));
+    ctx->popBlock();
+    return;
+  } 
+  if (stmt->keyword == "grid") {
+    // Convert this into a ForStmt with a Pipeline body
+    auto suite = N<SuiteStmt>(vector<StmtPtr>{stmt->suite}, true);
+    seqassert(suite, "");
+    auto body = N<CustomStmt>("pipeline", nullptr, std::move(suite));
+    auto tup = stmt->expr->getTuple();    
+    seqassert(tup, "grid must take a tuple expr");
+    seqassert(tup->items.size() == 3, "grid must take a 3-tuple (blk_to_split,dims,output)");
+    auto gridFor = N<ForStmt>(tup->items[2], N<CallExpr>(N<DotExpr>(tup->items[0], "grid_iter"), 
+							 tup->items[1]), std::move(body));
+    gridFor->isGrid = true;
+    resultStmt = transform(std::move(gridFor));    
     return;
   }
 

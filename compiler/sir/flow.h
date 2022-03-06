@@ -26,13 +26,15 @@ protected:
 class SeriesFlow : public AcceptorExtend<SeriesFlow, Flow> {
 private:
   std::list<Value *> series;
+  bool isPipeline = false;
 
 public:
   static const char NodeId;
 
   using AcceptorExtend::AcceptorExtend;
 
-  bool is_pipeline = false;
+  bool getIsPipeline() const { return isPipeline; }
+  void setIsPipeline(bool isPipeline) { this->isPipeline = isPipeline; }
 
   /// @return an iterator to the first instruction/flow
   auto begin() { return series.begin(); }
@@ -126,6 +128,7 @@ private:
   Var *var;
   /// parallel loop schedule, or null if none
   std::unique_ptr<transform::parallel::OMPSched> schedule;
+  bool isGrid = false;
 
 public:
   static const char NodeId;
@@ -148,6 +151,10 @@ public:
   /// Sets the iter.
   /// @param f the new iter
   void setIter(Value *f) { iter = f; }
+
+  bool getIsGrid() const { return isGrid; }
+  void setIsGrid(bool isGrid) { this->isGrid = isGrid; }
+  
 
   /// @return the body
   Flow *getBody() { return cast<Flow>(body); }

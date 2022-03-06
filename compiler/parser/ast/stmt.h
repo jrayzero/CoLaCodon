@@ -279,6 +279,7 @@ struct ForStmt : public Stmt {
   StmtPtr elseSuite;
   ExprPtr decorator;
   vector<CallExpr::Arg> ompArgs;
+  bool isGrid = false;
 
   /// Indicates if iter was wrapped with __iter__() call.
   bool wrapped;
