@@ -531,29 +531,6 @@ void SimplifyVisitor::visit(CallExpr *expr) {
     return;
   }
 
-  // cola:  we'll just allow this for any setitem right now, even though we only want cola setitem in the end
-  // Correct usage of einsum will be looked at later on.
-
-/*  if (expr->expr->getDot() && expr->expr->getDot()->member == "__setitem__") {
-    CallExpr::Arg arg0,arg1;
-    // arg0 = idxs, arg1 = rhs
-    ctx->lhs_setitems++;
-    // gather any label ids
-    auto idx = transform(expr->args[0].value);
-    ctx->lhs_setitems--;
-    ctx->rhs_setitems++;    
-    // convert any unknown rhs ids to labels (if they exist on the lhs)
-    auto rhs = transform(expr->args[1].value);
-    ctx->rhs_setitems--;
-    arg0.name = expr->args[0].name;
-    arg0.value = idx;
-    arg1.name = expr->args[1].name;
-    arg1.value = rhs;
-    resultExpr = N<CallExpr>(transform(expr->expr), vector<CallExpr::Arg>{arg0,arg1});
-    ctx->labels.clear();
-    return;
-  }*/
-
   auto e = transform(expr->expr, true);
   // 8. namedtuple
   if (e->isId("std.collections.namedtuple")) {

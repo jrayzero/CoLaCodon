@@ -32,6 +32,8 @@ public:
 
   using AcceptorExtend::AcceptorExtend;
 
+  bool is_pipeline = false;
+
   /// @return an iterator to the first instruction/flow
   auto begin() { return series.begin(); }
   /// @return an iterator beyond the last instruction/flow

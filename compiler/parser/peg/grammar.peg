@@ -63,7 +63,6 @@ simple_stmt <- tlist(';', small_stmt) _ EOL {
   return ast<SuiteStmt>(LOC, VS.transform<StmtPtr>());
 }
 small_stmt <-
-  / butterfly_stmt
   / assignment
   / 'pass' &(SPACE / ';' / EOL) { return any(ast<SuiteStmt>(LOC)); }
   / 'break' &(SPACE / ';' / EOL) { return any(ast<BreakStmt>(LOC)); }
@@ -432,6 +431,9 @@ case <-
 custom_stmt <-
   / NAME SPACE expression _ ':' _ suite {
     auto kwd = ac<string>(V0);
+    if (kwd == "grid") {
+      return ast<CustomStmt>(LOC, kwd, ac_expr(V1), ac_stmt(V2));
+    }
     if (!CTX.hasCustomStmtKeyword(kwd, true)) {
       auto s = "keyword '" + kwd + "' not recognized";
       throw peg::parse_error(s.c_str());
@@ -440,9 +442,9 @@ custom_stmt <-
   }
   / NAME _ ':' _ suite {
     auto kwd = ac<string>(V0);
-    if (kwd == "brow" || kwd == "bcol") {
+    if (kwd == "pipeline" || kwd == "distribute") {
       return ast<CustomStmt>(LOC, kwd, nullptr, ac_stmt(V1));
-    }
+    }      
     if (!CTX.hasCustomStmtKeyword(kwd, false)) {
       auto s = "keyword '" + kwd + "' not recognized";
       throw peg::parse_error(s.c_str());

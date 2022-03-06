@@ -996,9 +996,10 @@ void SimplifyVisitor::visit(ClassStmt *stmt) {
 
 void SimplifyVisitor::visit(CustomStmt *stmt) {
 
-  if (stmt->keyword == "brow" || stmt->keyword == "bcol") {
-    // defer to translate to check stuff    
-    resultStmt = N<CustomStmt>(stmt->keyword, nullptr, transform(stmt->suite));
+  if  (stmt->keyword == "pipeline" || stmt->keyword == "distribute" || stmt->keyword == "grid") {
+    seqassert(transform(stmt->suite), "");
+    resultStmt = N<CustomStmt>(stmt->keyword, stmt->expr ? transform(stmt->expr) : nullptr, 
+			       transform(stmt->suite));
     return;
   }
 

@@ -411,18 +411,13 @@ void TranslateVisitor::visit(ClassStmt *stmt) {
 }
 
 void TranslateVisitor::visit(CustomStmt *stmt) {
-  if (stmt->keyword == "brow") {
-    seqassert(ctx->inButterflyFunc, "Butterfly rows (brow) may only be used within an @butterfly function");
-    seqassert(!ctx->inButterflyRowBlock && !ctx->inButterflyColBlock, "Cannot have nested Butterfly Rows/Cols (brow/bcol)");
-    ctx->inButterflyRowBlock = true;
-    transform(stmt->suite);
-    ctx->inButterflyRowBlock = false;
-  } else if (stmt->keyword == "bcol") {
-    seqassert(ctx->inButterflyFunc, "Butterfly cols (bcol) may only be used within an @butterfly function");
-    seqassert(!ctx->inButterflyRowBlock && !ctx->inButterflyColBlock, "Cannot have nested Butterfly Rows/Cols");
-    ctx->inButterflyColBlock = true;
-    transform(stmt->suite);
-    ctx->inButterflyColBlock = false;
+  if (stmt->keyword == "pipeline") {
+    auto flow = make<ir::SeriesFlow>(stmt);
+    ctx->addSeries(flow);
+    transform(stmt->suite); // this will append to the ctx
+    ctx->popSeries();
+    flow->is_pipeline = true;
+    result = flow;
   } else {
     seqassert(false, "Unknown customstmt keyword: " + stmt->keyword);
   }
