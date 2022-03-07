@@ -70,6 +70,10 @@ public:
   void visit(const FlowInstr *v) override;
   void visit(const DependsOnInstr *v) override;
   void visit(const ButterflyLane *v) override;
+  void visit(const SubgraphSeriesFlow *) override;
+  void visit(const ColaPipelineInstr *) override;
+  void visit(const StageInstr *) override;
+  void visit(const GraphInstr *) override;
   void visit(const dsl::CustomInstr *v) override;
 
   /// Clones a value, returning the previous value if other has already been cloned.

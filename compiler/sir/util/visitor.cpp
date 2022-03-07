@@ -49,6 +49,10 @@ void Visitor::visit(YieldInstr *x) { defaultVisit(x); }
 void Visitor::visit(ThrowInstr *x) { defaultVisit(x); }
 void Visitor::visit(FlowInstr *x) { defaultVisit(x); }
 void Visitor::visit(DependsOnInstr *x) { defaultVisit(x); }
+void Visitor::visit(SubgraphSeriesFlow *x) { defaultVisit(x); }
+void Visitor::visit(StageInstr *x) { defaultVisit(x); }
+void Visitor::visit(GraphInstr *x) { defaultVisit(x); }
+void Visitor::visit(ColaPipelineInstr *x) { defaultVisit(x); }
 void Visitor::visit(ButterflyLane *x) { /*For the most part I want to skip this, except for very specific passes*/ }
 void Visitor::visit(dsl::CustomInstr *x) { defaultVisit(x); }
 void Visitor::visit(types::Type *x) { defaultVisit(x); }
@@ -110,6 +114,10 @@ void ConstVisitor::visit(const YieldInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const ThrowInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const FlowInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const ButterflyLane *x) { /*For the most part I want to skip this, except for very specific passes*/ }
+void ConstVisitor::visit(const SubgraphSeriesFlow *x) { defaultVisit(x); }
+void ConstVisitor::visit(const StageInstr *x) { defaultVisit(x); }
+void ConstVisitor::visit(const GraphInstr *x) { defaultVisit(x); }
+void ConstVisitor::visit(const ColaPipelineInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const DependsOnInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const dsl::CustomInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const types::Type *x) { defaultVisit(x); }

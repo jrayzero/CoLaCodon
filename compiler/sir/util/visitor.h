@@ -85,6 +85,10 @@ class ThrowInstr;
 class FlowInstr;
 class DependsOnInstr;
 class ButterflyLane;
+class SubgraphSeriesFlow;
+class StageInstr;
+class GraphInstr;
+class ColaPipelineInstr;
 
 namespace util {
 
@@ -148,6 +152,10 @@ public:
   VISIT(FlowInstr);
   VISIT(DependsOnInstr);
   VISIT(ButterflyLane);
+  VISIT(SubgraphSeriesFlow);
+  VISIT(StageInstr);
+  VISIT(GraphInstr);
+  VISIT(ColaPipelineInstr);
   VISIT(dsl::CustomInstr);
 
   VISIT(types::Type);
@@ -227,6 +235,10 @@ public:
   CONST_VISIT(DependsOnInstr);
   CONST_VISIT(ButterflyLane);
   CONST_VISIT(dsl::CustomInstr);
+  CONST_VISIT(SubgraphSeriesFlow);
+  CONST_VISIT(StageInstr);
+  CONST_VISIT(GraphInstr);
+  CONST_VISIT(ColaPipelineInstr);
 
   CONST_VISIT(types::Type);
   CONST_VISIT(types::PrimitiveType);

@@ -26,6 +26,19 @@ const char Flow::NodeId = 0;
 
 types::Type *Flow::doGetType() const { return getModule()->getVoidType(); }
 
+const char SubgraphSeriesFlow::NodeId = 0;
+
+int SubgraphSeriesFlow::doReplaceUsedValue(id_t id, Value *newValue) {
+  auto replacements = 0;
+  for (auto value : series) {
+    if (value->getId() == id) {
+      value = newValue;
+      ++replacements;
+    }
+  }
+  return replacements;
+}
+
 const char SeriesFlow::NodeId = 0;
 
 int SeriesFlow::doReplaceUsedValue(id_t id, Value *newValue) {

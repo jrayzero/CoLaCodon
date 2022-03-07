@@ -65,11 +65,17 @@ shared_ptr<TranslateItem> TranslateContext::add(TranslateItem::Kind kind,
 void TranslateContext::addSeries(seq::ir::SeriesFlow *s) { series.push_back(s); }
 void TranslateContext::popSeries() { series.pop_back(); }
 
+void TranslateContext::addSubgraphSeries(seq::ir::SubgraphSeriesFlow *s) { 
+  subgraphSeries.push_back(s); 
+}
+void TranslateContext::popSubgraphSeries() { subgraphSeries.pop_back(); }
+
 seq::ir::Module *TranslateContext::getModule() const {
   return dynamic_cast<seq::ir::Module *>(bases[0]->getModule());
 }
 seq::ir::BodiedFunc *TranslateContext::getBase() const { return bases.back(); }
 seq::ir::SeriesFlow *TranslateContext::getSeries() const { return series.back(); }
+seq::ir::SubgraphSeriesFlow *TranslateContext::getSubgraphSeries() const { return subgraphSeries.back(); }
 
 } // namespace ast
 } // namespace seq

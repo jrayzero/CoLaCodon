@@ -9,6 +9,7 @@
 #include "value.h"
 #include "var.h"
 
+using namespace std;
 namespace seq {
 namespace ir {
 
@@ -22,6 +23,107 @@ public:
 
 private:
   types::Type *doGetType() const override;
+};
+
+class ColaPipelineInstr : public AcceptorExtend<ColaPipelineInstr,Instr> {
+  Var *var;
+  Value *body;  
+public:
+
+  static const char NodeId;
+
+  using AcceptorExtend::AcceptorExtend;
+
+   ColaPipelineInstr(Var *var, Value *body, std::string name = "")
+      : AcceptorExtend(std::move(name)), var(var), body(body) {}
+
+  Var *getVar() { return var; }
+  const Var *getVar() const { return var; }
+
+  Value *getBody() { return body; }
+  const Value *getBody() const { return body; }
+
+protected:
+  std::vector<Value *> doGetUsedValues() const override {
+    return {body};
+  }
+  int doReplaceUsedValue(id_t id, Value *newValue) override;
+  std::vector<Var *> doGetUsedVariables() const override { return {var}; }
+  int doReplaceUsedVariable(id_t id, Var *newVar) override;
+};
+
+class GraphInstr : public AcceptorExtend<GraphInstr,Instr> {
+  Value *body;
+public:
+  
+  static const char NodeId;
+
+  using AcceptorExtend::AcceptorExtend;
+  
+  explicit GraphInstr(Value *body, std::string name = "")
+    : AcceptorExtend(std::move(name)), body(body) {}
+
+  Value *getBody() { return body; }
+  const Value *getBody() const { return body; }
+
+protected:
+  std::vector<Value *> doGetUsedValues() const override {
+    return {body};
+  }
+  int doReplaceUsedValue(id_t id, Value *newValue) override;
+};
+
+class StageInstr : public AcceptorExtend<StageInstr, Instr> {
+  Var *var;
+  Value *stage;
+  vector<Value*> args;
+public:
+
+  static const char NodeId;
+
+  using AcceptorExtend::AcceptorExtend;
+  
+  StageInstr(Var *var, Value *stage, vector<Value*> args, std::string name = "") : 
+    AcceptorExtend(std::move(name)), var(var), stage(stage), args(move(args)) { }
+
+  Var *getVar() { return var; }
+  const Var *getVar() const { return var; }
+
+  Value *getStage() { return stage; }
+  const Value *getStage() const { return stage; }
+
+  vector<Value*> getArgs() { return args; }
+  vector<Value*> getArgs() const { return args; }
+
+  /// @return an iterator to the first argument
+  auto begin() { return args.begin(); }
+  /// @return an iterator beyond the last argument
+  auto end() { return args.end(); }
+  /// @return an iterator to the first argument
+  auto begin() const { return args.begin(); }
+  /// @return an iterator beyond the last argument
+  auto end() const { return args.end(); }
+
+  /// @return a pointer to the first argument
+  Value *front() { return args.front(); }
+  /// @return a pointer to the last argument
+  Value *back() { return args.back(); }
+  /// @return a pointer to the first argument
+  const Value *front() const { return args.front(); }
+  /// @return a pointer to the last argument
+  const Value *back() const { return args.back(); }  
+protected:
+
+  std::vector<Value *> doGetUsedValues() const override {
+    vector<Value*> used;
+    used.push_back(stage);
+    used.insert(used.begin(), args.begin(), args.end());
+    return used;
+  }
+  int doReplaceUsedValue(id_t id, Value *newValue) override;
+  std::vector<Var *> doGetUsedVariables() const override { return {var}; }
+  int doReplaceUsedVariable(id_t id, Var *newVar) override;
+  
 };
 
 /// Instr representing setting a memory location.

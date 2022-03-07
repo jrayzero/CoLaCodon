@@ -68,13 +68,47 @@ StmtPtr SimplifyVisitor::transform(const StmtPtr &stmt) {
 void SimplifyVisitor::defaultVisit(Stmt *s) { resultStmt = s->clone(); }
 
 /**************************************************************************************/
- 
+  
+enum NonSuiteItem {
+  PIPELINE,
+  STAGE,
+  GRID,
+  DISTRIBUTE,
+  EMPTY,
+  UNKNOWN_ITEM
+};
+NonSuiteItem findFirstNonSuiteSubgraph(const StmtPtr &stmt) {
+  if (auto s = stmt->getSubgraph()) {
+    if (s->stmts.empty()) return EMPTY;
+    for (auto s2 : s->stmts) {
+      NonSuiteItem res = findFirstNonSuiteSubgraph(s2);
+      if (res != EMPTY)
+	return res;
+    }
+    return EMPTY;
+  } else if (stmt->getPipeline()) {
+    return PIPELINE;
+  } else if (stmt->getGrid()) {
+    return GRID;
+  } else if (stmt->getDistribute()) {
+    return DISTRIBUTE;
+  } else if (stmt->getStage()) {
+    return STAGE;
+  } else {
+    error("Unknown item");
+    return UNKNOWN_ITEM;
+  }
+}
+
 void SimplifyVisitor::visit(GraphStmt *stmt) {
   ctx->addBlock();
   auto subgraph = transform(stmt->subgraph);
   // wrap in a pipeline
-  auto var = ctx->cache->getTemporaryVar("pipeline");
-  subgraph = transform(N<PipelineStmt>(N<IdExpr>(var), subgraph));
+  auto first = findFirstNonSuiteSubgraph(subgraph);
+  if (first != EMPTY && first != PIPELINE) {
+    auto var = ctx->cache->getTemporaryVar("pipeline");
+    subgraph = transform(N<PipelineStmt>(N<IdExpr>(var), subgraph));
+  }
   ctx->popBlock();
   resultStmt = N<GraphStmt>(subgraph);
 }

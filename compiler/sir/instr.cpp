@@ -23,6 +23,67 @@ const char Instr::NodeId = 0;
 
 types::Type *Instr::doGetType() const { return getModule()->getVoidType(); }
 
+const char ColaPipelineInstr::NodeId = 0;
+
+int ColaPipelineInstr::doReplaceUsedValue(id_t id, Value *newValue) {
+  if (body->getId() == id) {
+    body = newValue;
+    return 1;
+  }
+  return 0;
+}
+
+int ColaPipelineInstr::doReplaceUsedVariable(id_t id, Var *newVar) {
+  if (var->getId() == id) {
+    var = newVar;
+    return 1;
+  }
+  return 0;
+}
+
+const char GraphInstr::NodeId = 0;
+
+int GraphInstr::doReplaceUsedValue(id_t id, Value *newValue) {
+  if (body->getId() == id) {
+    body = newValue;
+    return 1;
+  }
+  return 0;
+}
+
+const char StageInstr::NodeId = 0;
+
+int StageInstr::doReplaceUsedValue(id_t id, Value *newValue) {
+  int nrepls = 0;
+  if (stage->getId() == id) {
+    stage = newValue;
+    nrepls++;
+  }
+  vector<Value*> newArgs;
+  bool doRepl = false;
+  for (auto *arg : newArgs) {
+    if (arg->getId() == id) {
+      newArgs.push_back(newValue);
+      doRepl = true;
+      nrepls++;
+    }
+    else
+      newArgs.push_back(arg);
+  }
+  if (doRepl)
+    args = move(newArgs);
+  
+  return nrepls;
+}
+
+int StageInstr::doReplaceUsedVariable(id_t id, Var *newVar) {
+  if (var->getId() == id) {
+    var = newVar;
+    return 1;
+  }
+  return 0;
+}
+
 const char AssignInstr::NodeId = 0;
 
 int AssignInstr::doReplaceUsedValue(id_t id, Value *newValue) {

@@ -55,6 +55,7 @@ struct TranslateContext : public Context<TranslateItem> {
   vector<seq::ir::BodiedFunc *> bases;
   /// Stack of IR series (blocks).
   vector<seq::ir::SeriesFlow *> series;
+  vector<seq::ir::SubgraphSeriesFlow *> subgraphSeries;
 
   bool inButterflyFunc = false;
   bool inButterflyRowBlock = false;
@@ -72,12 +73,15 @@ public:
 
   /// Convenience method for adding a series.
   void addSeries(seq::ir::SeriesFlow *s);
+  void addSubgraphSeries(seq::ir::SubgraphSeriesFlow *s);
   void popSeries();  
+  void popSubgraphSeries();
 
 public:
   seq::ir::Module *getModule() const;
   seq::ir::BodiedFunc *getBase() const;
   seq::ir::SeriesFlow *getSeries() const;
+  seq::ir::SubgraphSeriesFlow *getSubgraphSeries() const;
 };
 
 } // namespace ast

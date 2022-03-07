@@ -86,12 +86,23 @@ public:
       processSeriesFlowChildren(v);
   }
 
+  void visit(seq::ir::SubgraphSeriesFlow *v) override {
+    if (childrenFirst)
+      processSubgraphSeriesFlowChildren(v);
+    preHook(v);
+    handle(v);
+    postHook(v);
+    if (!childrenFirst)
+      processSubgraphSeriesFlowChildren(v);
+  }
+
   virtual void handle(seq::ir::ButterflyLane *v) {}
   void visit(seq::ir::ButterflyLane *v) override {
     handle(v);
   }
 
   virtual void handle(seq::ir::SeriesFlow *v) {}
+  virtual void handle(seq::ir::SubgraphSeriesFlow *v) {}
   LAMBDA_VISIT(IfFlow);
   LAMBDA_VISIT(WhileFlow);
   LAMBDA_VISIT(ForFlow);
@@ -124,6 +135,9 @@ public:
   LAMBDA_VISIT(ThrowInstr);
   LAMBDA_VISIT(FlowInstr);
   LAMBDA_VISIT(DependsOnInstr);
+  LAMBDA_VISIT(StageInstr);
+  LAMBDA_VISIT(GraphInstr);
+  LAMBDA_VISIT(ColaPipelineInstr);
   LAMBDA_VISIT(dsl::CustomInstr);
 
   template <typename Node> void process(Node *v) { v->accept(*this); }
@@ -192,13 +206,24 @@ public:
     }
     nodeStack.pop_back();
   }
-
+  
   void processSeriesFlowChildren(seq::ir::SeriesFlow *v) {
     nodeStack.push_back(v);
     for (auto it = v->begin(); it != v->end(); ++it) {
       itStack.push_back(it);
       process(*it);
       itStack.pop_back();
+    }
+    nodeStack.pop_back();
+  }
+
+  void processSubgraphSeriesFlowChildren(seq::ir::SubgraphSeriesFlow *v) {
+    nodeStack.push_back(v);
+    for (auto it = v->begin(); it != v->end(); ++it) {
+      // itStack needs a SeriesFlow iterator. I use TAC, so I don't need it.
+//      itStack.push_back(it);
+      process(*it);
+//      itStack.pop_back();
     }
     nodeStack.pop_back();
   }

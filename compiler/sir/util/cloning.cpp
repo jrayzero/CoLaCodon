@@ -200,6 +200,28 @@ void CloneVisitor::visit(const PipelineFlow *v) {
   result = Nt(v, std::move(cloned));
 }
 
+void CloneVisitor::visit(const SubgraphSeriesFlow *flow) {
+  vector<Value*> stmts;
+  for (auto *stmt : *flow)
+    stmts.push_back(clone(stmt));
+  result = Nt(flow, std::move(stmts));
+}
+
+void CloneVisitor::visit(const ColaPipelineInstr *instr) {
+  result = Nt(instr, clone(instr->getVar()), clone(instr->getBody()));
+}
+
+void CloneVisitor::visit(const StageInstr *instr) {
+  vector<Value*> args;
+  for (auto *arg : *instr)
+    args.push_back(clone(arg));
+  result = Nt(instr, clone(instr->getVar()), clone(instr->getStage()), move(args));
+}
+
+void CloneVisitor::visit(const GraphInstr *instr) {
+  result = Nt(instr, clone(instr->getBody()));
+}
+
 void CloneVisitor::visit(const dsl::CustomFlow *v) { result = v->doClone(*this); }
 
 void CloneVisitor::visit(const IntConst *v) {

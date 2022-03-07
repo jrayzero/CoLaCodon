@@ -32,8 +32,11 @@ public:
   explicit TranslateVisitor(shared_ptr<TranslateContext> ctx);
   static seq::ir::Module *apply(shared_ptr<Cache> cache, StmtPtr stmts);
 
+
   ir::Value *transform(const ExprPtr &expr) override;
   ir::Value *transform(const StmtPtr &stmt) override;
+  ir::Value *transform2(const ExprPtr &expr);
+  ir::Value *transform2(const StmtPtr &stmt);
 
 private:
   void defaultVisit(Expr *expr) override;
@@ -74,6 +77,10 @@ public:
   void visit(ThrowStmt *) override;
   void visit(FunctionStmt *) override;
   void visit(ClassStmt *) override;
+  void visit(GraphStmt *) override;
+  void visit(PipelineStmt *) override;
+  void visit(StageStmt *) override;
+  void visit(SubgraphSuiteStmt *) override;  
 
 private:
   ir::types::Type *getType(const types::TypePtr &t);

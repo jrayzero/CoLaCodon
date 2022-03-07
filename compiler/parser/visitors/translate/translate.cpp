@@ -59,6 +59,13 @@ ir::Value *TranslateVisitor::transform(const ExprPtr &expr) {
   return v.result;
 }
 
+ir::Value *TranslateVisitor::transform2(const ExprPtr &expr) {
+  TranslateVisitor v(ctx);
+  v.setSrcInfo(expr->getSrcInfo());
+  expr->accept(v);
+  return v.result;
+}
+
 void TranslateVisitor::defaultVisit(Expr *n) {
   seqassert(false, "invalid node {}", n->toString());
 }
@@ -220,6 +227,15 @@ ir::Value *TranslateVisitor::transform(const StmtPtr &stmt) {
   return v.result;
 }
 
+ir::Value *TranslateVisitor::transform2(const StmtPtr &stmt) {
+  TranslateVisitor v(ctx);
+  v.setSrcInfo(stmt->getSrcInfo());
+  stmt->accept(v);
+  if (v.result)
+    ctx->getSubgraphSeries()->push_back(v.result);
+  return v.result;
+}
+
 void TranslateVisitor::defaultVisit(Stmt *n) {
   seqassert(false, "invalid node {}", n->toString());
 }
@@ -227,6 +243,54 @@ void TranslateVisitor::defaultVisit(Stmt *n) {
 void TranslateVisitor::visit(SuiteStmt *stmt) {
   for (auto &s : stmt->stmts)
     transform(s);
+}
+
+void TranslateVisitor::visit(SubgraphSuiteStmt *stmt) {
+  for (auto &s : stmt->stmts)
+    transform2(s);
+}
+
+void TranslateVisitor::visit(GraphStmt *stmt) {
+  auto body = make<ir::SubgraphSeriesFlow>(stmt, "body");
+  ctx->addSubgraphSeries(body);
+  transform2(stmt->subgraph);
+  ctx->popSubgraphSeries();
+  result = make<ir::GraphInstr>(stmt, body);
+}
+
+void TranslateVisitor::visit(PipelineStmt *stmt) {
+  auto body = make<ir::SubgraphSeriesFlow>(stmt, "body");
+  auto var = stmt->id->getId()->value;
+  auto *newVar =
+    make<ir::Var>(stmt, getType(stmt->id->getType()),
+		  false, var);
+  ctx->getBase()->push_back(newVar);
+  ctx->add(TranslateItem::Var, var, newVar);
+  ctx->addSubgraphSeries(body);
+  transform2(stmt->subgraph);
+  ctx->popSubgraphSeries();
+  result = make<ir::ColaPipelineInstr>(stmt, newVar, body);
+}
+
+void TranslateVisitor::visit(StageStmt *stmt) {
+  auto var = stmt->id->getId()->value;
+  // id
+  auto *newVar =
+    make<ir::Var>(stmt, getType(stmt->id->getType()),
+		  false, var);
+  ctx->getBase()->push_back(newVar);
+  ctx->add(TranslateItem::Var, var, newVar);
+  // expr
+  auto stage = transform2(stmt->expr);
+  seqassert(stage, "");
+  // args
+  vector<ir::Value*> args;
+  for (auto &arg : stmt->args) {
+    auto targ = transform2(arg.stage);
+    seqassert(targ, "");
+    args.push_back(targ);
+  }
+  result = make<ir::StageInstr>(stmt, newVar, stage, move(args));
 }
 
 void TranslateVisitor::visit(BreakStmt *stmt) { result = make<ir::BreakInstr>(stmt); }

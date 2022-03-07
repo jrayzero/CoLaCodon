@@ -85,12 +85,15 @@ void TypecheckVisitor::visit(PipelineStmt *stmt) {
   TypePtr idType = ctx->addUnbound(stmt->id.get(), ctx->typecheckLevel);
   auto ct = getCorrectType(stmt->subgraph);
   if (!ct)
-    ct = ctx->findInternal("void"); // happens if just have "pass" in the suite
+    // happens if jsut have "pass" in the body. Give a fake non-void type (void fails
+    // because an expr can't have void)
+    ct = ctx->findInternal("int"); 
   unify(idType, ct);
   string varName = stmt->id->getId()->value;
   // id is the result of the pipeline, so not available within the pipeline
   ctx->add(TypecheckItem::Var, varName, idType);
-  stmt->done = stmt->subgraph->done;
+  transform(stmt->id);
+  stmt->done = stmt->id->done && stmt->subgraph->done;
 }
 
 void TypecheckVisitor::visit(GridStmt *stmt) {
@@ -136,7 +139,8 @@ void TypecheckVisitor::visit(StageStmt *stmt) {
   auto expr = transform(stmt->expr);
   // id is the result of the stage, so not available within the stage
   ctx->add(TypecheckItem::Var, varName, idType);
-  stmt->done = stmt->expr->done && argsDone;
+  transform(stmt->id);
+  stmt->done = stmt->id->done && stmt->expr->done && argsDone;
 }
 
 void TypecheckVisitor::visit(SubgraphSuiteStmt *stmt) {

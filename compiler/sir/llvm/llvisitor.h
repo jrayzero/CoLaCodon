@@ -290,6 +290,11 @@ public:
   void visit(const ThrowInstr *) override;
   void visit(const FlowInstr *) override;
   void visit(const dsl::CustomInstr *) override;
+  void visit(const SubgraphSeriesFlow *) override { throw std::runtime_error("SubgraphSeriesFlow should be lowered before LLVMVisitor"); }
+  void visit(const ColaPipelineInstr *) override { throw std::runtime_error("ColaPipelineInstr should be lowered before LLVMVisitor"); }
+  void visit(const StageInstr *) override { throw std::runtime_error("StageInstr should be lowered before LLVMVisitor"); }
+  void visit(const GraphInstr *) override { throw std::runtime_error("GraphInstr should be lowered before LLVMVisitor"); }
+  
 };
 
 } // namespace ir

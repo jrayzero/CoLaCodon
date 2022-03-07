@@ -22,6 +22,42 @@ protected:
   types::Type *doGetType() const final;
 };
 
+class SubgraphSeriesFlow : public AcceptorExtend<SubgraphSeriesFlow,Flow> {
+  std::vector<Value*> series;
+public:
+  static const char NodeId;
+
+  explicit SubgraphSeriesFlow(std::vector<Value*> series, std::string name="") : AcceptorExtend(std::move(name)), series(std::move(series)) { }
+
+  using AcceptorExtend::AcceptorExtend;
+  /// @return an iterator to the first instruction/flow
+  auto begin() { return series.begin(); }
+  /// @return an iterator beyond the last instruction/flow
+  auto end() { return series.end(); }
+  /// @return an iterator to the first instruction/flow
+  auto begin() const { return series.begin(); }
+  /// @return an iterator beyond the last instruction/flow
+  auto end() const { return series.end(); }
+
+  /// @return a pointer to the first instruction/flow
+  Value *front() { return series.front(); }
+  /// @return a pointer to the last instruction/flow
+  Value *back() { return series.back(); }
+  /// @return a pointer to the first instruction/flow
+  const Value *front() const { return series.front(); }
+  /// @return a pointer to the last instruction/flow
+  const Value *back() const { return series.back(); }
+
+  void push_back(Value *f) { series.push_back(f); }
+  int size() const { return series.size(); }
+
+protected:
+  std::vector<Value *> doGetUsedValues() const override {
+    return std::vector<Value *>(series.begin(), series.end());
+  }
+  int doReplaceUsedValue(id_t id, Value *newValue) override;
+};
+
 /// Flow that contains a series of flows or instructions.
 class SeriesFlow : public AcceptorExtend<SeriesFlow, Flow> {
 private:
