@@ -32,7 +32,14 @@ struct ClassStmt;
 struct ExprStmt;
 struct SuiteStmt;
 struct FunctionStmt;
-struct ButterflyStmt;
+struct CustomStmt;
+// for cola graphs
+struct GraphStmt;
+struct PipelineStmt;
+struct GridStmt;
+struct DistributeStmt;
+struct StageStmt;
+struct SubgraphSuiteStmt;
 
 /**
  * A Seq AST statement.
@@ -71,7 +78,13 @@ public:
   virtual const ExprStmt *getExpr() const { return nullptr; }
   virtual const SuiteStmt *getSuite() const { return nullptr; }
   virtual const FunctionStmt *getFunction() const { return nullptr; }
-  virtual const ButterflyStmt *getButterfly() const { return nullptr; }
+  virtual const CustomStmt *getCustom() const { return nullptr; }
+  virtual const GraphStmt *getGraph() const { return nullptr; }
+  virtual const PipelineStmt *getPipeline() const { return nullptr; }
+  virtual const GridStmt *getGrid() const { return nullptr; }
+  virtual const DistributeStmt *getDistribute() const { return nullptr; }
+  virtual const StageStmt *getStage() const { return nullptr; }
+  virtual const SubgraphSuiteStmt *getSubgraph() const { return nullptr; }
 
   /// @return the first statement in a suite; if a statement is not a suite, returns the
   /// statement itself
@@ -79,24 +92,110 @@ public:
 };
 using StmtPtr = shared_ptr<Stmt>;
 
-/// Represents one lane of a butterfly computation
-struct ButterflyStmt : public Stmt {
-  struct ButterflyRule {
-    string op;
-    ExprPtr expr;
-    ButterflyRule clone() const {
-      return {op, ast::clone(expr)}; 
-    }
+struct GraphStmt : public Stmt {
+  StmtPtr subgraph;
+
+  explicit GraphStmt(StmtPtr subgraph);
+  GraphStmt(const GraphStmt &stmt);
+  string toString(int indent) const override;
+  ACCEPT(ASTVisitor);  
+
+  const GraphStmt *getGraph() const override { return this; }
+};
+
+/// represents the args to make as output of the pipeline
+/*struct PipelineOutStmt : public Stmt {
+  struct StageIdx {
+    ExprPtr stage;
+    ExprPtr idx;
+    StageIdx clone() const { return {ast::clone(stage), ast::clone(idx)}; }
   };
-  vector<ButterflyRule> rules;
-  explicit ButterflyStmt(vector<ButterflyRule> rules) : 
-    Stmt(), rules(move(rules)) { }
-  ButterflyStmt(const ButterflyStmt &stmt) : 
-    Stmt(stmt), rules(ast::clone_nop(stmt.rules)) { }
-  string toString(int indent) const override {
-    return "butterflystmt"; 
-  }
+  vector<StageIdx> outputs;
+  explicit PipelineOutStmt(vector<StageIdx> outputs = {});
+  PipelineOutStmt(const PipelineOutStmt &out);
+  string toString(int indent) const override;
   ACCEPT(ASTVisitor);
+  const PipelineOutStmt *getPipelineOut() const override { return this; }
+};*/
+
+// pipeline IdExpr : SubgraphSuiteStmt
+// The output of a pipeline is the output of the last entry in its subgraph
+struct PipelineStmt : public Stmt {
+  ExprPtr id; // result of the pipeline
+  StmtPtr subgraph;
+
+  PipelineStmt(ExprPtr id, StmtPtr subgraph);
+  PipelineStmt(const PipelineStmt &stmt);
+  string toString(int indent) const override;
+  ACCEPT(ASTVisitor);  
+
+  const PipelineStmt *getPipeline() const override { return this; }
+};
+
+// grid stageId[idx],(split factor tuple) id : ...
+struct GridStmt : public Stmt {
+  struct GridArg {
+    ExprPtr stage;
+    ExprPtr idx;
+    GridArg clone() const { return {ast::clone(stage), ast::clone(idx)}; }
+  };
+  GridArg input;
+  ExprPtr factor; // how to partition
+  ExprPtr id; // name of this stage
+  StmtPtr subgraph;  
+  vector<GridArg> args;
+
+  GridStmt(GridArg input, ExprPtr factor, ExprPtr id, StmtPtr subgraph, vector<GridArg> args = {});
+  GridStmt(const GridStmt &stmt);
+  string toString(int indent) const override;
+  ACCEPT(ASTVisitor);  
+
+  const GridStmt *getGrid() const override { return this; }
+};
+
+struct DistributeStmt : public Stmt {
+  ExprPtr id;
+  StmtPtr subgraph;    
+
+  DistributeStmt(ExprPtr id, StmtPtr subgraph);
+  DistributeStmt(const DistributeStmt &stmt);
+  string toString(int indent) const override;
+  ACCEPT(ASTVisitor);  
+
+  const DistributeStmt *getDistribute() const override { return this; }
+};
+
+struct StageStmt : public Stmt {
+
+  struct StageArg {
+    ExprPtr stage;
+    ExprPtr idx;
+    StageArg clone() const { return {ast::clone(stage), ast::clone(idx)}; }
+  };
+
+  ExprPtr id;
+  ExprPtr expr;  
+  vector<StageArg> args; // stages used as arguments
+  // this represents a dummy call to the required __work__ function. Inserted by simplify and used for typecheckint
+  ExprPtr dummy;
+
+  StageStmt(ExprPtr id, ExprPtr expr, vector<StageArg> args = {});
+  StageStmt(const StageStmt &stmt);
+  string toString(int indent) const override;
+  ACCEPT(ASTVisitor);  
+
+  const StageStmt *getStage() const override { return this; }
+};
+
+struct SubgraphSuiteStmt : public Stmt {
+  vector<StmtPtr> stmts;
+  
+  explicit SubgraphSuiteStmt(vector<StmtPtr> stmts = {});
+  SubgraphSuiteStmt(const SubgraphSuiteStmt &stmt);
+  string toString(int indent) const override;
+  ACCEPT(ASTVisitor);
+
+  const SubgraphSuiteStmt *getSubgraph() const override { return this; }
 };
 
 /// Suite (block of statements) statement (stmt...).
@@ -568,6 +667,7 @@ struct CustomStmt : public Stmt {
 
   CustomStmt(string keyword, ExprPtr expr, StmtPtr suite);
   CustomStmt(const CustomStmt &stmt);
+  const CustomStmt *getCustom() const override { return this; }
 
   string toString(int indent) const override;
   ACCEPT(ASTVisitor);
@@ -608,3 +708,4 @@ struct UpdateStmt : public Stmt {
 
 } // namespace ast
 } // namespace seq
+ 

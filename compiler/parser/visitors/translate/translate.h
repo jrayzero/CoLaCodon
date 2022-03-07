@@ -56,7 +56,6 @@ public:
   void visit(PipeExpr *) override;
 
   void visit(CustomStmt *) override;
-  void visit(ButterflyStmt *) override;
   void visit(SuiteStmt *) override;
   void visit(BreakStmt *) override;
   void visit(ContinueStmt *) override;

@@ -29,7 +29,53 @@ Stmt::Stmt() : done(false), age(-1) {}
 Stmt::Stmt(const seq::SrcInfo &s) : done(false) { setSrcInfo(s); }
 string Stmt::toString() const { return toString(-1); }
 
-ACCEPT_IMPL(ButterflyStmt, ASTVisitor);
+GraphStmt::GraphStmt(StmtPtr subgraph) : Stmt(), subgraph(move(subgraph)) { }
+GraphStmt::GraphStmt(const GraphStmt &stmt) : Stmt(stmt),
+					      subgraph(ast::clone(stmt.subgraph)) { }
+string GraphStmt::toString(int indent) const { return "graph"; }
+ACCEPT_IMPL(GraphStmt, ASTVisitor);
+
+PipelineStmt::PipelineStmt(ExprPtr id, StmtPtr subgraph) : Stmt(), id(move(id)), subgraph(move(subgraph)) { }
+PipelineStmt::PipelineStmt(const PipelineStmt &stmt) : Stmt(stmt), id(ast::clone(stmt.id)),
+						       subgraph(ast::clone(stmt.subgraph)) { }
+string PipelineStmt::toString(int indent) const { return "pipeline"; }
+ACCEPT_IMPL(PipelineStmt, ASTVisitor);
+
+GridStmt::GridStmt(GridArg input, ExprPtr factor, ExprPtr id, StmtPtr subgraph, vector<GridArg> args) : 
+  Stmt(), input(move(input)), factor(move(factor)), id(move(id)), 
+  subgraph(move(subgraph)), args(move(args)) { }
+GridStmt::GridStmt(const GridStmt &stmt) : Stmt(stmt), input(stmt.input.clone()),
+					   factor(ast::clone(stmt.factor)), id(ast::clone(stmt.id)),
+					   subgraph(ast::clone(stmt.subgraph)) {  }
+string GridStmt::toString(int indent) const { return "grid"; }
+ACCEPT_IMPL(GridStmt, ASTVisitor);
+
+DistributeStmt::DistributeStmt(ExprPtr id, StmtPtr subgraph) : Stmt(), id(move(id)), 
+							    subgraph(move(subgraph)) { }
+DistributeStmt::DistributeStmt(const DistributeStmt &stmt) : Stmt(stmt), id(ast::clone(stmt.id)),
+					      subgraph(ast::clone(stmt.subgraph)) { }
+string DistributeStmt::toString(int indent) const { return "distribute"; }
+ACCEPT_IMPL(DistributeStmt, ASTVisitor);
+
+StageStmt::StageStmt(ExprPtr id, ExprPtr expr, vector<StageArg> args) : Stmt(), id(move(id)), 
+									expr(move(expr)), args(move(args)), dummy(nullptr) { }
+StageStmt::StageStmt(const StageStmt &stmt) : Stmt(stmt), id(ast::clone(stmt.id)),
+					      expr(ast::clone(stmt.expr)), dummy(ast::clone(stmt.dummy)) {
+  vector<StageArg> args;
+  for (auto &stage : stmt.args) {
+    args.push_back(stage.clone());
+  }
+  this->args = std::move(args);
+}
+string StageStmt::toString(int indent) const { return "stage"; }
+ACCEPT_IMPL(StageStmt, ASTVisitor);
+
+
+SubgraphSuiteStmt::SubgraphSuiteStmt(vector<StmtPtr> stmts) : Stmt(), stmts(move(stmts)) { }
+SubgraphSuiteStmt::SubgraphSuiteStmt(const SubgraphSuiteStmt &stmt) : Stmt(stmt), 
+								      stmts(ast::clone(stmt.stmts)) { }
+string SubgraphSuiteStmt::toString(int indent) const { return "subgraph"; }
+ACCEPT_IMPL(SubgraphSuiteStmt, ASTVisitor);
 
 SuiteStmt::SuiteStmt(vector<StmtPtr> stmts, bool ownBlock)
     : Stmt(), ownBlock(ownBlock) {
@@ -306,7 +352,6 @@ const string Attr::Capture = ".__capture__";
 const string Attr::Extend = "extend";
 const string Attr::Tuple = "tuple";
 const string Attr::Test = "std.internal.attributes.test";
-const string Attr::Butterfly = "std.internal.attributes.butterfly";
 
 FunctionStmt::FunctionStmt(string name, ExprPtr ret, vector<Param> args, StmtPtr suite,
                            Attr attributes, vector<ExprPtr> decorators)

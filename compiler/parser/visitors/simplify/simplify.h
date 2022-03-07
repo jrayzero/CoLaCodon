@@ -224,7 +224,12 @@ public:
   /// Parse all statements in StmtExpr.
   void visit(StmtExpr *) override;
 
-  void visit(ButterflyStmt *) override;
+  void visit(GraphStmt *) override;
+  void visit(PipelineStmt *) override;
+  void visit(GridStmt *) override;
+  void visit(DistributeStmt *) override;
+  void visit(StageStmt *) override;
+  void visit(SubgraphSuiteStmt *) override;
   /// Transform all statements in a suite and flatten them (unless a suite is a variable
   /// scope).
   void visit(SuiteStmt *) override;

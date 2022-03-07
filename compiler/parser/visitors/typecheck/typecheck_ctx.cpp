@@ -392,8 +392,8 @@ int TypeContext::reorderNamedArgs(types::FuncType *func,
           (func->ast->args[i].deflt || (!known.empty() && known[i])))
         score -= 2;
       else if (!partial && !func->ast->args[i].generic)
-        return onError(format("missing argument '{}'",
-                              cache->reverseIdentifierLookup[func->ast->args[i].name]));
+        return onError(format("missing argument '{}' for {}",
+                              cache->reverseIdentifierLookup[func->ast->args[i].name],func->toString()));
     }
   return score + onDone(starArgIndex, kwstarArgIndex, slots, partial);
 }

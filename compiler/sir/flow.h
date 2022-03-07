@@ -27,6 +27,7 @@ class SeriesFlow : public AcceptorExtend<SeriesFlow, Flow> {
 private:
   std::list<Value *> series;
   bool isPipeline = false;
+  bool isDistribute = false;
 
 public:
   static const char NodeId;
@@ -35,6 +36,9 @@ public:
 
   bool getIsPipeline() const { return isPipeline; }
   void setIsPipeline(bool isPipeline) { this->isPipeline = isPipeline; }
+
+  bool getIsDistribute() const { return isDistribute; }
+  void setIsDistribute(bool isDistribute) { this->isDistribute = isDistribute; }
 
   /// @return an iterator to the first instruction/flow
   auto begin() { return series.begin(); }

@@ -49,7 +49,12 @@ void ASTVisitor::visit(RangeExpr *expr) { defaultVisit(expr); }
 void ASTVisitor::visit(InstantiateExpr *expr) { defaultVisit(expr); }
 void ASTVisitor::visit(StmtExpr *expr) { defaultVisit(expr); }
 
-void ASTVisitor::visit(ButterflyStmt *stmt) { defaultVisit(stmt); }
+void ASTVisitor::visit(GraphStmt *stmt) { defaultVisit(stmt); }
+void ASTVisitor::visit(PipelineStmt *stmt) { defaultVisit(stmt); }
+void ASTVisitor::visit(GridStmt *stmt) { defaultVisit(stmt); }
+void ASTVisitor::visit(DistributeStmt *stmt) { defaultVisit(stmt); }
+void ASTVisitor::visit(StageStmt *stmt) { defaultVisit(stmt); }
+void ASTVisitor::visit(SubgraphSuiteStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(SuiteStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(BreakStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(ContinueStmt *stmt) { defaultVisit(stmt); }
@@ -183,10 +188,37 @@ void ReplaceASTVisitor::visit(StmtExpr *expr) {
     transform(s);
   transform(expr->expr);
 }
-void ReplaceASTVisitor::visit(ButterflyStmt *stmt) {
-  for (auto &e : stmt->rules) {
-    transform(e.expr);
+void ReplaceASTVisitor::visit(GraphStmt *stmt) { 
+  transform(stmt->subgraph);
+}
+void ReplaceASTVisitor::visit(PipelineStmt *stmt) { 
+  transform(stmt->subgraph);
+}
+void ReplaceASTVisitor::visit(GridStmt *stmt) { 
+/*  transform(stmt->stageId);
+  transform(stmt->stageIdx);
+  transform(stmt->factor);
+  if (stmt->id)
+    transform(stmt->id);
+  transform(stmt->subgraph);*/
+}
+void ReplaceASTVisitor::visit(DistributeStmt *stmt) { 
+//  if (stmt->id)
+//    transform(stmt->id);
+//  transform(stmt->subgraph);
+}
+void ReplaceASTVisitor::visit(StageStmt *stmt) {   
+  transform(stmt->id);
+  transform(stmt->expr);
+  for (auto &stage : stmt->args) {
+    transform(stage.stage);
+    if (stage.idx)
+      transform(stage.idx);
   }
+}
+void ReplaceASTVisitor::visit(SubgraphSuiteStmt *stmt) { 
+  for (auto &s : stmt->stmts)
+    transform(s);
 }
 void ReplaceASTVisitor::visit(SuiteStmt *stmt) {
   for (auto &s : stmt->stmts)

@@ -68,13 +68,88 @@ StmtPtr SimplifyVisitor::transform(const StmtPtr &stmt) {
 void SimplifyVisitor::defaultVisit(Stmt *s) { resultStmt = s->clone(); }
 
 /**************************************************************************************/
+ 
+void SimplifyVisitor::visit(GraphStmt *stmt) {
+  ctx->addBlock();
+  auto subgraph = transform(stmt->subgraph);
+  // wrap in a pipeline
+  auto var = ctx->cache->getTemporaryVar("pipeline");
+  subgraph = transform(N<PipelineStmt>(N<IdExpr>(var), subgraph));
+  ctx->popBlock();
+  resultStmt = N<GraphStmt>(subgraph);
+}
 
-void SimplifyVisitor::visit(ButterflyStmt *stmt) {
-  vector<ButterflyStmt::ButterflyRule> rules;
-  for (auto &e : stmt->rules) {
-    rules.push_back({e.op, transform(e.expr)});
+void SimplifyVisitor::visit(PipelineStmt *stmt) {
+  ctx->addBlock();
+  auto subgraph = transform(stmt->subgraph);
+  ctx->popBlock();
+  // id is the result of the pipeline, so not available within the pipeline
+  ctx->add(SimplifyItem::Var, stmt->id->getId()->value, ctx->generateCanonicalName(stmt->id->getId()->value));
+  auto id = transform(stmt->id);
+  resultStmt = N<PipelineStmt>(id, subgraph);
+}
+
+void SimplifyVisitor::visit(GridStmt *stmt) {
+/*  ctx->addBlock();
+  if (stmt->id)
+    ctx->add(SimplifyItem::Var, stmt->id->getId()->value, ctx->generateCanonicalName(stmt->id->getId()->value));
+  auto stageId = transform(stmt->stageId);
+  auto stageIdx = transform(stmt->stageIdx);
+  auto factor = transform(stmt->factor);
+  auto id = stmt->id ? transform(stmt->id) : nullptr;
+  auto subgraph = transform(stmt->subgraph);
+  subgraph = transform(N<PipelineStmt>(nullptr, subgraph));
+  ctx->popBlock();
+  // the type of the Block that we split with grid is either Block or View, but 
+  // after splitting, each split object returned is a View
+  // Construct a temporary version of the getitem used so that we can use that as our type
+  N<DotExpr>();
+  resultStmt = N<GridStmt>(stageId, stageIdx, factor, id, subgraph);*/
+}
+
+void SimplifyVisitor::visit(DistributeStmt *stmt) {
+/*  ctx->addBlock();
+  if (stmt->id)
+    ctx->add(SimplifyItem::Var, stmt->id->getId()->value, ctx->generateCanonicalName(stmt->id->getId()->value));
+  auto id = stmt->id ? transform(stmt->id) : nullptr;
+  auto subgraph = transform(stmt->subgraph);
+  subgraph = transform(N<PipelineStmt>(nullptr, subgraph));
+  ctx->popBlock();
+  resultStmt = N<DistributeStmt>(id, subgraph);*/
+}
+
+void SimplifyVisitor::visit(StageStmt *stmt) {
+  ctx->add(SimplifyItem::Var, stmt->id->getId()->value, ctx->generateCanonicalName(stmt->id->getId()->value));
+  auto id = transform(stmt->id);
+  auto expr = transform(stmt->expr);
+  vector<StageStmt::StageArg> stages;
+  vector<ExprPtr> dummyWorkArgs;
+  for (auto &arg : stmt->args) {
+    // convert stage + idx to stage[idx] and set idx in the result to nullptr
+    auto intExpr = arg.idx ? arg.idx->getInt() : nullptr;
+    if (!intExpr) {
+      stages.push_back(StageStmt::StageArg{transform(arg.stage),nullptr});
+      dummyWorkArgs.push_back(transform(arg.stage));
+    } else {
+      stages.push_back(StageStmt::StageArg{transform(N<IndexExpr>(arg.stage, arg.idx)), nullptr});
+      dummyWorkArgs.push_back(transform(N<IndexExpr>(arg.stage, arg.idx)));
+    }
   }
-  resultStmt = N<ButterflyStmt>(rules);
+
+  // create the dummy call to __work__
+  // this also will implicitly verify that the expr actually has the required __work__ function
+  auto work = transform(N<CallExpr>(N<DotExpr>(expr, "__work__"), move(dummyWorkArgs)));  
+  auto tstage = N<StageStmt>(id, expr, move(stages));
+  tstage->dummy = work;
+  resultStmt = tstage;
+}
+
+void SimplifyVisitor::visit(SubgraphSuiteStmt *stmt) {
+  vector<StmtPtr> stmts;
+  for (auto stmt : stmt->stmts) {
+    stmts.push_back(transform(stmt));
+  }
+  resultStmt = N<SubgraphSuiteStmt>(move(stmts));
 }
 
 void SimplifyVisitor::visit(SuiteStmt *stmt) {

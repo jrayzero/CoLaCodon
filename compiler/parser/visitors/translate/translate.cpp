@@ -419,22 +419,20 @@ void TranslateVisitor::visit(CustomStmt *stmt) {
     ctx->popSeries();
     flow->setIsPipeline(true);
     result = flow;
+  } else if (stmt->keyword == "distribute") {
+    auto flow = make<ir::SeriesFlow>(stmt);    
+    ctx->addSeries(flow);
+    transform(stmt->suite); // this will append to the ctx
+    // verify that the first stmt in the suite is a pipeline suite
+    auto suite = stmt->suite->getSuite();
+    auto head = suite->stmts[0]->getCustom();
+    seqassert(head && head->keyword == "pipeline", "First statement in a distribute must be a pipeline");
+    ctx->popSeries();
+    flow->setIsDistribute(true);
+    result = flow;
   } else {
     seqassert(false, "Unknown customstmt keyword: " + stmt->keyword);
   }
-}
-
-void TranslateVisitor::visit(ButterflyStmt *stmt) {
-  // This doesn't translate into a node itself. 
-  // Rather it gets added to the containing function body,
-  // which should be an @butterfly annotated function
-  seqassert(ctx->inButterflyFunc, "Butterfly statements must be in function definitions marked with @butterfly");
-  seqassert(ctx->inButterflyRowBlock || ctx->inButterflyColBlock, "Butterfly statements may only be within a butterfly row (brow) or column (bcol)");
-  vector<ir::ButterflyLane::ButterflyRule> rules;
-  for (auto &e : stmt->rules) {
-    rules.push_back({e.op, transform(e.expr)});
-  }    
-  result = make<ir::ButterflyLane>(stmt, rules, ctx->inButterflyRowBlock);  
 }
 
 /************************************************************************************/
@@ -449,10 +447,6 @@ seq::ir::types::Type *TranslateVisitor::getType(const types::TypePtr &t) {
 
 void TranslateVisitor::transformFunction(types::FuncType *type, FunctionStmt *ast,
                                          ir::Func *func) {
-  if (ast->attributes.has(Attr::Butterfly)) {
-    seqassert(!ctx->inButterflyFunc, "Cannot have nested butterfly functions");      
-    ctx->inButterflyFunc = true;
-  }
   vector<string> names;
   vector<int> indices;
   vector<SrcInfo> srcInfos;
@@ -482,9 +476,6 @@ void TranslateVisitor::transformFunction(types::FuncType *type, FunctionStmt *as
     // LOG("{} -> {}", ast->name, a);
     attr[a] = "";
   }
-  if (ast->attributes.has(Attr::Butterfly)) {
-    attr["nonpure"] = "";
-  }
   func->setAttribute(make_unique<ir::KeyValueAttribute>(attr));
   for (int i = 0; i < names.size(); i++)
     func->getArgVar(names[i])->setSrcInfo(ast->args[indices[i]].getSrcInfo());
@@ -502,9 +493,6 @@ void TranslateVisitor::transformFunction(types::FuncType *type, FunctionStmt *as
     ctx->bases.pop_back();
     cast<ir::BodiedFunc>(func)->setBody(body);
     ctx->popBlock();
-  }
-  if (ast->attributes.has(Attr::Butterfly)) {
-    ctx->inButterflyFunc = false;
   }
 }
 
