@@ -230,13 +230,13 @@ stage_stmt <- 'stage' SPACE id _ ':' _ expression (SPACE withargs)? {
                         VS.size() > 2 ? ac<vector<StageStmt::StageArg>>(V2) : vector<StageStmt::StageArg>{});
 }
 
-idNoIdx <- id { return StageStmt::StageArg{ac_expr(V0),nullptr}; }
-idGet <- id '[' INT ']' { return StageStmt::StageArg{ac_expr(V0), ast<IntExpr>(LOC, ac<string>(V1))}; }
+#idNoIdx <- id { return StageStmt::StageArg{ac_expr(V0),nullptr}; }
+#idGet <- id '[' INT ']' { return StageStmt::StageArg{ac_expr(V0), ast<IntExpr>(LOC, ac<string>(V1))}; }
 
-withargs <- 'withargs' SPACE tlist(',', (idGet / idNoIdx)) {
+withargs <- 'withargs' SPACE tlist(',', expression) {
   vector<StageStmt::StageArg> stages;
   for (auto &v : VS) {
-    stages.push_back(ac<StageStmt::StageArg>(v));
+    stages.push_back(StageStmt::StageArg{ac_expr(v), nullptr});
   }
   return stages;
 }
