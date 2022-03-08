@@ -207,6 +207,10 @@ void CloneVisitor::visit(const SubgraphSeriesFlow *flow) {
   result = Nt(flow, std::move(stmts));
 }
 
+void CloneVisitor::visit(const GridInstr *instr) {
+  result = Nt(instr, clone(instr->getInput()), clone(instr->getFactor()), clone(instr->getVar()), clone(instr->getBody()));
+}
+
 void CloneVisitor::visit(const ColaPipelineInstr *instr) {
   result = Nt(instr, clone(instr->getVar()), clone(instr->getBody()));
 }

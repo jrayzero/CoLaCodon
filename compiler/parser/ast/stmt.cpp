@@ -41,12 +41,12 @@ PipelineStmt::PipelineStmt(const PipelineStmt &stmt) : Stmt(stmt), id(ast::clone
 string PipelineStmt::toString(int indent) const { return "pipeline"; }
 ACCEPT_IMPL(PipelineStmt, ASTVisitor);
 
-GridStmt::GridStmt(GridArg input, ExprPtr factor, ExprPtr id, StmtPtr subgraph, vector<GridArg> args) : 
+GridStmt::GridStmt(GridArg input, ExprPtr factor, ExprPtr id, StmtPtr subgraph) : 
   Stmt(), input(move(input)), factor(move(factor)), id(move(id)), 
-  subgraph(move(subgraph)), args(move(args)) { }
+  subgraph(move(subgraph)), dummy(nullptr) { }
 GridStmt::GridStmt(const GridStmt &stmt) : Stmt(stmt), input(stmt.input.clone()),
 					   factor(ast::clone(stmt.factor)), id(ast::clone(stmt.id)),
-					   subgraph(ast::clone(stmt.subgraph)) {  }
+					   subgraph(ast::clone(stmt.subgraph)), dummy(ast::clone(stmt.dummy)) {  }
 string GridStmt::toString(int indent) const { return "grid"; }
 ACCEPT_IMPL(GridStmt, ASTVisitor);
 

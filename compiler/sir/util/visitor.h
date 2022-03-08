@@ -89,6 +89,7 @@ class SubgraphSeriesFlow;
 class StageInstr;
 class GraphInstr;
 class ColaPipelineInstr;
+class GridInstr;
 
 namespace util {
 
@@ -156,6 +157,7 @@ public:
   VISIT(StageInstr);
   VISIT(GraphInstr);
   VISIT(ColaPipelineInstr);
+  VISIT(GridInstr);
   VISIT(dsl::CustomInstr);
 
   VISIT(types::Type);
@@ -239,6 +241,7 @@ public:
   CONST_VISIT(StageInstr);
   CONST_VISIT(GraphInstr);
   CONST_VISIT(ColaPipelineInstr);
+  CONST_VISIT(GridInstr);
 
   CONST_VISIT(types::Type);
   CONST_VISIT(types::PrimitiveType);

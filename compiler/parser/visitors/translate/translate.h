@@ -78,9 +78,10 @@ public:
   void visit(FunctionStmt *) override;
   void visit(ClassStmt *) override;
   void visit(GraphStmt *) override;
-  void visit(PipelineStmt *) override;
+  void visit(PipelineStmt *) override;  
   void visit(StageStmt *) override;
   void visit(SubgraphSuiteStmt *) override;  
+  void visit(GridStmt *) override;
 
 private:
   ir::types::Type *getType(const types::TypePtr &t);

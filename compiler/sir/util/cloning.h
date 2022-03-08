@@ -74,6 +74,7 @@ public:
   void visit(const ColaPipelineInstr *) override;
   void visit(const StageInstr *) override;
   void visit(const GraphInstr *) override;
+  void visit(const GridInstr *) override;
   void visit(const dsl::CustomInstr *v) override;
 
   /// Clones a value, returning the previous value if other has already been cloned.

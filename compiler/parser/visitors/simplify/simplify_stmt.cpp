@@ -124,21 +124,30 @@ void SimplifyVisitor::visit(PipelineStmt *stmt) {
 }
 
 void SimplifyVisitor::visit(GridStmt *stmt) {
-/*  ctx->addBlock();
-  if (stmt->id)
-    ctx->add(SimplifyItem::Var, stmt->id->getId()->value, ctx->generateCanonicalName(stmt->id->getId()->value));
-  auto stageId = transform(stmt->stageId);
-  auto stageIdx = transform(stmt->stageIdx);
+  GridStmt::GridArg input{nullptr,nullptr};
+  if (!stmt->input.idx) 
+    input = GridStmt::GridArg{transform(stmt->input.stage), nullptr};
+  else
+    input = GridStmt::GridArg{transform(N<IndexExpr>(stmt->input.stage, stmt->input.idx)), nullptr};
+  // create the dummy getitem. it will be a tuple (input.__getitem__(0),d0,...), which is allowed since cola will pad that. We just
+  // need the view type. The rest of the tuple are the loop iterator values
+  auto intExpr = N<IntExpr>(0);
+  ExprPtr dummy = N<CallExpr>(N<DotExpr>(input.stage, "__getitem__"), intExpr);
+  int nfactors = stmt->factor->getTuple()->items.size();
+  vector<ExprPtr> dummyLoopIters;
+  for (int i = 0; i < nfactors; i++) {
+    dummyLoopIters.push_back(N<IntExpr>(0));
+  }
+  dummy = transform(N<TupleExpr>(vector<ExprPtr>{dummy, N<TupleExpr>(move(dummyLoopIters))}));
   auto factor = transform(stmt->factor);
-  auto id = stmt->id ? transform(stmt->id) : nullptr;
-  auto subgraph = transform(stmt->subgraph);
-  subgraph = transform(N<PipelineStmt>(nullptr, subgraph));
+  // the id of grid is for use within grid
+  ctx->addBlock();
+  ctx->add(SimplifyItem::Var, stmt->id->getId()->value, ctx->generateCanonicalName(stmt->id->getId()->value));
+  auto id = transform(stmt->id);
+  auto grid = N<GridStmt>(input, factor, id, transform(stmt->subgraph));
+  grid->dummy = dummy;
+  resultStmt = grid;
   ctx->popBlock();
-  // the type of the Block that we split with grid is either Block or View, but 
-  // after splitting, each split object returned is a View
-  // Construct a temporary version of the getitem used so that we can use that as our type
-  N<DotExpr>();
-  resultStmt = N<GridStmt>(stageId, stageIdx, factor, id, subgraph);*/
 }
 
 void SimplifyVisitor::visit(DistributeStmt *stmt) {
@@ -153,8 +162,6 @@ void SimplifyVisitor::visit(DistributeStmt *stmt) {
 }
 
 void SimplifyVisitor::visit(StageStmt *stmt) {
-  ctx->add(SimplifyItem::Var, stmt->id->getId()->value, ctx->generateCanonicalName(stmt->id->getId()->value));
-  auto id = transform(stmt->id);
   auto expr = transform(stmt->expr);
   vector<StageStmt::StageArg> stages;
   vector<ExprPtr> dummyWorkArgs;
@@ -173,6 +180,9 @@ void SimplifyVisitor::visit(StageStmt *stmt) {
   // create the dummy call to __work__
   // this also will implicitly verify that the expr actually has the required __work__ function
   auto work = transform(N<CallExpr>(N<DotExpr>(expr, "__work__"), move(dummyWorkArgs)));  
+  // do this last because the var isn't available til after this stage
+  ctx->add(SimplifyItem::Var, stmt->id->getId()->value, ctx->generateCanonicalName(stmt->id->getId()->value));
+  auto id = transform(stmt->id);
   auto tstage = N<StageStmt>(id, expr, move(stages));
   tstage->dummy = work;
   resultStmt = tstage;

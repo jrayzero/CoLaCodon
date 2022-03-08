@@ -65,15 +65,24 @@ void TypecheckVisitor::visit(GraphStmt *stmt) {
   stmt->done = stmt->subgraph->done;
 }
 
+// get the output type of a subgraph based on the last non-grid statement in it
 TypePtr getCorrectType(const StmtPtr &stmt) {
   if (auto s = stmt->getSubgraph()) {
     if (s->stmts.empty())
       return nullptr;
-    return getCorrectType(s->stmts.back());
+    // go backwards through these in case we end with grid statements
+    for (int i = s->stmts.size() - 1; i >= 0; i--) {
+      auto res = getCorrectType(s->stmts[i]);
+      if (res)
+	return res;
+    }
+    return nullptr;
   } else if (auto s = stmt->getPipeline()) {
     return s->id->getType();
   } else if (auto s = stmt->getStage()) {
     return s->id->getType();
+  } else if (stmt->getGrid()) {
+    return nullptr;
   } else {
     error("Invalid stmt to getCorrectType");
     return nullptr;
@@ -81,32 +90,33 @@ TypePtr getCorrectType(const StmtPtr &stmt) {
 }
 
 void TypecheckVisitor::visit(PipelineStmt *stmt) {
-  transform(stmt->subgraph);
+  stmt->subgraph = transform(stmt->subgraph);
   TypePtr idType = ctx->addUnbound(stmt->id.get(), ctx->typecheckLevel);
   auto ct = getCorrectType(stmt->subgraph);
   if (!ct)
-    // happens if jsut have "pass" in the body. Give a fake non-void type (void fails
-    // because an expr can't have void)
+    // happens if just have "pass" or grids in the body (i.e. all statements are grids). 
+    // Give a fake non-void type (void fails because an expr can't have void)
     ct = ctx->findInternal("int"); 
   unify(idType, ct);
   string varName = stmt->id->getId()->value;
   // id is the result of the pipeline, so not available within the pipeline
   ctx->add(TypecheckItem::Var, varName, idType);
-  transform(stmt->id);
+  stmt->id = transform(stmt->id);
   stmt->done = stmt->id->done && stmt->subgraph->done;
 }
 
-void TypecheckVisitor::visit(GridStmt *stmt) {
-/*  // the type that results from this is the same as the tuple arg type
-  ctx->addBlock();
-  if (stmt->id)
-    ctx->add(SimplifyItem::Var, stmt->id->getId()->value, ctx->generateCanonicalName(stmt->id->getId()->value));
-  auto factor = transform(stmt->factor);
-  auto id = stmt->id ? transform(stmt->id) : nullptr;
-  auto subgraph = transform(stmt->subgraph);
-  subgraph = transform(N<PipelineStmt>(nullptr, subgraph));
-  ctx->popBlock();
-  resultStmt = N<GridStmt>(factor, id, subgraph);*/
+void TypecheckVisitor::visit(GridStmt *stmt) {  
+  stmt->input.stage = transform(stmt->input.stage);
+  stmt->factor = transform(stmt->factor);  
+  string varName = stmt->id->getId()->value;
+  // this gets the view type of the dummy
+  TypePtr idType = ctx->addUnbound(stmt->id.get(), ctx->typecheckLevel);
+  ctx->add(TypecheckItem::Var, varName, idType);
+  stmt->dummy = transform(stmt->dummy);
+  unify(idType, stmt->dummy->getType());
+  stmt->id = transform(stmt->id);
+  stmt->subgraph = transform(stmt->subgraph);
+  stmt->done = stmt->id->done && stmt->input.stage->done && stmt->factor->done && stmt->dummy->done;
 }
 
 void TypecheckVisitor::visit(DistributeStmt *stmt) {
@@ -122,34 +132,41 @@ void TypecheckVisitor::visit(DistributeStmt *stmt) {
 
 void TypecheckVisitor::visit(StageStmt *stmt) {
   bool argsDone = true;
+  vector<StageStmt::StageArg> args;
   for (auto &arg : stmt->args) {
     // simplify sets arg.idx to nullptr and stage represents the index expression
-    transform(arg.stage);
+    args.push_back(StageStmt::StageArg{transform(arg.stage), nullptr});
     argsDone &= arg.stage->done;
   }
+  stmt->args = move(args);
   TypePtr idType = ctx->addUnbound(stmt->id.get(), ctx->typecheckLevel);
   seqassert(stmt->dummy, "");
   // this will check that the args used for the work call actually match up (e.g. S[0] => that stage better return a tuple)
-  transform(stmt->dummy);
+  stmt->dummy = transform(stmt->dummy);
   // don't use stmt->expr, because that is just the thing to call __work__ on. we need the type of the __work__ method.
   unify(idType, stmt->dummy->getType());
   if (idType->is("void"))
     error("Stage cannot have void result");
   string varName = stmt->id->getId()->value;
   auto expr = transform(stmt->expr);
+  stmt->expr = expr;
   // id is the result of the stage, so not available within the stage
   ctx->add(TypecheckItem::Var, varName, idType);
-  transform(stmt->id);
-  stmt->done = stmt->id->done && stmt->expr->done && argsDone;
+  stmt->id = transform(stmt->id);
+  stmt->done = stmt->id->done && stmt->expr->done && argsDone && stmt->dummy->done;
 }
 
 void TypecheckVisitor::visit(SubgraphSuiteStmt *stmt) {
   bool done = true;
+  vector<StmtPtr> stmts;
   for (auto stmt : stmt->stmts) {
-    transform(stmt);
-    done &= stmt->done;
+    if (auto t = transform(stmt)) {
+      stmts.push_back(t);
+      done &= t->done;
+    }
   }  
   stmt->done = done;
+  stmt->stmts = move(stmts);
 }
 
 void TypecheckVisitor::visit(SuiteStmt *stmt) {

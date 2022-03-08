@@ -195,12 +195,12 @@ void ReplaceASTVisitor::visit(PipelineStmt *stmt) {
   transform(stmt->subgraph);
 }
 void ReplaceASTVisitor::visit(GridStmt *stmt) { 
-/*  transform(stmt->stageId);
-  transform(stmt->stageIdx);
+  transform(stmt->input.stage);
+  if (stmt->input.idx)
+    transform(stmt->input.idx);
   transform(stmt->factor);
-  if (stmt->id)
-    transform(stmt->id);
-  transform(stmt->subgraph);*/
+  transform(stmt->id);
+  transform(stmt->subgraph);
 }
 void ReplaceASTVisitor::visit(DistributeStmt *stmt) { 
 //  if (stmt->id)

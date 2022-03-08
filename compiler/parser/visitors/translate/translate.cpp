@@ -260,6 +260,22 @@ void TranslateVisitor::visit(GraphStmt *stmt) {
 
 void TranslateVisitor::visit(PipelineStmt *stmt) {
   auto body = make<ir::SubgraphSeriesFlow>(stmt, "body");
+  ctx->addSubgraphSeries(body);
+  transform2(stmt->subgraph);
+  ctx->popSubgraphSeries();
+  auto var = stmt->id->getId()->value;
+  auto *newVar =
+    make<ir::Var>(stmt, getType(stmt->id->getType()),
+		  false, var);
+  ctx->getBase()->push_back(newVar);
+  ctx->add(TranslateItem::Var, var, newVar);
+  result = make<ir::ColaPipelineInstr>(stmt, newVar, body);
+}
+
+void TranslateVisitor::visit(GridStmt *stmt) {
+  auto body = make<ir::SubgraphSeriesFlow>(stmt, "body");
+  auto stage = transform2(stmt->input.stage);
+  auto factor = transform2(stmt->factor);
   auto var = stmt->id->getId()->value;
   auto *newVar =
     make<ir::Var>(stmt, getType(stmt->id->getType()),
@@ -269,17 +285,11 @@ void TranslateVisitor::visit(PipelineStmt *stmt) {
   ctx->addSubgraphSeries(body);
   transform2(stmt->subgraph);
   ctx->popSubgraphSeries();
-  result = make<ir::ColaPipelineInstr>(stmt, newVar, body);
+  result = make<ir::GridInstr>(stmt, stage, factor, newVar, body);
 }
 
 void TranslateVisitor::visit(StageStmt *stmt) {
   auto var = stmt->id->getId()->value;
-  // id
-  auto *newVar =
-    make<ir::Var>(stmt, getType(stmt->id->getType()),
-		  false, var);
-  ctx->getBase()->push_back(newVar);
-  ctx->add(TranslateItem::Var, var, newVar);
   // expr
   auto stage = transform2(stmt->expr);
   seqassert(stage, "");
@@ -290,6 +300,12 @@ void TranslateVisitor::visit(StageStmt *stmt) {
     seqassert(targ, "");
     args.push_back(targ);
   }
+  // id
+  auto *newVar =
+    make<ir::Var>(stmt, getType(stmt->id->getType()),
+		  false, var);
+  ctx->getBase()->push_back(newVar);
+  ctx->add(TranslateItem::Var, var, newVar);
   result = make<ir::StageInstr>(stmt, newVar, stage, move(args));
 }
 

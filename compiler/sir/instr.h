@@ -73,6 +73,43 @@ protected:
   int doReplaceUsedValue(id_t id, Value *newValue) override;
 };
 
+class GridInstr : public AcceptorExtend<GridInstr, Instr> {
+  Value *input;
+  Value *factor;
+  Var *var;
+  Value *body;
+public:
+
+  static const char NodeId;
+
+  using AcceptorExtend::AcceptorExtend;
+
+  GridInstr(Value *input, Value *factor, Var *var, Value *body, string name = "") : 
+    AcceptorExtend(move(name)), input(input), factor(factor), var(var), body(body) { }
+
+  Value *getInput() { return input; }
+  const Value *getInput() const { return input; }
+
+  Value *getFactor() { return factor; }
+  const Value *getFactor() const { return factor; }
+
+  Var *getVar() { return var; }
+  const Var *getVar() const { return var; }
+
+  Value *getBody() { return body; }
+  const Value *getBody() const { return body; }
+  
+protected:
+
+  std::vector<Value *> doGetUsedValues() const override {
+    return {input, factor, body};
+  }
+  int doReplaceUsedValue(id_t id, Value *newValue) override;
+  std::vector<Var *> doGetUsedVariables() const override { return {var}; }
+  int doReplaceUsedVariable(id_t id, Var *newVar) override;
+  
+};
+
 class StageInstr : public AcceptorExtend<StageInstr, Instr> {
   Var *var;
   Value *stage;

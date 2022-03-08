@@ -138,6 +138,7 @@ public:
   LAMBDA_VISIT(StageInstr);
   LAMBDA_VISIT(GraphInstr);
   LAMBDA_VISIT(ColaPipelineInstr);
+  LAMBDA_VISIT(GridInstr);
   LAMBDA_VISIT(dsl::CustomInstr);
 
   template <typename Node> void process(Node *v) { v->accept(*this); }

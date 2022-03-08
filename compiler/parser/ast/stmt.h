@@ -141,11 +141,11 @@ struct GridStmt : public Stmt {
   };
   GridArg input;
   ExprPtr factor; // how to partition
-  ExprPtr id; // name of this stage
+  ExprPtr id; // reference to the split off object NOT the result of the stage (a grid is void, which is different from the other comps)
   StmtPtr subgraph;  
-  vector<GridArg> args;
+  ExprPtr dummy; // this represents a dummy partition (i.e. block or view getitem), which we need for type checking
 
-  GridStmt(GridArg input, ExprPtr factor, ExprPtr id, StmtPtr subgraph, vector<GridArg> args = {});
+  GridStmt(GridArg input, ExprPtr factor, ExprPtr id, StmtPtr subgraph);
   GridStmt(const GridStmt &stmt);
   string toString(int indent) const override;
   ACCEPT(ASTVisitor);  

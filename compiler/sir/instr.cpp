@@ -41,6 +41,33 @@ int ColaPipelineInstr::doReplaceUsedVariable(id_t id, Var *newVar) {
   return 0;
 }
 
+const char GridInstr::NodeId = 0;
+
+int GridInstr::doReplaceUsedValue(id_t id, Value *newValue) {
+  int nrepls = 0;
+  if (input->getId() == id) {
+    input = newValue;
+    nrepls++;
+  }
+  if (factor->getId() == id) {
+    factor = newValue;
+    nrepls++;
+  }
+  if (body->getId() == id) {
+    body = newValue;
+    nrepls++;
+  } 
+  return nrepls;
+}
+
+int GridInstr::doReplaceUsedVariable(id_t id, Var *newVar) {
+  if (var->getId() == id) {
+    var = newVar;
+    return 1;
+  }
+  return 0;
+}
+
 const char GraphInstr::NodeId = 0;
 
 int GraphInstr::doReplaceUsedValue(id_t id, Value *newValue) {
