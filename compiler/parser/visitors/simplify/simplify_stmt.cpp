@@ -101,6 +101,7 @@ NonSuiteItem findFirstNonSuiteSubgraph(const StmtPtr &stmt) {
 }
 
 void SimplifyVisitor::visit(GraphStmt *stmt) {
+  ctx->graphBlock.clear();
   ctx->addBlock();
   auto subgraph = transform(stmt->subgraph);
   // wrap in a pipeline
@@ -110,7 +111,10 @@ void SimplifyVisitor::visit(GraphStmt *stmt) {
     subgraph = transform(N<PipelineStmt>(N<IdExpr>(var), subgraph));
   }
   ctx->popBlock();
-  resultStmt = N<GraphStmt>(subgraph);
+  // move all the assignments to the stages before the graph
+  auto suite = N<SuiteStmt>(ctx->graphBlock);
+  suite->stmts.push_back(N<GraphStmt>(subgraph));
+  resultStmt = suite;//N<GraphStmt>(subgraph);
 }
 
 void SimplifyVisitor::visit(PipelineStmt *stmt) {
@@ -163,6 +167,12 @@ void SimplifyVisitor::visit(DistributeStmt *stmt) {
 
 void SimplifyVisitor::visit(StageStmt *stmt) {
   auto expr = transform(stmt->expr);
+  string name = ctx->cache->getTemporaryVar("stageInput");
+  ctx->add(SimplifyItem::Var, name, ctx->generateCanonicalName(name));
+ // this replaces the actual stage in on the rhs of "stage S : <stage>"
+  auto exprVar = transform(N<IdExpr>(name));
+  auto exprAssign = N<AssignStmt>(exprVar, expr);
+  ctx->graphBlock.push_back(exprAssign);
   vector<StageStmt::StageArg> stages;
   vector<ExprPtr> dummyWorkArgs;
   for (auto &arg : stmt->args) {
@@ -183,7 +193,7 @@ void SimplifyVisitor::visit(StageStmt *stmt) {
   // do this last because the var isn't available til after this stage
   ctx->add(SimplifyItem::Var, stmt->id->getId()->value, ctx->generateCanonicalName(stmt->id->getId()->value));
   auto id = transform(stmt->id);
-  auto tstage = N<StageStmt>(id, expr, move(stages));
+  auto tstage = N<StageStmt>(id, exprVar, move(stages));
   tstage->dummy = work;
   resultStmt = tstage;
 }

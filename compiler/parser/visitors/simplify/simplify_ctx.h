@@ -108,7 +108,7 @@ struct SimplifyContext : public Context<SimplifyItem> {
   int rhs_setitems = 0;
   vector<string> einsumSymbols;
 
-  enum SubgraphType {
+/*  enum SubgraphType {
     PIPELINE,
     GRID,
     DISTRIBUTE,
@@ -116,7 +116,8 @@ struct SimplifyContext : public Context<SimplifyItem> {
     SUBGRAPH,
   };
 
-  std::stack<SubgraphType> subgraph_ctx;
+  std::stack<SubgraphType> subgraph_ctx;*/
+  vector<StmtPtr> graphBlock;  
 
 public:
   SimplifyContext(string filename, shared_ptr<Cache> cache);
