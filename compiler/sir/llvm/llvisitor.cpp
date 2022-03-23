@@ -270,7 +270,6 @@ void LLVMVisitor::process(const Node *x) {
 }
 
 void LLVMVisitor::verify() {
-  dump("/tmp/wtf.ll");
   const bool broken = llvm::verifyModule(*module, &llvm::errs());
   seqassert(!broken, "module broken");
 }
@@ -340,13 +339,15 @@ void LLVMVisitor::runLLVMOptimizationPasses() {
   llvm::PassManagerBuilder pmb;
 
   if (!db.debug) {
-    pmb.OptLevel = optLevel;
+    /*    pmb.OptLevel = optLevel;
     pmb.SizeLevel = sizeLevel;
     pmb.Inliner = llvm::createFunctionInliningPass(optLevel, sizeLevel, false);
     pmb.DisableUnrollLoops = false;
     pmb.LoopVectorize = true;
     pmb.SLPVectorize = true;
     // pmb.MergeFunctions = true;
+    std::cerr << "RUNNING OPTS" << std::endl;*/
+    pmb.OptLevel = 0;
   } else {
     pmb.OptLevel = 0;
   }
@@ -389,6 +390,7 @@ void LLVMVisitor::runLLVMPipeline() {
                  1000.0);
   }
   verify();
+  dump("/tmp/cola.ll");  
 }
 
 void LLVMVisitor::writeToObjectFile(const std::string &filename) {
