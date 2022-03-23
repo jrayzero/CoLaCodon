@@ -49,3 +49,11 @@ def nocodegen():
 @__attribute__
 def butterfly():
     pass
+
+@__attribute__
+def noalias():
+    pass
+
+@__attribute__
+def noaliasret():
+    pass

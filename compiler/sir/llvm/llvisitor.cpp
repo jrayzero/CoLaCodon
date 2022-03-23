@@ -1170,7 +1170,6 @@ void LLVMVisitor::visit(const BodiedFunc *x) {
   coro = {};
   seqassert(func, "{} not inserted", *x);
   setDebugInfoForNode(x);  
-
   if (fnAttributes && fnAttributes->has("std.internal.attributes.export")) {
     func->setLinkage(llvm::GlobalValue::ExternalLinkage);
   } else {
@@ -1182,6 +1181,7 @@ void LLVMVisitor::visit(const BodiedFunc *x) {
   if (fnAttributes && fnAttributes->has("std.internal.attributes.noinline")) {
     func->addFnAttr(llvm::Attribute::AttrKind::NoInline);
   }
+
   func->setPersonalityFn(llvm::cast<llvm::Constant>(makePersonalityFunc().getCallee()));
 
   auto *funcType = cast<types::FuncType>(x->getType());
@@ -1324,6 +1324,16 @@ void LLVMVisitor::visit(const BodiedFunc *x) {
   } else {
     builder.CreateBr(startBlock);
     block = startBlock;
+  }
+
+  if (fnAttributes && fnAttributes->has("std.internal.attributes.noalias")) {
+    // add to each arg
+    int aidx = 1;
+    for (auto it = func->arg_begin(); it != func->arg_end(); it++) 
+      func->addAttribute(aidx++, llvm::Attribute::AttrKind::NoAlias);
+  }
+  if (fnAttributes && fnAttributes->has("std.internal.attributes.noaliasret")) {
+    func->addAttribute(0, llvm::Attribute::AttrKind::NoAlias);
   }
 
   process(x->getBody());
