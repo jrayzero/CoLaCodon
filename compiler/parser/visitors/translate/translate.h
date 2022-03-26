@@ -82,6 +82,7 @@ public:
   void visit(StageStmt *) override;
   void visit(SubgraphSuiteStmt *) override;  
   void visit(GridStmt *) override;
+  void visit(PermuteStmt *) override;
 
 private:
   ir::types::Type *getType(const types::TypePtr &t);

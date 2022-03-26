@@ -88,6 +88,7 @@ class ButterflyLane;
 class SubgraphSeriesFlow;
 class StageInstr;
 class GraphInstr;
+class PermuteFlow;
 class ColaPipelineInstr;
 class GridInstr;
 
@@ -153,6 +154,7 @@ public:
   VISIT(FlowInstr);
   VISIT(DependsOnInstr);
   VISIT(ButterflyLane);
+  VISIT(PermuteFlow);
   VISIT(SubgraphSeriesFlow);
   VISIT(StageInstr);
   VISIT(GraphInstr);
@@ -237,6 +239,7 @@ public:
   CONST_VISIT(DependsOnInstr);
   CONST_VISIT(ButterflyLane);
   CONST_VISIT(dsl::CustomInstr);
+  CONST_VISIT(PermuteFlow);
   CONST_VISIT(SubgraphSeriesFlow);
   CONST_VISIT(StageInstr);
   CONST_VISIT(GraphInstr);

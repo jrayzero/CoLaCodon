@@ -240,6 +240,16 @@ void TranslateVisitor::defaultVisit(Stmt *n) {
   seqassert(false, "invalid node {}", n->toString());
 }
 
+void TranslateVisitor::visit(PermuteStmt *stmt) {
+  auto funcId = transform(stmt->funcId);
+  auto permutation = transform(stmt->permutation);  
+  auto body = make<ir::SeriesFlow>(stmt, "body");
+  ctx->addSeries(cast<ir::SeriesFlow>(body));
+  transform(stmt->suite);
+  ctx->popSeries();
+  result = make<ir::PermuteFlow>(stmt, funcId, permutation, body);
+}
+
 void TranslateVisitor::visit(SuiteStmt *stmt) {
   for (auto &s : stmt->stmts)
     transform(s);

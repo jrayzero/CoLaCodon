@@ -270,7 +270,7 @@ void LLVMVisitor::process(const Node *x) {
 }
 
 void LLVMVisitor::verify() {
-  dump("/tmp/wtf.ll");
+  dump("/tmp/cola.ll");
   const bool broken = llvm::verifyModule(*module, &llvm::errs());
   seqassert(!broken, "module broken");
 }

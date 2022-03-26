@@ -1123,6 +1123,11 @@ void SimplifyVisitor::visit(ClassStmt *stmt) {
   resultStmt = N<SuiteStmt>(stmts);
 }
 
+void SimplifyVisitor::visit(PermuteStmt *stmt) {
+  resultStmt = N<PermuteStmt>(transform(stmt->funcId),
+			      transform(stmt->permutation), transform(stmt->suite));
+}
+
 void SimplifyVisitor::visit(CustomStmt *stmt) {
 
   if  (stmt->keyword == "pipeline" || stmt->keyword == "distribute") {

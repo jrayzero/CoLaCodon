@@ -60,6 +60,13 @@ void TypecheckVisitor::defaultVisit(Stmt *s) {
 
 /**************************************************************************************/
 
+void TypecheckVisitor::visit(PermuteStmt *stmt) {
+  stmt->funcId = transform(stmt->funcId);
+  stmt->permutation = transform(stmt->permutation);
+  stmt->suite = transform(stmt->suite);
+  stmt->done = stmt->funcId->done && stmt->permutation->done && stmt->suite->done;
+}
+
 void TypecheckVisitor::visit(GraphStmt *stmt) {
   transform(stmt->subgraph);
   stmt->done = stmt->subgraph->done;

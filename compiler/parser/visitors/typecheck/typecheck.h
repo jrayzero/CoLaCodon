@@ -120,6 +120,7 @@ public:
   /// Use type of an inner expression.
   void visit(StmtExpr *) override;
 
+  void visit(PermuteStmt *) override;
   void visit(GraphStmt *) override;
   void visit(PipelineStmt *) override;
   void visit(GridStmt *) override;

@@ -7,6 +7,7 @@
   #include "parser/peg/rules.h"
   #include <any>
   #include <string>
+  #include <iostream>
   using namespace std;
   using namespace seq::ast;
 
@@ -36,6 +37,15 @@
     if (VS.size() == 1 && VS.tokens.empty())
       return ac_expr(V0);
     return ast<TupleExpr>(LOC, VS.transform<ExprPtr>());
+  }
+  auto wrap_int_tuple(peg::SemanticValues &VS, const seq::SrcInfo &LOC) {
+    if (VS.size() == 1 && VS.tokens.empty())
+      return ast<IntExpr>(LOC, ac<string>(V0));
+    vector<ExprPtr> elems;
+    for (int i = 0; i < VS.size(); i++) {
+      elems.push_back(ast<IntExpr>(LOC, ac<string>(VS[i])));
+    } 
+    return ast<TupleExpr>(LOC, move(elems));
   }
 }
 program <- (statements (_ EOL)* / (_ EOL)*) !. {
@@ -209,6 +219,7 @@ compound_stmt <-
   / try_stmt
   / while_stmt
   / match_stmt
+  / permute_stmt
   / custom_stmt  
 
 subgraph_stmts <- ((_ EOL)* subgraph_stmt)+ {
@@ -465,6 +476,11 @@ case <-
   / 'case' SPACE expression _ ':' _ suite {
     return MatchStmt::MatchCase{ac_expr(V0), nullptr, ac_stmt(V1)};
   }
+permute_stmt <-
+  / 'permute' SPACE id SPACE 'using' SPACE permute_tuple _ ':' _ suite {
+     auto a =  ast<PermuteStmt>(LOC, ac_expr(V0), ac_expr(V1), ac_stmt(V2));
+     return a;
+   }
 custom_stmt <-
   / NAME SPACE expression _ ':' _ suite {
     auto kwd = ac<string>(V0);
@@ -626,6 +642,8 @@ parentheses <- (
 tuple <-
   / '(' _ ')' { return ast<TupleExpr>(LOC, VS.transform<ExprPtr>()); }
   / '(' _ tlist(',', star_named_expression) _ ')' { return wrap_tuple(VS, LOC); }
+permute_tuple <-
+  / '(' _ tlist(',', INT) _ ')' { return wrap_int_tuple(VS, LOC); }
 yield <- '(' _ 'yield' _ ')' { return ast<YieldExpr>(LOC); }
 named <- '(' _ named_expression _ ')'
 genexp <- '(' _ named_expression SPACE for_if_clauses _ ')' {

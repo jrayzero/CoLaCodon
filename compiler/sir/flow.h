@@ -157,6 +157,38 @@ protected:
   int doReplaceUsedValue(id_t id, Value *newValue) override;
 };
 
+class PermuteFlow : public AcceptorExtend<PermuteFlow, Flow> {
+private:
+  
+  Value *funcId;
+  Value *permutation;
+  Value *body;
+
+public:
+
+  static const char NodeId;
+
+  PermuteFlow(Value *funcId, Value *permutation, Value *body) : 
+    funcId(funcId), permutation(permutation), body(body) { }
+
+  Value *getFuncId() { return funcId; }
+  const Value *getFuncId() const { return funcId; }
+
+  Value *getPermutation() { return permutation; }
+  const Value *getPermutation() const { return permutation; }
+
+  /// @return the body
+  Flow *getBody() { return cast<Flow>(body); }
+  /// @return the body
+  const Flow *getBody() const { return cast<Flow>(body); }
+
+protected:
+
+  std::vector<Value *> doGetUsedValues() const override { return {funcId, permutation, body}; }
+  int doReplaceUsedValue(id_t id, Value *newValue) override;
+
+};
+
 /// Flow representing a for loop.
 class ForFlow : public AcceptorExtend<ForFlow, Flow> {
 private:

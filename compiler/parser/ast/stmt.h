@@ -40,6 +40,8 @@ struct GridStmt;
 struct DistributeStmt;
 struct StageStmt;
 struct SubgraphSuiteStmt;
+// other cola stuff
+struct PermuteStmt;
 
 /**
  * A Seq AST statement.
@@ -85,12 +87,25 @@ public:
   virtual const DistributeStmt *getDistribute() const { return nullptr; }
   virtual const StageStmt *getStage() const { return nullptr; }
   virtual const SubgraphSuiteStmt *getSubgraph() const { return nullptr; }
+  virtual const PermuteStmt *getPermute() const { return nullptr; }
 
   /// @return the first statement in a suite; if a statement is not a suite, returns the
   /// statement itself
   virtual const Stmt *firstInBlock() const { return this; }
 };
 using StmtPtr = shared_ptr<Stmt>;
+
+struct PermuteStmt : public Stmt {
+  ExprPtr funcId;
+  ExprPtr permutation;
+  StmtPtr suite;
+
+  PermuteStmt(ExprPtr funcId, ExprPtr permutation, StmtPtr suite);
+  PermuteStmt(const PermuteStmt &stmt);
+  string toString(int indent) const override;
+  ACCEPT(ASTVisitor);
+  const PermuteStmt *getPermute() const override { return this; }
+};
 
 struct GraphStmt : public Stmt {
   StmtPtr subgraph;

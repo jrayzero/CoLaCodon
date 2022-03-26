@@ -224,6 +224,7 @@ public:
   /// Parse all statements in StmtExpr.
   void visit(StmtExpr *) override;
 
+  void visit(PermuteStmt *) override;
   void visit(GraphStmt *) override;
   void visit(PipelineStmt *) override;
   void visit(GridStmt *) override;

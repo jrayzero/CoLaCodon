@@ -49,6 +49,7 @@ void Visitor::visit(YieldInstr *x) { defaultVisit(x); }
 void Visitor::visit(ThrowInstr *x) { defaultVisit(x); }
 void Visitor::visit(FlowInstr *x) { defaultVisit(x); }
 void Visitor::visit(DependsOnInstr *x) { defaultVisit(x); }
+void Visitor::visit(PermuteFlow *x) { defaultVisit(x); }
 void Visitor::visit(SubgraphSeriesFlow *x) { defaultVisit(x); }
 void Visitor::visit(StageInstr *x) { defaultVisit(x); }
 void Visitor::visit(GraphInstr *x) { defaultVisit(x); }
@@ -115,6 +116,7 @@ void ConstVisitor::visit(const YieldInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const ThrowInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const FlowInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const ButterflyLane *x) { /*For the most part I want to skip this, except for very specific passes*/ }
+void ConstVisitor::visit(const PermuteFlow *x) { defaultVisit(x); }
 void ConstVisitor::visit(const SubgraphSeriesFlow *x) { defaultVisit(x); }
 void ConstVisitor::visit(const StageInstr *x) { defaultVisit(x); }
 void ConstVisitor::visit(const GraphInstr *x) { defaultVisit(x); }

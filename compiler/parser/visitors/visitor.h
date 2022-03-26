@@ -64,6 +64,7 @@ public:
   virtual void visit(StmtExpr *);
 
   virtual void visit(GraphStmt *);
+  virtual void visit(PermuteStmt *);
   virtual void visit(PipelineStmt *);
   virtual void visit(GridStmt *);
   virtual void visit(DistributeStmt *);
@@ -196,6 +197,7 @@ struct ReplaceASTVisitor : public ASTVisitor {
   void visit(StmtExpr *) override;
 
   void visit(GraphStmt *) override;
+  void visit(PermuteStmt *) override;
   void visit(PipelineStmt *) override;
   void visit(GridStmt *) override;
   void visit(DistributeStmt *) override;

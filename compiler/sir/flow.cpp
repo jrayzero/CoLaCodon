@@ -39,6 +39,25 @@ int SubgraphSeriesFlow::doReplaceUsedValue(id_t id, Value *newValue) {
   return replacements;
 }
 
+const char PermuteFlow::NodeId = 0;
+
+int PermuteFlow::doReplaceUsedValue(id_t id, Value *newValue) {
+  auto replacements = 0;
+  if (funcId->getId() == id) {
+    funcId = newValue;
+    replacements++;
+  }
+  if (permutation->getId() == id) {
+    permutation = newValue;
+    replacements++;
+  }
+  if (body->getId() == id) {
+    body = newValue;
+    replacements++;
+  }
+  return replacements;
+}
+
 const char SeriesFlow::NodeId = 0;
 
 int SeriesFlow::doReplaceUsedValue(id_t id, Value *newValue) {

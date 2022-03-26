@@ -29,6 +29,12 @@ Stmt::Stmt() : done(false), age(-1) {}
 Stmt::Stmt(const seq::SrcInfo &s) : done(false) { setSrcInfo(s); }
 string Stmt::toString() const { return toString(-1); }
 
+PermuteStmt::PermuteStmt(ExprPtr funcId, ExprPtr permutation, StmtPtr suite) : 
+  Stmt(), funcId(move(funcId)),  permutation(move(permutation)), suite(move(suite)) { }
+PermuteStmt::PermuteStmt(const PermuteStmt &stmt) : Stmt(stmt), funcId(ast::clone(stmt.funcId)), permutation(ast::clone(stmt.permutation)), suite(ast::clone(stmt.suite)) { }
+string PermuteStmt::toString(int indent) const { return "permute"; }
+ACCEPT_IMPL(PermuteStmt, ASTVisitor);	       									       
+
 GraphStmt::GraphStmt(StmtPtr subgraph) : Stmt(), subgraph(move(subgraph)) { }
 GraphStmt::GraphStmt(const GraphStmt &stmt) : Stmt(stmt),
 					      subgraph(ast::clone(stmt.subgraph)) { }

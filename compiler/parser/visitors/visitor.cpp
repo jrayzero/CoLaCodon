@@ -49,6 +49,7 @@ void ASTVisitor::visit(RangeExpr *expr) { defaultVisit(expr); }
 void ASTVisitor::visit(InstantiateExpr *expr) { defaultVisit(expr); }
 void ASTVisitor::visit(StmtExpr *expr) { defaultVisit(expr); }
 
+void ASTVisitor::visit(PermuteStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(GraphStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(PipelineStmt *stmt) { defaultVisit(stmt); }
 void ASTVisitor::visit(GridStmt *stmt) { defaultVisit(stmt); }
@@ -187,6 +188,11 @@ void ReplaceASTVisitor::visit(StmtExpr *expr) {
   for (auto &s : expr->stmts)
     transform(s);
   transform(expr->expr);
+}
+void ReplaceASTVisitor::visit(PermuteStmt *stmt) { 
+  transform(stmt->funcId);
+  transform(stmt->permutation);
+  transform(stmt->suite);
 }
 void ReplaceASTVisitor::visit(GraphStmt *stmt) { 
   transform(stmt->subgraph);
