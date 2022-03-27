@@ -107,6 +107,7 @@ public:
   LAMBDA_VISIT(WhileFlow);
   LAMBDA_VISIT(ForFlow);
   LAMBDA_VISIT(WaveFlow);
+  LAMBDA_VISIT(PermuteFlow);
   LAMBDA_VISIT(PreambledForFlow);
   LAMBDA_VISIT(ImperativeForFlow);
   LAMBDA_VISIT(TryCatchFlow);
