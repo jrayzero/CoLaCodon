@@ -335,11 +335,12 @@ void LLVMVisitor::runLLVMOptimizationPasses() {
     pm->add(tpc);
   }
 
-  unsigned optLevel = 3;
+  unsigned optLevel = 0;
   unsigned sizeLevel = 0;
   llvm::PassManagerBuilder pmb;
 
   if (!db.debug) {
+    std::cerr << "Running LLVM opt with optLevel " << optLevel << endl;
     pmb.OptLevel = optLevel;
     pmb.SizeLevel = sizeLevel;
     pmb.Inliner = llvm::createFunctionInliningPass(optLevel, sizeLevel, false);
@@ -348,6 +349,7 @@ void LLVMVisitor::runLLVMOptimizationPasses() {
     pmb.SLPVectorize = true;
     // pmb.MergeFunctions = true;
   } else {
+    std::cerr << "Running LLVM debug" << endl;
     pmb.OptLevel = 0;
   }
 
