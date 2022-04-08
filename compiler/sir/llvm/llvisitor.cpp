@@ -335,7 +335,7 @@ void LLVMVisitor::runLLVMOptimizationPasses() {
     pm->add(tpc);
   }
 
-  unsigned optLevel = 0;
+  unsigned optLevel = 3;
   unsigned sizeLevel = 0;
   llvm::PassManagerBuilder pmb;
 
@@ -347,7 +347,7 @@ void LLVMVisitor::runLLVMOptimizationPasses() {
     pmb.DisableUnrollLoops = false;
     pmb.LoopVectorize = true;
     pmb.SLPVectorize = true;
-    // pmb.MergeFunctions = true;
+    pmb.MergeFunctions = true;
   } else {
     std::cerr << "Running LLVM debug" << endl;
     pmb.OptLevel = 0;
