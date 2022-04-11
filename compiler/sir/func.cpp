@@ -13,6 +13,9 @@
 
 namespace seq {
 namespace ir {
+
+string BasicAliasInfo::AttributeName = "basic-alias-info";
+
 namespace {
 int findAndReplace(id_t id, seq::ir::Var *newVal, std::list<seq::ir::Var *> &values) {
   auto replacements = 0;

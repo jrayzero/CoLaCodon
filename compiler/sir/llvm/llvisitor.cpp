@@ -1324,14 +1324,15 @@ void LLVMVisitor::visit(const BodiedFunc *x) {
     block = startBlock;
   }
 
-  if (fnAttributes && fnAttributes->has("std.internal.attributes.noalias")) {
-    // add to each arg
-    int aidx = 1;
-    for (auto it = func->arg_begin(); it != func->arg_end(); it++) 
-      func->addAttribute(aidx++, llvm::Attribute::AttrKind::NoAlias);
-  }
-  if (fnAttributes && fnAttributes->has("std.internal.attributes.noaliasret")) {
-    func->addAttribute(0, llvm::Attribute::AttrKind::NoAlias);
+  if (auto *basic_alias_info = x->template getAttribute<BasicAliasInfo>()) {
+    for (auto &kv : basic_alias_info->noalias) {
+      if (kv.second) {
+        func->addAttribute(kv.first + 1, llvm::Attribute::AttrKind::NoAlias);
+      }
+    }
+    if (basic_alias_info->ret_noalias) {
+      func->addAttribute(0, llvm::Attribute::AttrKind::NoAlias);
+    }
   }
 
   process(x->getBody());

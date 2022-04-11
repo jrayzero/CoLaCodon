@@ -7,6 +7,14 @@
 namespace seq {
 namespace ir {
 
+struct BasicAliasInfo : public Attribute {
+  static string AttributeName;
+  std::map<int,bool> noalias; // one per arg -> true = doesn't alias other param, false = may alias other param
+  bool ret_noalias; // true => return value doesn't alias another parameter
+  std::ostream &doFormat(std::ostream &os) const override { return os; }
+  Attribute *doClone() const override { return new BasicAliasInfo(*this); }
+};
+
 /// SIR function
 class Func : public AcceptorExtend<Func, Var> {
 private:
