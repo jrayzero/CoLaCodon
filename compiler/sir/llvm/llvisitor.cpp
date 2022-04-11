@@ -340,14 +340,16 @@ void LLVMVisitor::runLLVMOptimizationPasses() {
   llvm::PassManagerBuilder pmb;
 
   if (!db.debug) {
+    std::cerr << "Running LLVM opt with optLevel " << optLevel << endl;
     pmb.OptLevel = optLevel;
     pmb.SizeLevel = sizeLevel;
     pmb.Inliner = llvm::createFunctionInliningPass(optLevel, sizeLevel, false);
     pmb.DisableUnrollLoops = false;
     pmb.LoopVectorize = true;
     pmb.SLPVectorize = true;
-    // pmb.MergeFunctions = true;
+    pmb.MergeFunctions = true;
   } else {
+    std::cerr << "Running LLVM debug" << endl;
     pmb.OptLevel = 0;
   }
 
