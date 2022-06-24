@@ -1,0 +1,332 @@
+from cola_utils import *
+from cola_annots import cola
+
+# TODO atoms not currently used
+
+@cola
+def compute_starts(starts: T, strides, idxs, T: type) -> T:
+  if staticlen(idxs) == 0:
+    return ()
+  else:
+    if isinstance(idxs[0], slice):
+      start = ~idxs[0].start if idxs[0].start else 0
+      return (start * strides[0] + starts[0],) + compute_starts(starts[1:], strides[1:], idxs[1:])
+    elif isinstance(idxs[0], int):
+      return (idxs[0] * strides[0] + starts[0],) + compute_starts(starts[1:], strides[1:], idxs[1:])
+    else:
+      compile_error('Invalid index')
+
+@cola
+def compute_strides(strides: T, idxs, T: type) -> T:
+  if staticlen(idxs) == 0:
+    return ()
+  else:
+    if isinstance(idxs[0], slice):
+      stride = ~idxs[0].step if idxs[0].step else 1
+      return (stride * strides[0],) + compute_strides(strides[1:], idxs[1:])
+    elif isinstance(idxs[0], int):
+      return (strides[0],) + compute_strides(strides[1:], idxs[1:])
+    else:
+      compile_error('Invalid index')
+
+@cola
+def compute_dims(dims: T, idxs, T: type) -> T:
+  if staticlen(idxs) == 0:
+    return ()
+  else:
+    if isinstance(idxs[0], slice):
+      start = ~idxs[0].start if idxs[0].start else 0
+      stop = ~idxs[0].stop if idxs[0].stop else dims[0]
+      stride = ~idxs[0].step if idxs[0].step else 1
+      return ((stop-start-1)//stride + 1,) + compute_dims(dims[1:], idxs[1:])
+    elif isinstance(idxs[0], int):
+      return (1,) + compute_dims(dims[1:], idxs[1:])
+    else:
+      compile_error('Invalid index')
+
+@cola
+def delinearize_inner(lidx: int, dims):
+  if staticlen(dims) == 0:
+    return (lidx,)
+  else:
+    mul = mul_reduce(dims)
+    c = lidx // mul
+    return (c,) + delinearize_inner(lidx % mul, dims[1:])
+
+@cola
+def delinearize(lidx: int, dims):
+  if staticlen(dims) == 1:
+    return (lidx,)
+  else:
+    return delinearize_inner(lidx,dims[1:])
+
+@cola
+def linearize[T](coord: T, dims: T):
+  if staticlen(coord) == 1:
+    return coord[0]
+  else:
+    mul = coord[0] * mul_reduce(dims[1:])
+    return mul + linearize(coord[1:], dims[1:])
+
+
+@cola
+def pad_str(e: E, m: int, X: type, E: type):
+  amt = m-len(str(X(e)))+1    
+  return str(X(e)) + ''.join(' ' for _ in range(amt))  
+
+class Block[E,T]:
+  starts: T
+  strides: T
+  dims: T
+  atoms: T
+  nunits: int
+  data: Ptr[E]
+
+class View[T]:
+  starts: T
+  strides: T
+  dims: T
+  atoms: T
+  nunits: int
+
+  @cola
+  def __init__(self, starts: T, strides: T, dims: T, atoms: T):
+    if not isinstance(T, tuple):
+      compile_error('T must be a tuple')
+    self.starts = starts
+    self.strides = strides
+    self.dims = dims
+    self.atoms = atoms
+    nunits = 1
+    for d in self.dims:
+      nunits *= d
+    self.nunits = nunits 
+
+  @cola
+  def __init__(self, obj):
+    if not isinstance(obj, Block) and not isinstance(obj, View):
+      compile_error('Invalid type to View')
+    else:
+      self.starts = obj.get_starts()
+      self.strides = obj.get_strides()
+      self.dims = obj.get_dims()
+      self.atoms = obj.get_atoms()
+      self.nunits = len(obj)
+
+  @cola
+  def __getitem__(self, idxs) -> View[T]:
+    if isinstance(idxs, View):
+      return idxs
+    elif isinstance(idxs, Block):
+      return View(idxs.starts, idxs.strides, idxs.dims, idxs.atoms)
+    elif isinstance(idxs, int) or isinstance(idxs, slice):
+      if staticlen(self.dims()) != 1:
+        compile_error('T > 1')
+      else:
+        starts = compute_starts(self.get_starts(), self.get_strides(), (idxs,))
+        strides = compute_strides(self.get_strides(), (idxs,))
+        dims = compute_dims(self.get_dims(), (idxs,))
+        atoms = self.get_atoms()
+        return View(starts, strides, dims, atoms)
+    elif isinstance(idxs, tuple):
+      if staticlen(idxs) != staticlen(self.get_dims()):
+        compile_error('!T')
+      else:
+        starts = compute_starts(self.get_starts(), self.get_strides(), idxs)
+        strides = compute_strides(self.get_strides(), idxs)
+        dims = compute_dims(self.get_dims(), idxs)
+        atoms = self.get_atoms()
+        return View(starts, strides, dims, atoms)
+
+
+  @cola
+  def elem(self, block: Block[E,T], idxs: T, E: type) -> E:
+    coord = compute_starts(self.get_starts(), self.get_strides(), idxs)
+    # now relative to the block
+    rcoord = tup_fdiv(tup_sub(coord, block.get_starts()), block.get_strides())
+    lidx = linearize(rcoord, block.get_dims())
+    return block.data[lidx]
+
+  @cola
+  def get_starts(self):
+    return self.starts
+
+  @cola
+  def get_strides(self):
+    return self.strides
+
+  @cola
+  def get_dims(self):
+    return self.dims
+
+  @cola
+  def get_atoms(self):
+    return self.atoms
+
+  @cola
+  def __len__(self):
+    return self.nunits
+
+  @cola
+  def str_like(self, block, X: type):
+    if staticlen(self.get_dims()) > 3:
+      compile_error('Can only string print for 1D, 2D, and 3D blocks')
+    m = block.max_str_len(X)
+    s = ''
+    if staticlen(self.get_dims()) == 1:
+      for i in range(len(self)):
+        s += pad_str(self.elem(block, (i,)), m, X)
+    elif staticlen(self.get_dims()) == 2:
+      for i in range(self.get_dims()[0]):
+        for j in range(self.get_dims()[1]):
+          s += pad_str(self.elem(block, (i,j)), m, X)
+        s += '\n'
+    else:
+      for i in range(self.get_dims()[0]):
+        s += f'i = {i}\n'
+        for j in range(self.get_dims()[1]):      
+          for k in range(self.get_dims()[2]):
+            s += pad_str(self.elem(block, (i,j,k)), m, X)
+          s += '\n'
+        s += '\n'    
+    return s
+
+  @cola
+  def __str__(self):
+    t =  '(' + ','.join('int' for _ in range(len(self.get_dims()))) + ')'
+    s =  'View[' + t + ']:\n'
+    t =  '(' + ','.join(str(i) for i in self.get_starts()) + ')'
+    s += '  starts: ' + t + '\n'
+    t =  '(' + ','.join(str(i) for i in self.get_strides()) + ')'
+    s += '  strides: ' + t + '\n'
+    t =  '(' + ','.join(str(i) for i in self.get_dims()) + ')'
+    s += '  dims: ' + t + '\n'
+    t =  '(' + ','.join(str(i) for i in self.get_atoms()) + ')'
+    s += '  atoms: ' + t + '\n'
+    return s
+      
+@extend  
+class Block:
+
+  @cola
+  def __init__(self, starts: T, strides: T, dims: T, atoms: T):
+    if not isinstance(T, tuple):
+      compile_error('T must be a tuple')      
+    self.starts = starts
+    self.strides = strides
+    self.dims = dims
+    self.atoms = atoms
+    nunits = 1
+    for d in self.dims:
+      nunits *= d
+    self.nunits = nunits
+    self.data = Ptr[E](nunits)
+
+  @cola
+  def get_starts(self):
+    return self.starts
+
+  @cola
+  def get_strides(self):
+    return self.strides
+
+  @cola
+  def get_dims(self):
+    return self.dims
+
+  @cola
+  def get_atoms(self):
+    return self.atoms
+
+  @cola
+  def __len__(self):
+    return self.nunits
+
+  @cola
+  def __getitem__(self, idxs) -> View[T]:
+    return View(self)[idxs]
+
+  @cola
+  def __call__(self, *idxs) -> E:
+    if staticlen(idxs) == 0:
+      compile_error('idxs is an empty tuple. Did you use * with an integer argument?')
+    if staticlen(idxs) != staticlen(self.dims):
+      compile_error('Invalid number of idxs')
+    else:
+      for i in idxs:
+        if not isinstance(i, int):
+          compile_error('Must be integer index')
+      lidx = linearize(idxs, self.get_dims())
+      return self.data[lidx]
+
+  @cola
+  def max_str_len(self, X: type):
+    m = 0
+    for i in range(len(self)):
+      s = self.data[i]
+      l = len(str(X(s)))
+      if l > m:
+        m = l
+    return m
+
+  @cola
+  def str_like(self, X: type):
+    if staticlen(self.get_dims()) > 3:
+      compile_error('Can only string print for 1D, 2D, and 3D blocks')
+    m = self.max_str_len(X)
+    s = ''
+    if staticlen(self.get_dims()) == 1:
+      for i in range(len(self)):
+        s += pad_str(self.data[i], m, X)
+    elif staticlen(self.get_dims()) == 2:
+      for i in range(self.get_dims()[0]):
+        for j in range(self.get_dims()[1]):
+          s += pad_str(self.data[i*self.get_dims()[1]+j], m, X)
+        s += '\n'
+    else:
+      for i in range(self.get_dims()[0]):
+        s += f'i = {i}\n'
+        for j in range(self.get_dims()[1]):      
+          for k in range(self.get_dims()[2]):
+            s += pad_str(self.data[i*self.get_dims()[1]*self.get_dims()[2]+j*self.get_dims()[2] + k], m, X)
+          s += '\n'
+        s += '\n'
+    return s
+
+  @cola
+  def __str__(self):
+    t =  '(' + ','.join('int' for _ in range(len(self.get_dims()))) + ')'
+    e = ''
+    if isinstance(E,byte):
+      e = 'byte'
+    elif isinstance(E,i32):
+      e = 'int32'
+    elif isinstance(E,int):
+      e = 'int64'
+    elif isinstance(E,float):
+      e = 'double'
+    else:
+      e = 'UNK'
+    s =  'Block[' + e + ',' + t + ']:\n'
+    t =  '(' + ','.join(str(i) for i in self.get_starts()) + ')'
+    s += '  starts: ' + t + '\n'
+    t =  '(' + ','.join(str(i) for i in self.get_strides()) + ')'
+    s += '  strides: ' + t + '\n'
+    t =  '(' + ','.join(str(i) for i in self.get_dims()) + ')'
+    s += '  dims: ' + t + '\n'
+    t =  '(' + ','.join(str(i) for i in self.get_atoms()) + ')'
+    s += '  atoms: ' + t + '\n'
+    return s
+
+@extend
+class File:
+
+  def read(self, block: Block[E,T], E: type, T: type):
+    self._ensure_open()
+    if isinstance(E, byte):
+      ret = _C.fread(block.data, 1, len(block), self.fp)
+      self._errcheck("error in read")
+      return ret
+    else:
+      compile_error('Only support byte read right now')
+      return 0

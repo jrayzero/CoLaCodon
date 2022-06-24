@@ -32,6 +32,11 @@ class File:
     def readlines(self):
         return [l for l in self]
 
+    def write(self, buff: Ptr[byte], sz: int):
+        self._ensure_open()
+        _C.fwrite(buff, 1, sz, self.fp)
+        self._errcheck("error in write")        
+
     def write(self, s: str):
         self._ensure_open()
         _C.fwrite(s.ptr, 1, len(s), self.fp)

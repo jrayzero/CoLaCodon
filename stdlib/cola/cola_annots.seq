@@ -1,0 +1,3 @@
+@__attribute__
+def cola():
+  pass

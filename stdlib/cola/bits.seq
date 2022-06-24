@@ -1,0 +1,628 @@
+from cola_utils import *
+import internal.gc as gc
+
+def is_power_of_two(x) -> bool:
+  return x > 0 and ((x & (x - 1)) == 0)
+
+@dataclass(init=False)
+class BasicBits:
+
+  _bits: Ptr[byte]
+  # number of bytes
+  _capacity: int
+  # bit idx pointers
+  # this will always fall on a byte boundary because
+  # it only moves when you flush bytes (i.e. write to file)
+  _byte_idx: int
+  _bit_idx: int
+  _running: int
+  _fd: File
+  _accum: u64
+
+  @cola
+  def running(self):
+    return self._running
+
+  @cola
+  def restart(self):
+    self._running = 0
+    for b in range(self._capacity):
+      self._bits[b] = byte(0)
+    self._byte_idx = 0
+    self._bit_idx = 0
+
+  @cola
+  def __init__(self, fd: File, capacity: int = 1024):
+    assert is_power_of_two(capacity)
+    self._bits = Ptr[byte](capacity)
+    for b in range(capacity):
+      self._bits[b] = byte(0)
+    self._capacity = capacity
+    self._byte_idx = 0
+    self._bit_idx = 0
+    self._fd = fd
+    self._accum = u64(0)
+
+  # write out all complete bytes
+  @cola
+  def flush(self):
+    if self._byte_idx == 0:
+      return
+    self._fd.write(self._bits, 0, self._byte_idx)
+    self._byte_idx = 0
+
+  @cola
+  def capacity(self):
+    return self._capacity
+
+  @cola
+  def __eq__(self, bitstr: str):
+    self_str = self.bit_str(False)
+    if len(self_str) != len(bitstr):
+      return False
+    for b in range(len(self_str)):
+      if self_str[b] != bitstr[b]:
+        return False
+    return True
+
+  @cola
+  def buff_iter(self) -> Generator[bool]:
+    for b in range(self._byte_idx):
+      for i in range(8):
+        the_byte = self._bits[b]
+        the_bit = byte(0x01) & (the_byte >> (8 - i - 1))
+        yield bool(the_bit)
+
+  # returns all complete bytes
+  @cola
+  def byte_iter(self) -> Generator[byte]:
+    for b in range(self._byte_idx):
+      yield self._bits[b]
+
+  # fill in any incomplete byte at the end with stuff
+  @cola
+  def complete_byte(self, stuff: bool):
+    rem = self._bit_idx % 8
+    if rem > 0:
+      for _ in range(8-rem):
+        self.pack(int(stuff),1)
+
+  def complete_byte_and_stuff(self, stuff: bool, stuff_on: int, stuff_val: int):
+    rem = self._bit_idx % 8
+    if rem > 0:
+      for _ in range(8-rem):
+        self.pack_and_stuff3(int(stuff), 1, stuff_on, stuff_val)
+
+  @cola
+  def complete_nibble(self, nib: bool):
+    rem = self._bit_idx % 4
+    if rem > 0:
+      for _ in range(4-rem):
+        self.pack(int(nib),1)
+
+  @cola
+  def complete_nibble_and_stuff(self, nib: bool, stuff_on: int, stuff_val: int):
+    rem = self._bit_idx % 4
+    if rem > 0:
+      for _ in range(4-rem):
+        self.pack_and_stuff3(int(nib), 1, stuff_on, stuff_val)
+
+  @cola
+  def buff_str(self, carets: bool = False) -> str:
+    s = ''
+    ctr = 0
+    for b in self.buff_iter():
+      if carets and ctr != 0 and ctr % 8 == 0:
+        s += '^'
+      s += '1' if b else '0'
+      ctr += 1
+    return s
+
+  @cola
+  def __str__(self):
+    s = '++ Bits ++\n'
+    s += f'capacity: {self._capacity} (bytes)\n'
+    s += f'byte_idx: {self._byte_idx}\n'
+    s += f'bit_idx: {self._bit_idx}\n'
+    # first get anything in the buffer
+    s += self.buff_str(True)
+    # and now in the accumulator
+    if self._byte_idx > 0:
+      s += '^'
+    for i in range(self._bit_idx):
+      if i != 0 and i % 8 == 0:
+        s += '^'
+      s += str((self._accum >> u64(64-(i+1))) & u64(0x1))
+    s += '\n'
+    return s
+
+  # number of bits available
+  @cola
+  @cola_private
+  def space_available(self):
+    return (self._capacity - self._byte_idx)
+
+  # the maximum number of bits you can pack in one call is
+  # 57 because at any given time, there may be a maximum of
+  # 7 bits in the accumulator. 
+  @cola
+  def pack(self, val: int, nbits: int):
+    if nbits <= 0 or nbits >= 64:
+      return
+    self._running += nbits
+    # can pack up to 57 bits in one go through here
+    val2 = val
+    mask = (1 << nbits) - 1
+    val2 &=  mask
+    shift_amt = 64 - nbits - self._bit_idx
+    val2 <<= shift_amt
+    self._accum |= u64(val2)
+    self._bit_idx += nbits
+    while self._bit_idx >= 8:
+      val3 = self._accum >> u64(56)
+      self._bits[self._byte_idx] = byte(val3)
+      self._byte_idx += 1
+      if self.space_available() == 0:
+        self.flush()
+      self._bit_idx -= 8
+      self._accum <<= u64(8)
+
+  @cola
+  def pack_and_stuff3(self, val: int, nbits: int, stuff_on: int, stuff_val: int): 
+    # can pack up to 57 bits in one go through here
+    if nbits == 0:
+       assert False
+    val2 = val
+    mask = (1 << nbits) - 1
+    val2 &= mask
+    shift_amt = 64 - nbits - self._bit_idx
+    val2 <<= shift_amt
+    self._accum |= u64(val2)
+    self._bit_idx += nbits
+    while self._bit_idx >= 8:
+      val3 = self._accum >> u64(56)
+      self._bits[self._byte_idx] = byte(val3)
+      self._byte_idx += 1
+      if self.space_available() == 0:
+        self.flush()
+      if val3 == u64(stuff_on):
+        self._bits[self._byte_idx] = byte(stuff_val)
+        self._byte_idx += 1
+        if self.space_available() == 0:
+          self.flush() 
+      self._bit_idx -= 8
+      self._accum <<= u64(8)
+
+  @cola
+  def pack(self, val: int):
+    self.pack(val, 8)
+
+  @cola
+  def pack(self, val: byte):
+    self.pack(int(val), 8)
+
+  @cola
+  def pack(self, val: byte, nbits: int):
+    self.pack(int(val), nbits)
+
+# packs from left-to-right, individual bits packed from msb->lsb
+class Bits:
+
+  # circular buffer of bits
+  _bits: Ptr[byte]
+  # number of bytes
+  _capacity: int
+  # bit idx pointers
+  # this will always fall on a byte boundary because
+  # it only moves when you flush bytes (i.e. write to file)
+  _back_ptr: int
+  _nbits: int
+  # counts bits appended over whole lifetime unless explicitly set by user
+  _running: int
+
+  @cola
+  def __len__(self):
+    return self._nbits
+
+  @cola
+  def running(self):
+    return self._running
+
+  @cola
+  def restart(self):
+    self._running = 0
+    for b in range(self._capacity):
+      self._bits[b] = byte(0)
+    self._back_ptr = 0
+    self._nbits = 0
+
+  @cola
+  def __init__(self, capacity: int = 1024):
+    assert is_power_of_two(capacity)
+    self._bits = Ptr[byte](capacity)
+    for b in range(capacity):
+      self._bits[b] = byte(0)
+    self._capacity = capacity
+    self._nbits = 0
+    self._back_ptr = 0
+
+  # write out all bytes and start from end point
+  @cola
+  def flush(self, fd: File):
+    if self._nbits < 8:
+      return False
+    if self._back_ptr + self._nbits <= self._capacity * 8:
+      byte_idx = self._back_ptr // 8
+      nbytes = self._nbits // 8
+      fd.write(self._bits, byte_idx, nbytes)
+      # reset written bytes to 0 so they can be or'd
+      for i in range(self._back_ptr, self._back_ptr + self._nbits, 8):
+        self._bits[i//8] = byte(0)
+      # reset pointers
+      self._back_ptr += nbytes * 8
+      self._nbits -= nbytes * 8
+      return True
+    else:
+      # back to end of buff
+      byte_idx = self._back_ptr // 8
+      nbytes = self._capacity - byte_idx
+      total_nbytes = nbytes
+      fd.write(self._bits, byte_idx, nbytes)      
+      # start to front
+      rem_bits = self._nbits - (self._capacity * 8 - self._back_ptr)
+      total_nbytes += rem_bits // 8
+      fd.write(self._bits, 0, rem_bits // 8)
+      # reset written bytes to 0 so they can be or'd
+      for i in range(self._back_ptr, self._capacity * 8, 8):
+        self._bits[i//8] = byte(0)
+      for i in range(rem_bits, 8):
+        self._bits[i//8] = byte(0)
+      # reset pointers
+      self._back_ptr = rem_bits
+      self._nbits -= total_nbytes * 8
+      return True
+
+  @cola
+  def nbits(self):
+    return self._nbits
+  
+  @cola
+  def capacity(self):
+    return self._capacity
+  
+  @cola
+  def __eq__(self, bitstr: str):
+    self_str = self.bit_str(False)
+    if len(self_str) != len(bitstr):
+      return False
+    for b in range(len(self_str)):
+      if self_str[b] != bitstr[b]:
+        return False
+    return True
+
+  @cola
+  def bit_iter(self) -> Generator[bool]:
+    if self._back_ptr + self._nbits <= self._capacity * 8:
+      for i in range(self._back_ptr, self._back_ptr + self._nbits):
+        byte_idx = i // 8
+        bit_idx = i % 8
+        the_byte = self._bits[byte_idx]
+        the_bit = byte(0x01) & (the_byte >> (8 - bit_idx - 1))
+        yield bool(the_bit)
+    else:
+      for i in range(self._back_ptr, self._capacity * 8):
+        byte_idx = i // 8
+        bit_idx = i % 8
+        the_byte = self._bits[byte_idx]
+        the_bit = byte(0x01) & (the_byte >> (8 - bit_idx - 1))
+        yield bool(the_bit)
+      rem_bits = self._nbits - (self._capacity * 8 - self._back_ptr)
+      for i in range(rem_bits):
+        byte_idx = i // 8
+        bit_idx = i % 8
+        the_byte = self._bits[byte_idx]
+        the_bit = byte(0x01) & (the_byte >> (8 - bit_idx - 1))
+        yield bool(the_bit)
+
+  # returns all complete bytes
+  @cola
+  def byte_iter(self) -> Generator[byte]:
+    if self._back_ptr + self._nbits <= self._capacity * 8:
+      for i in range(self._back_ptr, self._back_ptr + self._nbits, 8):
+        byte_idx = i // 8
+        yield self._bits[byte_idx]
+    else:
+      for i in range(self._back_ptr, self._capacity * 8):
+        byte_idx = i // 8
+        yield self._bits[byte_idx]
+
+  # fill in any incomplete byte at the end with stuff
+  @cola
+  def complete_byte(self, stuff: bool):
+    rem = len(self) % 8
+    for _ in range(8-rem):
+      self.pack(int(stuff),1)
+
+  @cola
+  def complete_nibble(self, stuff: bool):
+    rem = len(self) % 4
+    for _ in range(4-rem):
+      self.pack(int(stuff),1)
+
+  @cola
+  def merge(self, other: Bits):
+    for b in other.byte_iter():
+      self.pack(b)
+    # pack incomplete bits
+    rem = len(other) % 8
+    front_ptr = (self._back_ptr + self._nbits) & (self._capacity * 8 - 1)
+    the_byte = self._bits[front_ptr//8]
+    for r in range(rem):
+      self.pack((the_byte >> (8-r-1)) & byte(0x01))    
+  
+  @cola
+  def bit_str(self, carets: bool = False) -> str:
+    s = ''
+    ctr = 0
+    for b in self.bit_iter():
+      if carets and ctr != 0 and ctr % 8 == 0:
+        s += '^'
+      s += '1' if b else '0'
+      ctr += 1
+    return s        
+
+  # just prints the buffer as a linear object, not a circular buffer
+  @cola
+  def raw(self):
+    s = ''
+    s2 = ''
+    ctr = 0
+    for i in range(0, self._capacity * 8):
+      if ctr != 0 and ctr % 8 == 0:
+        s += '^'
+        s2 += ' '
+      byte_idx = i // 8
+      bit_idx = i % 8
+      the_byte = self._bits[byte_idx]
+      the_bit = byte(0x01) & (the_byte >> (8 - bit_idx - 1))
+      s += str(int(the_bit))
+      # if back = 0 and front = 0 (cause we've wrapped around), this will print F
+      if ctr == (self._back_ptr + self._nbits) & (self._capacity * 8 - 1):
+        s2 += 'F'
+      elif ctr == self._back_ptr:
+        s2 += 'B'
+      else:
+        s2 += ' '
+      ctr += 1
+    return s + '\n' + s2
+
+  @cola
+  def __str__(self):
+    s = '++ Bits ++\n'
+    s += 'capacity: ' + str(self._capacity) + ' (bytes)\n'
+    s += 'back: ' + str(self._back_ptr) + ' (bit)\n'
+    s += 'nbits: ' + str(self._nbits) + '\n'
+    s += self.bit_str(True)
+    return s        
+
+  @cola
+  @cola_private
+  def space_available(self):
+    return self._capacity * 8 - self._nbits
+
+  # pack nbits of a 64bit value
+  # the bits from val are taken from the LSB -> MSB
+  # For example, having 0x92 (0b10010010) with 7 bits
+  # gives 0bx0010010, where the x means it is cut off
+  # can optional stuff in a byte
+  @cola
+  def pack(self, val: int, nbits: int, allow_resize: bool = True, stuff_on: Optional[int] = None, stuff_val = 0):    
+    if nbits <= 0: # this happens somewhere 
+      return
+    if stuff_on:
+      if self._nbits >= 8 and self.last() == stuff_on:
+        assert False
+    assert nbits <= 64
+    if self.space_available() < nbits:
+      assert allow_resize
+      while self.space_available() < nbits:      
+        assert self.resize(self._capacity * 2)
+    # left align val because it's easier for me to think about it that way
+    val <<= (64 - nbits)
+    orig_nbits = nbits
+    # fill in the current byte of _bits first
+    # how many bits we can still put in the current byte
+    current_byte_bits = 8 - self._nbits % 8
+    # how many we actually want to pack
+    current_byte_bits = min(current_byte_bits, nbits)
+    # pack that first part bit-by-bit
+    front_ptr = (self._back_ptr + self._nbits) & (self._capacity * 8 - 1)
+    cur_byte_idx = front_ptr // 8
+    front_offset = front_ptr % 8 
+    for b in range(current_byte_bits):
+      # get the right aligned bit
+      bit = 0x1 & (val >> (64-b-1))
+      # left align it within our current byte
+      bit <<= (8 - front_offset - 1)
+      self._bits[cur_byte_idx] |= byte(bit)
+      front_offset += 1
+      front_ptr += 1
+    self._nbits += current_byte_bits
+    front_ptr = self.wrap_front_if_necessary(front_ptr)
+    if current_byte_bits > 0 and front_ptr % 8 == 0:
+      # packed to a boundary
+      if stuff_on:
+        if self._bits[cur_byte_idx] == byte(~stuff_on):
+          self.pack(stuff_val)
+          # recompute since state has changed
+          front_ptr = (self._back_ptr + self._nbits) & (self._capacity * 8 - 1)
+    # now pack as many FULL bytes as we need
+    nbits -= current_byte_bits
+    bytes_to_pack = nbits // 8
+    for b in range(bytes_to_pack):
+      temp = 0xFF & (val >> (64 - current_byte_bits - b*8 - 8))
+      self._bits[front_ptr // 8] = byte(temp)
+      front_ptr += 8
+      front_ptr = self.wrap_front_if_necessary(front_ptr)
+      nbits -= 8
+      self._nbits += 8
+      if stuff_on:
+        if temp == ~stuff_on:
+          self.pack(stuff_val)
+          # recompute since state has changed
+          front_ptr = (self._back_ptr + self._nbits) & (self._capacity * 8 - 1)
+    # pack any trailing bits into a new partial byte
+    # right align the whole val
+    val >>= (64 - orig_nbits)
+    # if there are no trailing bits, temp will just be 0
+    mask = (0x01 << nbits) - 1
+    temp = (val & mask) << ((8 - nbits)%8) # % 8 so if nbits is 0, we don't shift off the edge, which can be undefined
+    self._bits[front_ptr // 8] |= byte(temp) # |= in case no extra bits. don't want to overwrite
+    front_ptr += nbits
+    self._nbits += nbits#orig_nbits
+    front_ptr = self.wrap_front_if_necessary(front_ptr)
+
+#    
+  # get the last full byte
+  # returns -1 < full byte
+  def last(self):
+    if self._nbits >= 8:
+      front_ptr = (self._back_ptr + self._nbits) & (self._capacity * 8 - 1)
+      cur_byte_idx = front_ptr // 8
+      if cur_byte_idx == 0:
+        return int(self._bits[self._capacity - 1])
+      else:
+        return int(self._bits[cur_byte_idx - 1])
+    else:
+      return -1
+
+  def pack(self, val: int):
+    self.pack(val, 8)
+
+  def pack(self, val: byte):
+    self.pack(int(val), 8)
+
+  def pack(self, val: byte, nbits: int):
+    self.pack(int(val), nbits)
+
+  # stop is exclusive
+  # this just starts from the front of the buffer and assumes bit_start < bit_stop!
+  # so now wrap around
+  @cola
+  def clear_raw_bits(self, bit_start, bit_stop):
+    bit_start_byte = bit_start // 8
+    bit_stop_byte = (bit_stop-1) // 8
+    if bit_start_byte == bit_stop_byte:
+      # keep towards the MSB
+      partial_start_bits_keep_left = bit_start % 8
+      # keep towards the LSB
+      partial_stop_bits_keep_right = 8 - ((bit_stop - 1) % 8) - 1
+      # mask that would remove everything towards the LSB after the start
+      mask = 0x00FF << (8 - partial_start_bits_keep_left)
+      # add back on what to save from the stop
+      mask += ((0x01 << partial_stop_bits_keep_right) - 1)
+      # now mask it
+      self._bits[bit_start_byte] &= byte(mask)
+    else:
+      # handle the possibly partial byte at the start
+      partial_start_bits_keep_left = bit_start % 8      
+      mask = 0x00FF << (8 - partial_start_bits_keep_left)
+      self._bits[bit_start_byte] &= byte(mask)
+      # and the stop
+      partial_stop_bits_keep_right = 8 - ((bit_stop - 1) % 8) - 1
+      mask = ((0x01 << partial_stop_bits_keep_right) - 1)
+      self._bits[bit_stop_byte] &= byte(mask)
+      # now everything in between
+      for b in range(bit_start_byte+1,bit_stop_byte):
+        self._bits[b] = byte(0)
+        
+  @cola
+  @cola_private
+  def resize(self, new_capacity) -> bool:
+    assert is_power_of_two(new_capacity)
+    if new_capacity < self._capacity:
+      return False
+    else:
+      orig_capacity = self._capacity
+      extra_bytes = new_capacity - orig_capacity
+      self._capacity = new_capacity
+      self._bits = Ptr[byte](gc.realloc(self._bits, new_capacity * gc.sizeof(byte)))
+      front_ptr = (self._back_ptr + self._nbits) & (self._capacity * 8 - 1)
+      # I don't think realloc zeros the memory, which we need, so do that
+      for b in range(orig_capacity, new_capacity):
+        self._bits[b] = byte(0)
+      if front_ptr == 0:
+        front_ptr = orig_capacity * 8
+      elif front_ptr < self._back_ptr:
+        # This is how many bits are available in the new region
+        # since we at least double the size (due to needing powers of 2), there's
+        # always enough space for the rap around
+        extra_bits = extra_bytes * 8
+        # This is how many bits we are attempting to copy
+        nbits = front_ptr
+        # copy nbits from the front
+        # first, the full bytes
+        nbytes = nbits // 8
+        for b in range(nbytes):
+          self._bits[orig_capacity+b] = self._bits[b]
+          self._bits[b] = byte(0)
+        # now copy any trailing bits
+        ntrailing_bits = nbits % 8
+        if ntrailing_bits > 0:
+          trailing_byte = self._bits[nbytes]
+          trailing_byte &= byte(~((1<<(8-ntrailing_bits-1))-1))
+          self._bits[orig_capacity+nbytes] = trailing_byte
+          # clear out the bits
+          # the back ptr is always on a byte boundary, so don't have to worry about
+          # erasing it
+          self._bits[nbytes] = byte(0)
+        # clear out those original bits
+        self.clear_raw_bits(0, nbits)
+        front_ptr = (orig_capacity+nbytes)*8+ntrailing_bits
+        front_ptr = self.wrap_front_if_necessary(front_ptr)
+      # else don't need to pad
+      return True
+
+  @cola
+  @cola_private
+  def wrap_front_if_necessary(self, front_ptr):
+    # since capacity is a power of two, we can use & instead of %
+    front_ptr &= (self._capacity * 8 - 1)
+    return front_ptr
+
+  @cola
+  @cola_private
+  def wrap_back_if_necessary(self):
+    # since capacity is a power of two, we can use & instead of %
+    self._back_ptr &= (self._capacity * 8 - 1)
+
+@extend
+class byte:
+  @pure
+  @llvm
+  def __rshift__(self, amt: int) -> byte:
+    %0 = zext i8 %self to i64
+    %1 = ashr i64 %0, %amt
+    %2 = trunc i64 %1 to i8
+    ret i8 %2
+  @pure
+  @llvm
+  def __rshift__(self, amt: byte) -> byte:
+    %0 = ashr i8 %self, %amt
+    ret i8 %0
+  @pure
+  @llvm
+  def __and__(self, other: byte) -> byte:
+    %0 = and i8 %self, %other
+    ret i8 %0
+  @pure
+  @llvm
+  def __or__(self, other: byte) -> byte:
+    %0 = or i8 %self, %other
+    ret i8 %0
+  @pure
+  @llvm
+  def __new__(i: u64) -> byte:
+    %0 = trunc i64 %i to i8
+    ret i8 %0    
+

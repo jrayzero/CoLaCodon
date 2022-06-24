@@ -4,6 +4,10 @@
 #define SEQ_VERSION_MINOR 11
 #define SEQ_VERSION_PATCH 0
 
+#define COLA_VERSION_MAJOR 0
+#define COLA_VERSION_MINOR 0
+#define COLA_VERSION_PATCH 0
+
 #include <cassert>
 #include <climits>
 #include <cstdint>

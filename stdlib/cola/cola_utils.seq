@@ -1,0 +1,62 @@
+### Tuple operations
+
+def mul_reduce(tup):
+  if staticlen(tup) == 1:
+    return tup[0]
+  else:
+    return tup[0] * mul_reduce(tup[1:])
+
+def tup_sub(tupA, tupB):
+  if staticlen(tupA) == 0:
+    return ()
+  else:
+    return (tupA[0] - tupB[0],) + tup_sub(tupA[1:], tupB[1:])
+
+def tup_eq(tupA, tupB):
+  if staticlen(tupA) == 0:
+    return True
+  else:
+    return (tupA[0] == tupB[0]) & tup_eq(tupA[1:], tupB[1:])  
+
+def tup_add(tupA, tupB):
+  if staticlen(tupA) == 0:
+    return ()
+  else:
+    return (tupA[0] + tupB[0],) + tup_add(tupA[1:], tupB[1:])
+
+def tup_fdiv(tupA, tupB):
+  if staticlen(tupA) == 0:
+    return ()
+  else:
+    return (tupA[0] // tupB[0],) + tup_fdiv(tupA[1:], tupB[1:])
+
+def tup_gte(tupA, tupB):
+  if staticlen(tupA) == 0:
+    return True
+  else:
+    return (tupA[0] >= tupB[0]) and tup_gte(tupA[1:], tupB[1:])
+  
+def tup_lte(tupA, tupB):
+  if staticlen(tupA) == 0:
+    return True
+  else:
+    return (tupA[0] <= tupB[0]) and tup_lte(tupA[1:], tupB[1:])
+
+def tuple_wrap(obj):
+  if isinstance(obj, tuple):
+    return obj
+  else:
+    return (obj,)
+
+### Some functions that the compiler calls
+
+def printer(x, new_line=True):
+  if new_line:
+    print x
+  else:
+    print(x,end='')
+
+def format_str(x, max_len: int):
+  l = len(str(x))
+  s = ' ' * (max_len - l + 1) + str(x)
+  return s

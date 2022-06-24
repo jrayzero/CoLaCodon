@@ -174,7 +174,9 @@ set(SEQ_HPPFILES
     compiler/util/fmt/ostream.h
     compiler/util/fmt/posix.h
     compiler/util/fmt/printf.h
-    compiler/util/fmt/ranges.h)
+    compiler/util/fmt/ranges.h
+    compiler/cola/cola.h
+    )
 set(SEQ_CPPFILES
     compiler/dsl/plugins.cpp
     compiler/parser/ast/expr.cpp
@@ -249,7 +251,9 @@ set(SEQ_CPPFILES
     compiler/sir/value.cpp
     compiler/sir/var.cpp
     compiler/util/common.cpp
-    compiler/util/fmt/format.cpp)
+    compiler/util/fmt/format.cpp
+    compiler/cola/cola.cpp
+    )
 add_library(seq SHARED ${SEQ_HPPFILES})
 target_sources(seq PRIVATE ${SEQ_CPPFILES} seq_rules.cpp omp_rules.cpp)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
@@ -291,6 +295,10 @@ endif()
 # Seq command-line tool
 add_executable(seqc runtime/main.cpp)
 target_link_libraries(seqc ${STATIC_LIBCPP} seq Threads::Threads)
+
+# CoLa command-line tool
+add_executable(colac runtime/cola_main.cpp)
+target_link_libraries(colac ${STATIC_LIBCPP} seq Threads::Threads)
 
 # Seq test
 # Download and unpack googletest at configure time
