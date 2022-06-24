@@ -15,6 +15,7 @@
 build/
 build_*/
 deps/
+llvm-project
 
 # Packages #
 ############
@@ -69,3 +70,7 @@ scratch.seq
 tmp
 _*
 gtest_parallel.py
+
+# Other #
+#########
+**/*~
