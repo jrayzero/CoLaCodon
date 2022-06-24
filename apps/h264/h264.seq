@@ -1,0 +1,29 @@
+from yuv import *
+from cfg import *
+from syntax import *
+from collections import *
+
+def init_encoder():
+  state = EncoderState()
+  state.profile_idc = profile_idc
+  state.level_idc = level_idc
+  state.pic_H = height
+  state.pic_W = width
+  return state
+
+def main():
+  yuv420 = YUV420Reader(input_fn, height, width, nframes)
+  bitstream = AnnexBBitstream(output_fn)
+  state = init_encoder()
+  for Y,Cb,Cr in yuv420:
+    sps = SPS()
+    sps.sps_id = 0
+    bitstream.generate_sps(sps, state)
+    bitstream.wrap_nal()
+    print Y
+    print Cb
+    print Cr    
+  yuv420.cleanup()
+  bitstream.cleanup()
+
+main()

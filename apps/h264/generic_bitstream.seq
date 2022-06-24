@@ -1,0 +1,133 @@
+@dataclass(init=False)
+class Bitstream:
+
+  bits: Ptr[byte]
+  capacity: int
+  byte_idx: int
+  # idx within accumulator
+  bit_idx: int
+  accum: u64
+
+  def __init__(self, capacity=2048):
+    self.capacity = capacity 
+    self.bits = Ptr[byte](capacity)
+
+  def resize(self):
+    bits_new = Ptr[byte](self.capacity*2)
+    for i in range(self.capacity):
+      bits_new[i] = self.bits[i]
+    self.bits = bits_new
+    self.capacity *= 2
+
+  def space_available(self):
+    return (self.capacity - self.byte_idx)
+
+  # flush all full bytes
+  def flush(self, fd):
+    if self.byte_idx == 0:
+      return
+    fd.write(self.bits, self.byte_idx)
+    self.bits[0] = self.bits[self.byte_idx]
+    self.byte_idx = 0
+
+  # the maximum number of bits you can pack in one call is
+  # 57 because at any given time, there may be a maximum of
+  # 7 bits in the accumulator. 
+  def pack(self, val: int, nbits: int):
+    if nbits <= 0 or nbits >= 64:
+      return
+    # can pack up to 57 bits in one go through here
+    val2 = val
+    mask = (1 << nbits) - 1
+    val2 &= mask
+    shift_amt = 64 - nbits - self.bit_idx
+    val2 <<= shift_amt
+    self.accum |= u64(val2)
+    self.bit_idx += nbits
+    while self.bit_idx >= 8:
+      val3 = self.accum >> u64(56)
+      self.bits[self.byte_idx] = byte(val3)
+      self.byte_idx += 1
+      if self.space_available() == 0:
+        self.resize()
+      self.bit_idx -= 8
+      self.accum <<= u64(8)
+
+  def pack_with_flush(self, val: int, nbits, fd):
+    if nbits <= 0 or nbits >= 64:
+      return
+    # can pack up to 57 bits in one go through here
+    val2 = val
+    mask = (1 << nbits) - 1
+    val2 &= mask
+    shift_amt = 64 - nbits - self.bit_idx
+    val2 <<= shift_amt
+    self.accum |= u64(val2)
+    self.bit_idx += nbits
+    while self.bit_idx >= 8:
+      val3 = self.accum >> u64(56)
+      self.bits[self.byte_idx] = byte(val3)
+      self.byte_idx += 1
+      if self.space_available() == 0:
+        self.flush(fd)
+      self.bit_idx -= 8
+      self.accum <<= u64(8)
+
+  def reset(self):
+    self.byte_idx = 0
+    self.bit_idx = 0
+    for i in range(self.capacity):
+      self.bits[i] = byte(0)
+    self.accum = u64(0)
+
+  def __iter__(self):
+    for i in range(self.byte_idx):
+      yield self.bits[i]
+
+  # TODO pack 1 and all the 0s at once
+  def rbsp_trailing_bits(self):
+    self.pack(1, 1)
+    while self.bit_idx % 8 != 0:
+      self.pack(0, 1)
+
+@extend
+class byte:
+  @pure
+  @llvm
+  def __new__(i: u64) -> byte:
+    %0 = trunc i64 %i to i8
+    ret i8 %0
+  @pure
+  @llvm
+  def __rshift__(self, amt: int) -> byte:
+    %0 = zext i8 %self to i64
+    %1 = ashr i64 %0, %amt
+    %2 = trunc i64 %1 to i8
+    ret i8 %2
+  @pure
+  @llvm
+  def __rshift__(self, amt: byte) -> byte:
+    %0 = ashr i8 %self, %amt
+    ret i8 %0
+  @pure
+  @llvm
+  def __lshift__(self, amt: int) -> byte:
+    %0 = zext i8 %self to i64
+    %1 = shl i64 %0, %amt
+    %2 = trunc i64 %1 to i8
+    ret i8 %2
+  @pure
+  @llvm
+  def __lshift__(self, amt: byte) -> byte:
+    %0 = shl i8 %self, %amt
+    ret i8 %0
+  @pure
+  @llvm
+  def __and__(self, other: byte) -> byte:
+    %0 = and i8 %self, %other
+    ret i8 %0
+  @pure
+  @llvm
+  def __or__(self, other: byte) -> byte:
+    %0 = or i8 %self, %other
+    ret i8 %0

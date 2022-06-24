@@ -1,0 +1,31 @@
+from cola.blocks import *
+from typedefs import *
+
+class YUV420Reader:
+  
+  fd: File
+  height: int
+  width: int
+  nframes: int
+
+  def __init__(self, fn, height, width, nframes: int):
+    self.fd = open(fn, 'rb')
+    self.height = height
+    self.width = width
+    self.nframes = nframes
+
+  def cleanup(self):
+    self.fd.close()
+
+  # reads frames
+  # OPT: reuse frames when can
+  def __iter__(self):
+    for fidx in range(self.nframes):
+      Y = bb3d((fidx,0,0), (1,1,1), (1,self.height,self.width), (1,1,1))
+      Cb = bb3d((fidx,0,0), (1,1,1), (1,self.height//2,self.width//2), (1,1,1))
+      Cr = bb3d((fidx,0,0), (1,1,1), (1,self.height//2,self.width//2), (1,1,1))
+      self.fd.read(Y)
+      self.fd.read(Cb)
+      self.fd.read(Cr)
+      yield Y,Cb,Cr
+

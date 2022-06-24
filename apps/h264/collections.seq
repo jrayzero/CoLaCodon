@@ -1,0 +1,9 @@
+class SPS:
+  sps_id: int
+
+class EncoderState:
+  profile_idc: int
+  level_idc: int  
+  active_sps: dict[int, SPS]
+  pic_H: int
+  pic_W: int

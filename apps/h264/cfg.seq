@@ -1,0 +1,7 @@
+input_fn = '/Users/jray/Documents/PhD/CoLaCodon/apps/data/foreman.cif.yuv'
+output_fn = '/Users/jray/Documents/PhD/CoLaCodon/apps/h264/foreman.cif.264'
+height = 288
+width = 352
+nframes = 1
+profile_idc = 66 # baseline
+level_idc = 20 # minimum
