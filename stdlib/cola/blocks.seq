@@ -68,7 +68,6 @@ def linearize[T](coord: T, dims: T):
     mul = coord[0] * mul_reduce(dims[1:])
     return mul + linearize(coord[1:], dims[1:])
 
-
 @cola
 def pad_str(e: E, m: int, X: type, E: type):
   amt = m-len(str(X(e)))+1    
@@ -103,7 +102,21 @@ class View[E,T]:
     self.nunits = nunits 
 
   @cola
-  def __init__(self, obj):
+  def __init__(self, obj: Block[E,T]):
+    if not isinstance(obj, Block) and not isinstance(obj, View):
+      compile_error('Invalid type to View')
+    else:
+      self.starts = obj.get_starts()
+      self.strides = obj.get_strides()
+      self.dims = obj.get_dims()
+      self.nunits = len(obj)
+      if isinstance(obj,Block):
+        self.block = obj
+      else:
+        self.block = obj.get_block()
+
+  @cola
+  def __init__(self, obj: View[E,T]):
     if not isinstance(obj, Block) and not isinstance(obj, View):
       compile_error('Invalid type to View')
     else:
@@ -140,6 +153,18 @@ class View[E,T]:
         return View(starts, strides, dims, self.get_block())
 
   @cola
+  def __setitem__(self, idxs, val: E):
+    view = self[idxs]
+    for i in range(len(view)):
+      coord = delinearize(i, view.get_dims())
+      coord = compute_starts(view.get_starts(), view.get_strides(), coord)
+      # now relative to the block
+      rcoord = tup_fdiv(tup_sub(coord, self.get_block().get_starts()), 
+                        self.get_block().get_strides())
+      lidx = linearize(rcoord, self.get_block().get_dims())
+      self.get_block().data[lidx] = val
+      
+  @cola
   def __call__(self, *idxs) -> E:
     if staticlen(idxs) == 0:
       compile_error('idxs is an empty tuple. Did you use * with an integer argument?')
@@ -155,23 +180,6 @@ class View[E,T]:
       rcoord = tup_fdiv(tup_sub(coord, self.get_block().get_starts()), 
                         self.get_block().get_strides())
       return self.get_block()(*rcoord)
-
-#  @cola
-#  def elem(self, block: Block[E,T], idxs: T, E: type) -> E:
-#    coord = compute_starts(self.get_starts(), self.get_strides(), idxs)
-#    # now relative to the block
-#    rcoord = tup_fdiv(tup_sub(coord, block.get_starts()), block.get_strides())
-#    lidx = linearize(rcoord, block.get_dims())
-#    return block.data[lidx]
-
-#  @cola
-#  def elem(self, block: Block[E,T], E: type) -> E:
-#    idxs = tuple(0 for _ in self.get_dims())
-#    coord = compute_starts(self.get_starts(), self.get_strides(), idxs)
-#    # now relative to the block
-#    rcoord = tup_fdiv(tup_sub(coord, block.get_starts()), block.get_strides())
-#    lidx = linearize(rcoord, block.get_dims())
-#    return block.data[lidx]
 
   @cola
   def get_starts(self):
@@ -235,13 +243,11 @@ class View[E,T]:
       coord = delinearize(i, self.get_dims())
       yield self(*coord)
 
-#  @cola
-#  def __iter__(self) -> Generator[View[E,T]]:
-#    for i in range(len(self)):
-#      coord = delinearize(i, self.get_dims())
-#      template = self[coord]
-#      yield template
-
+  @cola
+  def viter(self) -> Generator[View[E,T]]:
+    for i in range(len(self)):
+      coord = delinearize(i, self.get_dims())
+      yield self[coord]    
       
 @extend  
 class Block:
@@ -307,6 +313,10 @@ class Block:
       return self.data[lidx]
 
   @cola
+  def __setitem__(self, idxs, val: E):
+    self[idxs] = val
+
+  @cola
   def max_str_len(self, X: type):
     m = 0
     for i in range(len(self)):
@@ -369,12 +379,11 @@ class Block:
   def __iter__(self) -> Generator[E]:
     yield from View(self)
       
-
-#  @cola
-#  def region(self, template: View[T]) -> Generator[E]:
-#    for unit in template:
-#      point = unit.elem(self)
-#      yield point
+  @cola
+  def viter(self) -> Generator[View[E,T]]:
+    for i in range(len(self)):
+      coord = delinearize(i, self.get_dims())
+      yield self[coord]
 
 @extend
 class File:
