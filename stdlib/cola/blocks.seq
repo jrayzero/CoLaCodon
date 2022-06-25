@@ -49,7 +49,7 @@ def delinearize_inner(lidx: int, dims):
   if staticlen(dims) == 0:
     return (lidx,)
   else:
-    mul = mul_reduce(dims)
+    mul = tup_mul_reduce(dims)
     c = lidx // mul
     return (c,) + delinearize_inner(lidx % mul, dims[1:])
 
@@ -65,7 +65,7 @@ def linearize[T](coord: T, dims: T):
   if staticlen(coord) == 1:
     return coord[0]
   else:
-    mul = coord[0] * mul_reduce(dims[1:])
+    mul = coord[0] * tup_mul_reduce(dims[1:])
     return mul + linearize(coord[1:], dims[1:])
 
 @cola
@@ -248,7 +248,36 @@ class View[E,T]:
     for i in range(len(self)):
       coord = delinearize(i, self.get_dims())
       yield self[coord]    
+
+  @cola
+  def _grid_inner(self, idx: Static[int], grid_dims: T) -> Generator[View[E,T]]:
+    d = grid_dims[idx]
+    nsplits = self.get_dims()[idx] // d
+    if self.get_dims()[idx] % d != 0:
+      nsplits += 1
+    for n in range(nsplits):
+      region = tuple_fill(slice(), idx) + (slice(n*d,n*d+d,1),) + tuple_fill(slice(),staticlen(grid_dims)-idx-1)
+      split = self[region]
+      if idx == staticlen(grid_dims) - 1:
+        yield split
+      else:
+        yield from split._grid_inner(idx+1,grid_dims)      
       
+  @cola
+  def grid(self, grid_dims: T) -> Generator[View[E,T]]:
+    yield from self._grid_inner(0, grid_dims)
+
+  @cola
+  def exists(self):
+    # need to see if the data in the block exists, which means [start,start+dim) is in bounds
+    # relative to the block
+    lower_bound_valid = tup_gte_reduce(self.get_starts(), self.get_block().get_starts())
+    upper_bound_self = tup_add(self.get_starts(), tup_mul(self.get_dims(),self.get_strides()))
+    upper_bound_block = tup_add(self.get_block().get_starts(), tup_mul(self.get_block().get_dims(),self.get_block().get_strides()))
+    upper_bound_valid = tup_lte_reduce(upper_bound_self, upper_bound_block)
+    all_valid = lower_bound_valid and upper_bound_valid
+    return all_valid  
+    
 @extend  
 class Block:
 
@@ -384,6 +413,28 @@ class Block:
     for i in range(len(self)):
       coord = delinearize(i, self.get_dims())
       yield self[coord]
+
+  @cola
+  def _grid_inner(self, idx: Static[int], grid_dims: T) -> Generator[View[E,T]]:
+    d = grid_dims[idx]
+    nsplits = self.get_dims()[idx] // d
+    if self.get_dims()[idx] % d != 0:
+      nsplits += 1
+    for n in range(nsplits):
+      region = tuple_fill(slice(), idx) + (slice(n*d,n*d+d,1),) + tuple_fill(slice(),staticlen(grid_dims)-idx-1)
+      split = self[region]
+      if idx == staticlen(grid_dims) - 1:
+        yield split
+      else:
+        yield from split._grid_inner(idx+1,grid_dims)      
+      
+  @cola
+  def grid(self, grid_dims: T) -> Generator[View[E,T]]:
+    yield from self._grid_inner(0, grid_dims)
+
+  @cola
+  def exists(self):
+    return True
 
 @extend
 class File:
