@@ -5,3 +5,5 @@ width = 352
 nframes = 100
 profile_idc = 66 # baseline
 level_idc = 20 # minimum
+# if True, encode everything as PCM frames, so no actual compression happens.
+no_compress = True
