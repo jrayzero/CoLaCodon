@@ -1,6 +1,7 @@
 from cola_utils import *
 from cola_annots import cola
 
+# TODO rename view -> template
 # TODO atoms not currently used
 
 @cola
@@ -148,6 +149,15 @@ class View[T]:
     return block.data[lidx]
 
   @cola
+  def elem(self, block: Block[E,T], E: type) -> E:
+    idxs = tuple(0 for _ in self.get_dims())
+    coord = compute_starts(self.get_starts(), self.get_strides(), idxs)
+    # now relative to the block
+    rcoord = tup_fdiv(tup_sub(coord, block.get_starts()), block.get_strides())
+    lidx = linearize(rcoord, block.get_dims())
+    return block.data[lidx]
+
+  @cola
   def get_starts(self):
     return self.starts
 
@@ -204,6 +214,25 @@ class View[T]:
     t =  '(' + ','.join(str(i) for i in self.get_atoms()) + ')'
     s += '  atoms: ' + t + '\n'
     return s
+
+  # remove leading dimensions
+  @cola
+  def elide(self, n: Static[int]):
+    if n >= staticlen(self.get_dims()):
+      compile_error('Too many elided dims')
+    else:
+      starts = self.get_starts()[n+1:staticlen(self.get_starts())]
+      strides = self.get_strides()[n+1:staticlen(self.get_strides())]
+      dims = self.get_dims()[n+1:staticlen(self.get_dims())]
+      atoms = self.get_atoms()[n+1:staticlen(self.get_atoms())]
+      return View(starts, strides, dims, atoms)
+
+  @cola
+  def __iter__(self) -> Generator[View[T]]:
+    for i in range(len(self)):
+      coord = delinearize(i, self.get_dims())
+      template = self[coord]
+      yield template
       
 @extend  
 class Block:
@@ -222,6 +251,11 @@ class Block:
     self.nunits = nunits
     self.data = Ptr[E](nunits)
 
+  @cola
+  def __init__(self, obj):
+    self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(),
+                  obj.get_atoms())
+  
   @cola
   def get_starts(self):
     return self.starts
@@ -317,6 +351,12 @@ class Block:
     t =  '(' + ','.join(str(i) for i in self.get_atoms()) + ')'
     s += '  atoms: ' + t + '\n'
     return s
+
+  @cola
+  def region(self, template: View[T]) -> Generator[E]:
+    for unit in template:
+      point = unit.elem(self)
+      yield point
 
 @extend
 class File:
