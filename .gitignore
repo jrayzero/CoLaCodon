@@ -74,3 +74,5 @@ gtest_parallel.py
 # Other #
 #########
 **/*~
+**/*.264
+**/*.mp4
