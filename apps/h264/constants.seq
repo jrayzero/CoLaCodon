@@ -1,5 +1,40 @@
-NAL_REF_IDC_SPS = 1
+# nal info
+
+NAL_REF_IDC_PCM_SLICE = 3
+NAL_UNIT_TYPE_PCM_SLICE = 1
+NAL_REF_IDC_IDR_PIC = 3
+NAL_UNIT_TYPE_IDR_PIC = 5
+NAL_REF_IDC_SPS = 3
 NAL_UNIT_TYPE_SPS = 7 
-NAL_REF_IDC_PPS = 1
+NAL_REF_IDC_PPS = 3
 NAL_UNIT_TYPE_PPS = 8
 
+# slice types
+P_SLICE = 0
+B_SLICE = 1
+I_SLICE = 2
+SP_SLICE = 3
+SI_SLICE = 4
+P_SLICE_TYPE2 = 5
+B_SLICE_TYPE2 = 6
+I_SLICE_TYPE2 = 7
+SP_SLICE_TYPE2 = 8
+SI_SLICE_TYPE2 = 9
+
+def is_P_slice(p):
+  return p == P_SLICE or p == P_SLICE_TYPE2
+
+def is_B_slice(b):
+  return b == B_SLICE or b == B_SLICE_TYPE2
+
+def is_I_slice(i):
+  return i == I_SLICE or i == I_SLICE_TYPE2
+
+def is_SP_slice(sp):
+  return sp == SP_SLICE or sp == SP_SLICE_TYPE2
+
+def is_SI_slice(si):
+  return si == SI_SLICE or si == SI_SLICE_TYPE2
+
+# macroblock types, I slices
+I_PCM = 25

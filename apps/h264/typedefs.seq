@@ -1,3 +1,7 @@
 from cola.blocks import *
 
+bb2d = Block[byte,Tuple[int,int]]
 bb3d = Block[byte,Tuple[int,int,int]]
+
+ib2d = Block[int,Tuple[int,int]]
+Tup2 = Tuple[int,int]

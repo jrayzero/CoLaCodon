@@ -1,7 +1,26 @@
-from syntax_constants import *
+from constants import *
 from collections import *
 from golomb import *
 from generic_bitstream import *
+
+@extend
+class Bitstream:
+
+  def ue(self, val):
+    golomb_ue(val, self)
+
+  def se(self, val):
+    golomb_se(val, self)
+
+  # TODO pack 1 and all the 0s at once
+  def rbsp_trailing_bits(self):
+    self.pack(1, 1)
+    while self.bit_idx % 8 != 0:
+      self.pack(0, 1)
+
+  def align(self, bit: Static[int]):
+    while self.bit_idx % 8 != 0:
+      self.pack(bit, 1)    
 
 @dataclass(init=False)
 class AnnexBBitstream:
@@ -43,58 +62,167 @@ class AnnexBBitstream:
     for j in range(i,self.nal_payload.byte_idx):
       self.compressed.pack_with_flush(int(self.nal_payload.bits[j]), 8, self.fd)
     # add some zero padding so there isn't any emulation at the end
-    self.compressed.pack_with_flush(0x00000000, 32, self.fd)
+#    self.compressed.pack_with_flush(0x00000000, 32, self.fd)
     self.compressed.flush(self.fd)
+
+  def generate_nal_header(self, nal_ref_idc, nal_unit_type):
+    self.nal_payload.pack(0, 1)
+    self.nal_payload.pack(nal_ref_idc, 2)
+    self.nal_payload.pack(nal_unit_type, 5)
 
   def generate_sps(self, sps: SPS, state: EncoderState):
     self.nal_payload.reset()
-    # forbidden_zero_bit
-    self.nal_payload.pack(0, 1)
-    # nal_profile_idc
-    self.nal_payload.pack(NAL_REF_IDC_SPS, 2)
-    # nal_unit_type
-    self.nal_payload.pack(NAL_UNIT_TYPE_SPS, 5)
-    # profile_idc
-    self.nal_payload.pack(state.profile_idc, 8)
-    # constraint flags
-    self.nal_payload.pack(0, 6)
-    # reserved_zero_2bits
+    self.generate_nal_header(NAL_REF_IDC_SPS, NAL_UNIT_TYPE_SPS)    
+    self.nal_payload.pack(state.profile_idc, 8)    
+    self.nal_payload.pack(int(sps.constraint_set0_flag), 1)
+    self.nal_payload.pack(int(sps.constraint_set1_flag), 1)
+    self.nal_payload.pack(int(sps.constraint_set2_flag), 1)
+    self.nal_payload.pack(int(sps.constraint_set3_flag), 1)
+    self.nal_payload.pack(int(sps.constraint_set4_flag), 1)
+    self.nal_payload.pack(int(sps.constraint_set5_flag), 1)
     self.nal_payload.pack(0, 2)
-    # level_idc
     self.nal_payload.pack(state.level_idc, 8)
-    # seq_parameter_set_id
-    golomb_ue(sps.sps_id, self.nal_payload)
-    # log2_max_frame_num_minus4
-    golomb_ue(0, self.nal_payload)
-    # pic_order_cnt_type
-    golomb_ue(0, self.nal_payload)
-    # log2_max_pic_order_cnt_lsb_minus4
-    golomb_ue(0, self.nal_payload)
-    # max_num_ref_frames
-    golomb_ue(0, self.nal_payload)
-    # gaps_in_frame_num_value_allowed_flag
-    self.nal_payload.pack(0, 1)
-    # pic_width_in_mbs_minus1
-    nmbs_wide = state.pic_W // 8
-    if state.pic_W & 8 != 0:
+    self.nal_payload.ue(sps.sps_id)
+    self.nal_payload.ue(sps.log2_max_frame_num_minus4)
+    self.nal_payload.ue(sps.pic_order_cnt_type)
+    if sps.pic_order_cnt_type == 0:
+      self.nal_payload.ue(sps.log2_max_pic_order_cnt_lsb_minus4)
+    else:
+      assert False
+    self.nal_payload.ue(sps.max_num_ref_frames)
+    self.nal_payload.pack(int(sps.gaps_in_frame_num_value_allowed_flag), 1)
+    nmbs_wide = state.pic_W // 16
+    if state.pic_W & 16 != 0:
       nmbs_wide += 1
     nmbs_wide -= 1
-    golomb_ue(nmbs_wide, self.nal_payload)
-    # pic_height_in_map_units_minus1
-    nmbs_height = state.pic_H // 8
-    if state.pic_H & 8 != 0:
+    self.nal_payload.ue(nmbs_wide)
+    nmbs_height = state.pic_H // 16
+    if state.pic_H & 16 != 0:
       nmbs_height += 1
     nmbs_height -= 1
-    golomb_ue(nmbs_height, self.nal_payload)    
-    # frame_mbs_only_flag
-    self.nal_payload.pack(1, 1)
-    # direct_8x8_inference_flag
-    self.nal_payload.pack(0, 1)
-    # frame_cropping_flag
-    self.nal_payload.pack(0, 1)
-    # vui_parameters_present_flag
-    self.nal_payload.pack(0, 1)
+    self.nal_payload.ue(nmbs_height)
+    self.nal_payload.pack(int(sps.frame_mbs_only_flag), 1)
+    self.nal_payload.pack(int(sps.direct_8x8_inference_flag), 1)
+    self.nal_payload.pack(int(sps.frame_cropping_flag), 1)
+    self.nal_payload.pack(int(sps.vui_parameters_present_flag), 1)    
+    self.finalize_nal_unit()
     
+  def generate_pps(self, pps: PPS, state: EncoderState):
+    self.nal_payload.reset()
+    self.generate_nal_header(NAL_REF_IDC_PPS, NAL_UNIT_TYPE_PPS)    
+    self.nal_payload.ue(pps.pps_id)
+    self.nal_payload.ue(pps.sps_id)
+    self.nal_payload.pack(pps.entropy_coding_mode, 1)
+    self.nal_payload.pack(int(pps.bottom_field_pic_order_in_frame_present_flag), 1)
+    self.nal_payload.ue(pps.num_slice_groups_minus1)
+    self.nal_payload.ue(pps.num_ref_idx_l0_default_active_minus1)
+    self.nal_payload.ue(pps.num_ref_idx_l1_default_active_minus1)
+    self.nal_payload.pack(int(pps.weighted_pred_flag), 1)
+    self.nal_payload.pack(pps.weighted_bipred_idc, 2)
+    self.nal_payload.se(pps.pic_init_qp_minus26)
+    self.nal_payload.se(pps.pic_init_qs_minus26)
+    self.nal_payload.se(pps.chroma_qp_index_offset)
+    self.nal_payload.pack(int(pps.deblocking_filter_control_present_flag), 1)
+    self.nal_payload.pack(int(pps.constrained_intra_pred_flag), 1)
+    self.nal_payload.pack(int(pps.redundant_pic_cnt_present_flag), 1)
+    self.finalize_nal_unit()
+
+  def generate_slice_header(self, hslice: HSlice, state: EncoderState):
+    self.nal_payload.reset()
+    self.generate_nal_header(hslice.nal_ref_idc, hslice.nal_unit_type)
+    self.nal_payload.ue(hslice.first_mb_in_slice)
+    self.nal_payload.ue(hslice.slice_type)
+    self.nal_payload.ue(hslice.pps_id)
+    pps = state.active_pps[hslice.pps_id]
+    sps = state.active_sps[pps.sps_id]
+    if state.separate_colour_plane_flag:
+      assert False
+    nbits = sps.log2_max_frame_num_minus4 + 4
+    self.nal_payload.pack(hslice.frame_num, nbits)
+    if not sps.frame_mbs_only_flag:
+      assert False
+    if hslice.is_idr_pic:
+      self.nal_payload.ue(hslice.idr_pic_id)
+    if sps.pic_order_cnt_type == 0:
+      self.nal_payload.pack(hslice.pic_order_cnt_lsb, 
+                            sps.log2_max_pic_order_cnt_lsb_minus4+4)
+    else:
+      assert False
+    if pps.redundant_pic_cnt_present_flag:
+      assert False
+    if is_B_slice(hslice.slice_type):
+      assert False
+    if is_B_slice(hslice.slice_type) or is_P_slice(hslice.slice_type) \
+       or is_SP_slice(hslice.slice_type):
+      assert False
+    if hslice.nal_unit_type == 20 or hslice.nal_unit_type == 21:
+      assert False
+    else:
+      self.generate_ref_pic_list_modification(hslice)
+    if pps.weighted_pred_flag:
+      assert False
+    if hslice.nal_ref_idc != 0:
+      self.generate_dec_ref_pic_marking(hslice)
+    if pps.entropy_coding_mode == 1:
+      assert False
+    self.nal_payload.se(hslice.slice_qp_delta)
+    if is_SP_slice(hslice.slice_type) or is_SI_slice(hslice.slice_type):
+      assert False
+    if pps.deblocking_filter_control_present_flag:
+      assert False
+    if pps.num_slice_groups_minus1 > 0:
+      assert False
+
+  def generate_ref_pic_list_modification(self, hslice: HSlice):
+    ref = hslice.ref_pic_list_modification
+    if hslice.slice_type % 5 != 2 and hslice.slice_type % 5 != 4:
+      assert False
+    if hslice.slice_type % 5 == 1:
+      assert False
+
+  def generate_dec_ref_pic_marking(self, hslice: HSlice):
+    if hslice.is_idr_pic:
+      self.nal_payload.pack(int(hslice.no_output_of_prior_pics_flag), 1)
+      self.nal_payload.pack(int(hslice.long_term_reference_flag), 1)
+    else:
+      # adaptive_ref_pic_marking_mode_flag
+      self.nal_payload.pack(0, 1)
+
+  # Make sure you already ran generate_slice_header
+  # Must manually call finalize_nal_unit since you probably call this
+  # once per macroblock
+  def generate_slice_data(self, hslice: HSlice, mblk: Macroblock):
+    self.generate_macroblock_layer(hslice, mblk)  
+
+  def generate_macroblock_layer(self, hslice: HSlice, mblk: Macroblock):
+    self.nal_payload.ue(mblk.mb_type)
+    if mblk.mb_type == I_PCM:
+      # pcm_alignment_zero_bit
+      self.nal_payload.align(0)
+      # write the uncompressed values directly
+      Y_temp,Cb_temp,Cr_temp = (mblk.templates[0],
+                                mblk.templates[1],
+                                mblk.templates[2])
+      Y_frame,Cb_frame,Cr_frame = (mblk.inp_frames[0],
+                                   mblk.inp_frames[1],
+                                   mblk.inp_frames[2])
+      # pcm_sample_luma
+      for y in Y_frame.region(Y_temp):
+        self.nal_payload.pack(int(y), 8)
+      # pcm_sample_chroma
+      i = 0
+      for cb in Cb_frame.region(Cb_temp):
+        self.nal_payload.pack(int(cb), 8)
+        i+=1
+      assert i == 64
+      i = 0
+      for cr in Cr_frame.region(Cr_temp):
+        self.nal_payload.pack(int(cr), 8)
+        i += 1
+      assert i == 64
+    else:
+      assert False
+
+  def finalize_nal_unit(self):
     self.nal_payload.rbsp_trailing_bits()
-    
-    
+    self.wrap_nal()

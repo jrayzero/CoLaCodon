@@ -84,12 +84,6 @@ class Bitstream:
     for i in range(self.byte_idx):
       yield self.bits[i]
 
-  # TODO pack 1 and all the 0s at once
-  def rbsp_trailing_bits(self):
-    self.pack(1, 1)
-    while self.bit_idx % 8 != 0:
-      self.pack(0, 1)
-
 @extend
 class byte:
   @pure

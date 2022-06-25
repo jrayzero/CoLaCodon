@@ -11,3 +11,7 @@ def golomb(codenum: int, bitstream: Bitstream):
 
 def golomb_ue(k: int, bitstream: Bitstream):
   golomb(k, bitstream)
+
+def golomb_se(k: int, bitstream: Bitstream):
+  codenum = 2 * abs(k) - int(k>0)
+  golomb(codenum, bitstream)

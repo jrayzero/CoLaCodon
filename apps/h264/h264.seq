@@ -2,6 +2,7 @@ from yuv import *
 from cfg import *
 from syntax import *
 from collections import *
+from constants import *
 
 def init_encoder():
   state = EncoderState()
@@ -12,17 +13,47 @@ def init_encoder():
   return state
 
 def main():
+  assert height % 8 == 0 and width % 8 == 0
   yuv420 = YUV420Reader(input_fn, height, width, nframes)
   bitstream = AnnexBBitstream(output_fn)
   state = init_encoder()
+  sps = SPS()
+  pps = PPS() 
+  state.active_sps[sps.sps_id] = sps
+  state.active_pps[pps.pps_id] = pps
+  bitstream.generate_sps(sps, state)
+  bitstream.generate_pps(pps, state)
+  frame_idx = 0
+  # go through frames
   for Y,Cb,Cr in yuv420:
-    sps = SPS()
-    sps.sps_id = 0
-    bitstream.generate_sps(sps, state)
-    bitstream.wrap_nal()
-    print Y
-    print Cb
-    print Cr    
+    # output frames that hold the macroblocks that need to be entropy coded
+    Y_out = Block[int,Tup2](Y)
+    Cb_out = Block[int,Tup2](Cb)
+    Cr_out = Block[int,Tup2](Cr)
+    # output frames that hold the reconstructed macroblocks
+    Y_recons  = Block[int,Tup2](Y)
+    Cb_recons = Block[int,Tup2](Cb)
+    Cr_recons = Block[int,Tup2](Cr)
+    # start by making all frames PCM
+    islice = HSlice.ISlice(frame_idx == 0, frame_idx > 0)
+    bitstream.generate_slice_header(islice, state)
+    # go through macroblocks
+    r2 = 0 # for Cb/Cr
+    c2 = 0 # for Cb/Cr
+    for r in range(0,height,16):
+      for c in range(0,width,16):
+        mblk = Macroblock()
+        mblk.mb_type = I_PCM
+        mblk.templates = [Y[r:r+16,c:c+16],Cb[r2:r2+8,c2:c2+8],Cr[r2:r2+8,c2:c2+8]]
+        mblk.inp_frames = [Y,Cb,Cr]
+        mblk.out_frames = [Y_out,Cb_out,Cr_out]
+        mblk.recons_frames = [Y_recons,Cb_recons,Cr_recons]
+        bitstream.generate_slice_data(islice, mblk)
+        c2 += 8
+      r2 += 8
+      c2 = 0
+    bitstream.finalize_nal_unit()  
+    frame_idx += 1
   yuv420.cleanup()
   bitstream.cleanup()
 

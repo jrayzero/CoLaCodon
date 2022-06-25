@@ -21,9 +21,9 @@ class YUV420Reader:
   # OPT: reuse frames when can
   def __iter__(self):
     for fidx in range(self.nframes):
-      Y = bb3d((fidx,0,0), (1,1,1), (1,self.height,self.width), (1,1,1))
-      Cb = bb3d((fidx,0,0), (1,1,1), (1,self.height//2,self.width//2), (1,1,1))
-      Cr = bb3d((fidx,0,0), (1,1,1), (1,self.height//2,self.width//2), (1,1,1))
+      Y = Block[byte,Tup2]((0,0), (1,1), (self.height,self.width), (1,1))
+      Cb = Block[byte,Tup2]((0,0), (1,1), (self.height//2,self.width//2), (1,1))
+      Cr = Block[byte,Tup2]((0,0), (1,1), (self.height//2,self.width//2), (1,1))
       self.fd.read(Y)
       self.fd.read(Cb)
       self.fd.read(Cr)
