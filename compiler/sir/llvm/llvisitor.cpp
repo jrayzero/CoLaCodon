@@ -1,5 +1,7 @@
 #include "llvisitor.h"
 
+#include <sstream>
+#include <iostream>
 #include <algorithm>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -466,7 +468,8 @@ void addEnvVarPathsToLinkerArgs(std::vector<std::string> &args,
     pathStr.split(split, ":");
 
     for (const auto &subPath : split) {
-      args.push_back(("-L" + subPath).str());
+      if (!subPath.empty())
+	args.push_back(("-L" + subPath).str());
     }
   }
 }
@@ -491,7 +494,11 @@ void LLVMVisitor::writeToExecutable(const std::string &filename,
   for (const auto &arg : extraArgs) {
     command.push_back(arg);
   }
-
+  std::stringstream ss;
+  for (auto c : command)
+    ss << c << " ";
+  ss << std::endl;
+  std::cout << ss.str() << std::endl;
   executeCommand(command);
 
 #if __APPLE__
