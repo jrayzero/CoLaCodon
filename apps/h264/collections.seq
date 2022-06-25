@@ -89,6 +89,9 @@ class EncoderState:
   pic_H: int
   pic_W: int
   separate_colour_plane_flag: bool
+  frame_rate: int
+  use_me: bool
+  qp: int
 
   def __init__(self):
     self.profile_idc = 0
@@ -98,6 +101,9 @@ class EncoderState:
     self.pic_H = 0
     self.pic_W = 0
     self.separate_colour_plane_flag = False    
+    self.frame_rate = 0
+    self.use_me = False
+    self.qp = 26
 
 @dataclass(init=False)
 class RefPicListModification:
@@ -144,7 +150,7 @@ class HSlice:
     self.frame_num = 0
     self.idr_pic_id = 0
     self.pic_order_cnt_lsb = 0
-    self.slice_qp_delta = -26
+    self.slice_qp_delta = 0
     self.no_output_of_prior_pics_flag = False
     self.long_term_reference_flag = False
 
@@ -153,10 +159,11 @@ class Macroblock:
 
   mb_type: int
   # Y,Cb,Cr
-  templates: list[View[Tup2]]  
+  mbs: list[View[byte,Tup2]]
   inp_frames: list[Block[byte,Tup2]]
   out_frames: list[Block[int,Tup2]]
   recons_frames: list[Block[int,Tup2]]
 
   def __init__(self):
     self.mb_type = 0
+    

@@ -1,0 +1,48 @@
+from collections import *
+from syntax import *
+
+def PCM_only(is_idr, Y, Cb, Cr, state: EncoderState, bitstream: AnnexBBitstream):
+  islice = HSlice.ISlice(is_idr, not is_idr)
+  bitstream.generate_slice_header(islice, state)
+  # go through macroblocks
+  r2 = 0 # for Cb/Cr
+  c2 = 0 # for Cb/Cr
+  for r in range(0,state.pic_H,16):
+    for c in range(0,state.pic_W,16):
+      mblk = Macroblock()
+      mblk.mb_type = I_PCM
+      mblk.mbs = [Y[r:r+16,c:c+16],Cb[r2:r2+8,c2:c2+8],Cr[r2:r2+8,c2:c2+8]]
+      mblk.inp_frames = [Y,Cb,Cr]
+      bitstream.generate_PCM_macroblock_layer(islice, mblk, state)
+      c2 += 8
+    r2 += 8
+    c2 = 0
+  bitstream.finalize_nal_unit()    
+
+def intra_only(is_idr, Y, Cb, Cr, state: EncoderState, bitstream: AnnexBBitstream):
+  islice = HSlice.ISlice(is_idr, False)
+  # output frames that hold the macroblocks that need to be entropy coded
+  Y_out = Block[int,Tup2](Y)
+  Cb_out = Block[int,Tup2](Cb)
+  Cr_out = Block[int,Tup2](Cr)
+  # output frames that hold the reconstructed macroblocks
+  Y_recons  = Block[int,Tup2](Y)
+  Cb_recons = Block[int,Tup2](Cb)
+  Cr_recons = Block[int,Tup2](Cr)
+  bitstream.generate_slice_header(islice, state)  
+  # go through macroblocks
+  r2 = 0 # for Cb/Cr
+  c2 = 0 # for Cb/Cr
+  for r in range(0,state.pic_H,16):
+    for c in range(0,state.pic_W,16):
+      mblk = Macroblock()
+      mblk.mb_type = I_4x4
+      mblk.mbs = [Y[r:r+16,c:c+16],Cb[r2:r2+8,c2:c2+8],Cr[r2:r2+8,c2:c2+8]]
+      mblk.inp_frames = [Y,Cb,Cr]
+      mblk.out_frames = [Y_out, Cb_out, Cr_out]
+      mblk.recons_frames = [Y_recons, Cb_recons, Cr_recons]
+      #bitstream.generate_slice_data(islice, mblk, state)
+      c2 += 8
+    r2 += 8
+    c2 = 0
+  bitstream.finalize_nal_unit()      

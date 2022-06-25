@@ -1,0 +1,7 @@
+def clip3(x,y,z):
+  if z < x:
+    return x
+  elif z > y:
+    return y
+  else:
+    return z

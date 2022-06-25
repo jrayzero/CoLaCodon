@@ -1,11 +1,17 @@
 import sys
 
+# Do an input config file instead and have a Config struct to read everything into
 input_fn = sys.argv[1]
 output_fn = input_fn + '.264'
 height = 288
 width = 352
 nframes = 100
 profile_idc = 66 # baseline
-level_idc = 20 # minimum
+constrained_baseline = True
+level_idc = 20
+frame_rate = 30
+use_me = False
+# defines the initial values for qp
+qp = 26
 # if True, encode everything as PCM frames, so no actual compression happens.
 no_compress = True

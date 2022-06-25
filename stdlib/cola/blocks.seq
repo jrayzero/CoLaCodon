@@ -1,7 +1,6 @@
 from cola_utils import *
 from cola_annots import cola
 
-# TODO rename view -> template
 # TODO atoms not currently used
 
 @cola
@@ -83,21 +82,21 @@ class Block[E,T]:
   nunits: int
   data: Ptr[E]
 
-class View[T]:
+class View[E,T]:
   starts: T
   strides: T
-  dims: T
-  atoms: T
+  dims: T  
   nunits: int
+  block: Block[E,T]
 
   @cola
-  def __init__(self, starts: T, strides: T, dims: T, atoms: T):
+  def __init__(self, starts: T, strides: T, dims: T, block: Block[E,T]):
     if not isinstance(T, tuple):
       compile_error('T must be a tuple')
     self.starts = starts
     self.strides = strides
     self.dims = dims
-    self.atoms = atoms
+    self.block = block
     nunits = 1
     for d in self.dims:
       nunits *= d
@@ -111,15 +110,18 @@ class View[T]:
       self.starts = obj.get_starts()
       self.strides = obj.get_strides()
       self.dims = obj.get_dims()
-      self.atoms = obj.get_atoms()
       self.nunits = len(obj)
+      if isinstance(obj,Block):
+        self.block = obj
+      else:
+        self.block = obj.get_block()
 
   @cola
-  def __getitem__(self, idxs) -> View[T]:
+  def __getitem__(self, idxs) -> View[E,T]:
     if isinstance(idxs, View):
       return idxs
     elif isinstance(idxs, Block):
-      return View(idxs.starts, idxs.strides, idxs.dims, idxs.atoms)
+      return View(idxs.starts, idxs.strides, idxs.dims, self.get_block())
     elif isinstance(idxs, int) or isinstance(idxs, slice):
       if staticlen(self.dims()) != 1:
         compile_error('T > 1')
@@ -127,8 +129,7 @@ class View[T]:
         starts = compute_starts(self.get_starts(), self.get_strides(), (idxs,))
         strides = compute_strides(self.get_strides(), (idxs,))
         dims = compute_dims(self.get_dims(), (idxs,))
-        atoms = self.get_atoms()
-        return View(starts, strides, dims, atoms)
+        return View(starts, strides, dims, self.get_block())
     elif isinstance(idxs, tuple):
       if staticlen(idxs) != staticlen(self.get_dims()):
         compile_error('!T')
@@ -136,26 +137,41 @@ class View[T]:
         starts = compute_starts(self.get_starts(), self.get_strides(), idxs)
         strides = compute_strides(self.get_strides(), idxs)
         dims = compute_dims(self.get_dims(), idxs)
-        atoms = self.get_atoms()
-        return View(starts, strides, dims, atoms)
-
+        return View(starts, strides, dims, self.get_block())
 
   @cola
-  def elem(self, block: Block[E,T], idxs: T, E: type) -> E:
-    coord = compute_starts(self.get_starts(), self.get_strides(), idxs)
-    # now relative to the block
-    rcoord = tup_fdiv(tup_sub(coord, block.get_starts()), block.get_strides())
-    lidx = linearize(rcoord, block.get_dims())
-    return block.data[lidx]
+  def __call__(self, *idxs) -> E:
+    if staticlen(idxs) == 0:
+      compile_error('idxs is an empty tuple. Did you use * with an integer argument?')
+    if staticlen(idxs) != staticlen(self.dims):
+      compile_error('Invalid number of idxs')
+    else:
+      for i in idxs:
+        if not isinstance(i, int):
+          compile_error('Must be integer index')
+      # get relative to self
+      coord = compute_starts(self.get_starts(), self.get_strides(), idxs)
+      # now relative to the block
+      rcoord = tup_fdiv(tup_sub(coord, self.get_block().get_starts()), 
+                        self.get_block().get_strides())
+      return self.get_block()(*rcoord)
 
-  @cola
-  def elem(self, block: Block[E,T], E: type) -> E:
-    idxs = tuple(0 for _ in self.get_dims())
-    coord = compute_starts(self.get_starts(), self.get_strides(), idxs)
-    # now relative to the block
-    rcoord = tup_fdiv(tup_sub(coord, block.get_starts()), block.get_strides())
-    lidx = linearize(rcoord, block.get_dims())
-    return block.data[lidx]
+#  @cola
+#  def elem(self, block: Block[E,T], idxs: T, E: type) -> E:
+#    coord = compute_starts(self.get_starts(), self.get_strides(), idxs)
+#    # now relative to the block
+#    rcoord = tup_fdiv(tup_sub(coord, block.get_starts()), block.get_strides())
+#    lidx = linearize(rcoord, block.get_dims())
+#    return block.data[lidx]
+
+#  @cola
+#  def elem(self, block: Block[E,T], E: type) -> E:
+#    idxs = tuple(0 for _ in self.get_dims())
+#    coord = compute_starts(self.get_starts(), self.get_strides(), idxs)
+#    # now relative to the block
+#    rcoord = tup_fdiv(tup_sub(coord, block.get_starts()), block.get_strides())
+#    lidx = linearize(rcoord, block.get_dims())
+#    return block.data[lidx]
 
   @cola
   def get_starts(self):
@@ -170,33 +186,33 @@ class View[T]:
     return self.dims
 
   @cola
-  def get_atoms(self):
-    return self.atoms
-
-  @cola
   def __len__(self):
     return self.nunits
 
   @cola
-  def str_like(self, block, X: type):
+  def get_block(self):
+    return self.block
+
+  @cola
+  def str_like(self, X: type):
     if staticlen(self.get_dims()) > 3:
       compile_error('Can only string print for 1D, 2D, and 3D blocks')
-    m = block.max_str_len(X)
+    m = self.get_block().max_str_len(X)
     s = ''
     if staticlen(self.get_dims()) == 1:
       for i in range(len(self)):
-        s += pad_str(self.elem(block, (i,)), m, X)
+        s += pad_str(self(i), m, X)
     elif staticlen(self.get_dims()) == 2:
       for i in range(self.get_dims()[0]):
         for j in range(self.get_dims()[1]):
-          s += pad_str(self.elem(block, (i,j)), m, X)
+          s += pad_str(self(i,j), m, X)
         s += '\n'
     else:
       for i in range(self.get_dims()[0]):
         s += f'i = {i}\n'
         for j in range(self.get_dims()[1]):      
           for k in range(self.get_dims()[2]):
-            s += pad_str(self.elem(block, (i,j,k)), m, X)
+            s += pad_str(self(i,j,k), m, X)
           s += '\n'
         s += '\n'    
     return s
@@ -211,28 +227,21 @@ class View[T]:
     s += '  strides: ' + t + '\n'
     t =  '(' + ','.join(str(i) for i in self.get_dims()) + ')'
     s += '  dims: ' + t + '\n'
-    t =  '(' + ','.join(str(i) for i in self.get_atoms()) + ')'
-    s += '  atoms: ' + t + '\n'
     return s
 
-  # remove leading dimensions
   @cola
-  def elide(self, n: Static[int]):
-    if n >= staticlen(self.get_dims()):
-      compile_error('Too many elided dims')
-    else:
-      starts = self.get_starts()[n+1:staticlen(self.get_starts())]
-      strides = self.get_strides()[n+1:staticlen(self.get_strides())]
-      dims = self.get_dims()[n+1:staticlen(self.get_dims())]
-      atoms = self.get_atoms()[n+1:staticlen(self.get_atoms())]
-      return View(starts, strides, dims, atoms)
-
-  @cola
-  def __iter__(self) -> Generator[View[T]]:
+  def __iter__(self) -> Generator[E]:
     for i in range(len(self)):
       coord = delinearize(i, self.get_dims())
-      template = self[coord]
-      yield template
+      yield self(*coord)
+
+#  @cola
+#  def __iter__(self) -> Generator[View[E,T]]:
+#    for i in range(len(self)):
+#      coord = delinearize(i, self.get_dims())
+#      template = self[coord]
+#      yield template
+
       
 @extend  
 class Block:
@@ -253,8 +262,12 @@ class Block:
 
   @cola
   def __init__(self, obj):
-    self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(),
-                  obj.get_atoms())
+    if isinstance(obj, Block):
+      self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(),
+                    obj.get_atoms())
+    else:
+      self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(),
+                    obj.get_block().get_atoms())      
   
   @cola
   def get_starts(self):
@@ -277,7 +290,7 @@ class Block:
     return self.nunits
 
   @cola
-  def __getitem__(self, idxs) -> View[T]:
+  def __getitem__(self, idxs) -> View[E,T]:
     return View(self)[idxs]
 
   @cola
@@ -353,10 +366,15 @@ class Block:
     return s
 
   @cola
-  def region(self, template: View[T]) -> Generator[E]:
-    for unit in template:
-      point = unit.elem(self)
-      yield point
+  def __iter__(self) -> Generator[E]:
+    yield from View(self)
+      
+
+#  @cola
+#  def region(self, template: View[T]) -> Generator[E]:
+#    for unit in template:
+#      point = unit.elem(self)
+#      yield point
 
 @extend
 class File:
