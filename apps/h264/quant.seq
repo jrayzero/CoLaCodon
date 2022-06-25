@@ -1,0 +1,66 @@
+# ok, every document/paper/website absolutely sucks at describing quantization, and I still don't fully
+# understand it. I don't care about the theory, but I just wanted to understand practically what
+# the computation is. 
+
+# Quantization in H264 isn;t just a simple division, because it has to include some scaling that
+# was removed from the DCT inorder to make the DCT integer based.
+# So, the actual quantization function is
+# z_ij = (coeff_ij * m(QP%6,i,j) >> (15 + floor(QP/6))
+# 
+# Here's where those values come from:
+# z_ij is the quantized value
+# coeff_ij is the coefficient that directly comes from the DCT
+# i,j is the coordinate
+# QP is the quantization parameter for the current context (see below)
+# 15 is some scaling factor that the Richardson book says is a good value to use
+# m is a table that represents some other precomputable-scaling-factors. I don't care how
+# they are derived, I just care that they are precomputable. See below
+#
+# QP:
+# So the qp parameter depends on whether you are luma or chroma, and whether you have adjusted it
+# There is an initial global quantization value specified with the parameter
+# pic_qp_init_minus26. Technically it's not global, but local to the picture parameter set. But I don't care.
+# Now, you can also specify a deviation from this for each slice. That parameter is
+# slice_qp_delta. Same with a macroblock, which is mb_qp_delta. So, when we actually get to quantization,
+# for a LUMA component, qp_y is calculated with a nasty computation. Here it is broken down
+# qp_slice = pic_qp_init_minus26 + 26 + slice_qp_delta
+# QPY = ((qp_prev + mb_qp_delta + 52 * 2 * QpBdOffsetY) % (52 + QpBdOffsetY)) - QpBdOffsetY
+# QpBdOffsetY is derived from the parameter bit_depth_luma_minus8, and 
+# QpBdOffsetY = 6 * bit_depth_luma_minus8. bit_depth_luma_minus8 is usually 0, so yeah.
+# A good value for pic_qp_init_minus26 is 0. So assuming slice_qp_delta is 0 and QpBdOffsetY is 0, 
+# QPY = 26.
+# 
+# For chroma, it's a little different. It's based off of the QPy
+# but can have some other offsets.
+# In the pic parameter set, theres chroma_qp_index_offset and second_chroma_qp_index_offset.
+# The first controls the offset for Cb, and the latter for Cr.
+# For Cb, compute QPCb as:
+# index = Clip3(-QpBdOffsetC,51,QPY+chroma_qp_index_offset)
+# lookup the index based on table 8-15. where index <=> qPI.
+# 
+# For Cr, it's the same, except use second_chroma_qp_index_offset.
+# QpBdOffsetC is 6*bit_depth_chroma_minus8, so is likely also 0.
+# 
+# Anyway, now you have the QP values to acutally use in the stupid quantization thing.
+#
+# m:
+# This part confuses me, but there's the table
+# QP  n=0   n=1  n=2
+# 0  13107 5243 8066
+# 1  11916 4660 7490
+# 2  10082 4194 6554
+# 3  9362  3647 5825
+# 4  8192  3355 5243
+# 5  7282  2893 4559
+# Here, you index into this as m(QP%6,n), where n is derived from the coordinate i,j values.
+# n = | 0 if i%2==0 && j%2==0
+#     | 1 if i%2==1 && j%2==1
+#     | 2 otherwise
+# so n mapped to the 4x4 block looks like
+# 0 | 2 | 0 | 2
+# 2 | 1 | 2 | 1
+# 0 | 2 | 0 | 2
+# 2 | 1 | 2 | 1
+#
+# Again, very confused where all of the scaling factors that go into this come from. But
+# I trust the smart compression people, so I'm going with it
