@@ -343,7 +343,12 @@ class Block:
 
   @cola
   def __setitem__(self, idxs, val: E):
-    self[idxs] = val
+    view = self[idxs]
+    slices = tuple(slice() for _ in self.get_dims())
+    if staticlen(slices) == 1:
+      view[slices[0]] = val
+    else:
+      view[slices] = val
 
   @cola
   def max_str_len(self, X: type):
