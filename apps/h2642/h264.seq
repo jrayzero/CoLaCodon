@@ -1,0 +1,47 @@
+import sys
+from cfg import *
+from yuv import *
+from parameter_sets import *
+from encoder_processes import *
+from video import *
+from constants import *
+from annexb import *
+
+def init_SPS(cfg):
+  sps = SPS()
+  sps.profile_idc = cfg.profile
+  sps.level_idc = cfg.level
+  if cfg.profile == 66:
+    sps.constraint_set1_flag = True
+  if not cfg.disable_motion_estimation:
+    assert False
+  else:
+    # force decoding order and display order to be the same
+    sps.pic_order_cnt_type = 2
+  return sps
+
+def init_PPS(cfg):
+  pps = PPS()  
+  pps.pic_init_qp_minus26 = cfg.qp_init - 26
+  return pps
+
+def main():
+  if len(sys.argv) < 2:
+    print 'Usage: h264.seq <cfg>'
+  cfg = parse_config(sys.argv[1])
+  video = Video(init_SPS(cfg), cfg, AnnexBBitstream(cfg.output_fn))
+  video.cfg = cfg
+  video.sps = init_SPS(cfg)
+  yuv420 = YUV420Reader(cfg)
+  pps = init_PPS(cfg)
+  frame_idx = 0
+  video.encode()
+  # go through frames
+  for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
+    encoder_frame = EncoderFrame(frame_idx, Y_raw_frame, Cb_raw_frame, Cr_raw_frame, pps, frame_idx == 0)    
+    encoder_frame.encode(video)
+    frame_idx += 1
+  yuv420.cleanup()
+  video.bitstream.cleanup()
+
+main()

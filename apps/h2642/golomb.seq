@@ -1,0 +1,17 @@
+from generic_bitstream import *
+import math
+
+def golomb(codenum: int, bitstream: Bitstream):
+  M = int(math.floor(math.log2(codenum+1)))
+  INFO = codenum+1-2**M
+  for _ in range(M):
+    bitstream.pack(0,1)
+  bitstream.pack(1,1)
+  bitstream.pack(INFO,M)
+
+def golomb_ue(k: int, bitstream: Bitstream):
+  golomb(k, bitstream)
+
+def golomb_se(k: int, bitstream: Bitstream):
+  codenum = 2 * abs(k) - int(k>0)
+  golomb(codenum, bitstream)

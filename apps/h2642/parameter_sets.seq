@@ -1,0 +1,82 @@
+@dataclass(init=False)
+class SPS:
+  sps_id: int
+  profile_idc: int
+  level_idc: int
+  constraint_set0_flag: bool
+  constraint_set1_flag: bool
+  constraint_set2_flag: bool
+  constraint_set3_flag: bool
+  constraint_set4_flag: bool
+  constraint_set5_flag: bool
+  seq_parameter_set_id: int
+  log2_max_frame_num_minus4: int
+  pic_order_cnt_type: int
+  log2_max_pic_order_cnt_lsb_minus4: int
+  max_num_ref_frames: int
+  gaps_in_frame_num_value_allowed_flag: bool
+  pic_width_in_mbs_minus1: int
+  pic_height_in_map_units_minus1: int
+  frame_mbs_only_flag: bool
+  direct_8x8_inference_flag: bool
+  frame_cropping_flag: bool
+  vui_parameters_present_flag: bool
+
+  def __init__(self):
+    self.sps_id = 0
+    self.profile_idc = 0
+    self.level_idc =0
+    self.constraint_set0_flag = False
+    self.constraint_set1_flag = False
+    self.constraint_set2_flag = False
+    self.constraint_set3_flag = False
+    self.constraint_set4_flag = False
+    self.constraint_set5_flag = False
+    self.seq_parameter_set_id = 0
+    self.log2_max_frame_num_minus4 = 0
+    self.pic_order_cnt_type = 0
+    self.log2_max_pic_order_cnt_lsb_minus4 = 0
+    self.max_num_ref_frames = 5
+    self.gaps_in_frame_num_value_allowed_flag = False
+    self.pic_width_in_mbs_minus1 = 0
+    self.pic_height_in_map_units_minus1 = 0
+    self.frame_mbs_only_flag = True
+    self.direct_8x8_inference_flag = True 
+    self.frame_cropping_flag = False
+    self.vui_parameters_present_flag = False
+
+@dataclass(init=False)
+class PPS:
+  pps_id: int
+  sps_id: int
+  entropy_coding_mode: int
+  bottom_field_pic_order_in_frame_present_flag: bool
+  num_slice_groups_minus1: int
+  num_ref_idx_l0_default_active_minus1: int
+  num_ref_idx_l1_default_active_minus1: int
+  weighted_pred_flag: int
+  weighted_bipred_idc: int
+  pic_init_qp_minus26: int
+  pic_init_qs_minus26: int
+  chroma_qp_index_offset: int
+  deblocking_filter_control_present_flag: bool
+  constrained_intra_pred_flag: bool
+  redundant_pic_cnt_present_flag: bool
+
+  def __init__(self):
+    self.pps_id = 0
+    self.sps_id = 0
+    self.entropy_coding_mode = 0
+    self.bottom_field_pic_order_in_frame_present_flag = False
+    self.num_slice_groups_minus1 = 0
+    self.num_ref_idx_l0_default_active_minus1 = 4
+    self.num_ref_idx_l1_default_active_minus1 = 4
+    self.weighted_pred_flag = 0
+    self.weighted_bipred_idc = 0
+    self.pic_init_qp_minus26 = 0
+    self.pic_init_qs_minus26 = 0
+    self.chroma_qp_index_offset = 0
+    self.deblocking_filter_control_present_flag = False
+    self.constrained_intra_pred_flag = False
+    self.redundant_pic_cnt_present_flag = False
+

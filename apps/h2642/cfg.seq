@@ -1,0 +1,128 @@
+@dataclass(init=False)
+class EncoderCfg:
+  # Input
+  input_fn: str
+  height: int
+  width: int
+  nframes: int
+  frame_rate: int
+  # Output
+  output_fn: str
+  # General encoding
+  profile: int
+  level: int
+  target_bitrate: int
+  pcm_mode: bool
+  # Intra-prediction
+  disable_4x4: bool
+  disable_16x16: bool
+  # Motion estimation
+  disable_motion_estimation: bool
+  # Quantization
+  qp_init: int
+
+  def __init__(self):
+    self.input_fn = ''
+    self.height = -1
+    self.width = -1
+    self.nframes = -1
+    self.frame_rate = -1
+    self.output_fn = ''
+    self.profile = 66
+    self.level = 20
+    self.target_bitrate = -1
+    self.pcm_mode = False
+    self.disable_4x4 = False
+    self.disable_16x16 = False
+    self.disable_motion_estimation = False
+    self.qp_init = 26
+
+  def __str__(self):
+    s = ''
+    s += f'input_fn: {self.input_fn}\n'
+    s += f'height: {self.height}\n'
+    s += f'width: {self.width}\n'
+    s += f'nframes: {self.nframes}\n'
+    s += f'frame_rate: {self.frame_rate}\n'
+    s += f'output_fn: {self.output_fn}\n'
+    s += f'profile: {self.profile}\n'
+    s += f'level: {self.level}\n'
+    s += f'target_bitrate: {self.target_bitrate}\n'
+    s += f'pcm_mode = : {self.pcm_mode}\n'
+    s += f'disable_4x4 = : {self.disable_4x4}\n'
+    s += f'disable_16x16 = : {self.disable_16x16}\n'
+    s += f'disable_motion_estimation = : {self.disable_motion_estimation}\n'
+    s += f'qp_init: {self.qp_init}\n'
+    return s
+
+def parse_str(param,value):    
+  if len(value) == 0:
+    print f'Empty string found for {param}'
+    exit(-1)
+  return value
+
+def parse_bool(param,value):
+  value = value.lower()
+  if value != 'true' and value != 'false':
+    print f'Expected boolean, got {value} for {param}' 
+    exit(-1)
+  return value == 'true'
+
+def parse_int(param,value):
+  try:
+    return int(value)
+  except:
+    print f'Expected int, got {value} for {param}'
+    exit(-1)
+  
+def parse_param(param, value, cfg):
+  param = param.lower()
+  if param == 'input_fn':
+    cfg.input_fn = parse_str(param,value)
+  elif param == 'height':
+    cfg.height = parse_int(param,value)
+  elif param == 'width':
+    cfg.width = parse_int(param,value)
+  elif param == 'nframes':
+    cfg.nframes = parse_int(param,value)
+  elif param == 'frame_rate':
+    cfg.frame_rate = parse_int(param,value)
+  elif param == 'output_fn':
+    cfg.output_fn = parse_str(param,value)
+  elif param == 'profile':
+    cfg.profile = parse_int(param,value)    
+  elif param == 'level':
+    cfg.level = parse_int(param,value)
+  elif param == 'target_bitrate':
+    cfg.target_bitrate = parse_int(param,value)
+  elif param == 'pcm_mode':
+    cfg.pcm_mode = parse_bool(param,value)
+  elif param == 'disable_4x4':
+    cfg.disable_4x4 = parse_bool(param,value)
+  elif param == 'disable_16x16':
+    cfg.disable_16x16 = parse_bool(param,value)
+  elif param == 'disable_motion_estimation':
+    cfg.disable_motion_estimation = parse_bool(param,value)
+  elif param == 'qp_init':
+    cfg.qp_init = parse_int(param,value)
+  else:
+    print f'Unknown cfg param: {param}'
+  
+def parse_config(cfg_fn: str):
+  fd = open(cfg_fn, 'r')
+  cfg = EncoderCfg()
+  for line in fd:
+    line = line.strip()
+    if len(line) == 0 or line[0] == '#':
+      continue
+    spl = line.split()
+    if len(spl) != 3:
+      print 'Configuration parameter should have form: <param> = <value>'
+      exit(-1)
+    if spl[1].strip() != '=':
+      print 'Configuration parameter should have form: <param> = <value>'
+      exit(-1)      
+    param,value = spl[0].strip(),spl[2].strip()
+    parse_param(param,value,cfg)
+  fd.close()
+  return cfg

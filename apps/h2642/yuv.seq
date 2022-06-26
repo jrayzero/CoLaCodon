@@ -1,0 +1,32 @@
+from cola.blocks import *
+from cfg import *
+from typedefs import *
+
+class YUV420Reader:
+  
+  fd: File
+  height: int
+  width: int
+  nframes: int
+
+  def __init__(self, cfg: EncoderCfg):
+    self.fd = open(cfg.input_fn, 'rb')
+    self.height = cfg.height
+    self.width = cfg.width
+    self.nframes = cfg.nframes
+
+  def cleanup(self):
+    self.fd.close()
+
+  # reads frames
+  # OPT: reuse frames when can
+  def __iter__(self):
+    for fidx in range(self.nframes):
+      Y = Block[byte,Tup2]((0,0), (1,1), (self.height,self.width), (1,1))
+      Cb = Block[byte,Tup2]((0,0), (1,1), (self.height//2,self.width//2), (1,1))
+      Cr = Block[byte,Tup2]((0,0), (1,1), (self.height//2,self.width//2), (1,1))
+      self.fd.read(Y)
+      self.fd.read(Cb)
+      self.fd.read(Cr)
+      yield Y,Cb,Cr
+
