@@ -70,10 +70,10 @@ class AnnexBBitstream:
     self.nal_payload.pack(nal_ref_idc, 2)
     self.nal_payload.pack(nal_unit_type, 5)
 
-  def generate_sps(self, sps: SPS, state: EncoderState):
+  def generate_sps(self, sps: SPS, video: Video):
     self.nal_payload.reset()
     self.generate_nal_header(NAL_REF_IDC_SPS, NAL_UNIT_TYPE_SPS)    
-    self.nal_payload.pack(state.profile_idc, 8)    
+    self.nal_payload.pack(video.sps.profile_idc, 8)    
     self.nal_payload.pack(int(sps.constraint_set0_flag), 1)
     self.nal_payload.pack(int(sps.constraint_set1_flag), 1)
     self.nal_payload.pack(int(sps.constraint_set2_flag), 1)
@@ -81,7 +81,7 @@ class AnnexBBitstream:
     self.nal_payload.pack(int(sps.constraint_set4_flag), 1)
     self.nal_payload.pack(int(sps.constraint_set5_flag), 1)
     self.nal_payload.pack(0, 2)
-    self.nal_payload.pack(state.level_idc, 8)
+    self.nal_payload.pack(video.sps.level_idc, 8)
     self.nal_payload.ue(sps.sps_id)
     self.nal_payload.ue(sps.log2_max_frame_num_minus4)
     self.nal_payload.ue(sps.pic_order_cnt_type)
@@ -91,13 +91,13 @@ class AnnexBBitstream:
       assert False
     self.nal_payload.ue(sps.max_num_ref_frames)
     self.nal_payload.pack(int(sps.gaps_in_frame_num_value_allowed_flag), 1)
-    nmbs_wide = state.pic_W // 16
-    if state.pic_W % 16 != 0:
+    nmbs_wide = video.encoder_cfg.width // 16
+    if video.encoder_cfg.width % 16 != 0:
       nmbs_wide += 1
     nmbs_wide -= 1
     self.nal_payload.ue(nmbs_wide)
-    nmbs_height = state.pic_H // 16
-    if state.pic_H % 16 != 0:
+    nmbs_height = video.encoder_cfg.height // 16
+    if video.encoder_cfg.height % 16 != 0:
       nmbs_height += 1
     nmbs_height -= 1
     self.nal_payload.ue(nmbs_height)
@@ -107,7 +107,7 @@ class AnnexBBitstream:
     self.nal_payload.pack(int(sps.vui_parameters_present_flag), 1)    
     self.finalize_nal_unit()
     
-  def generate_pps(self, pps: PPS, state: EncoderState):
+  def generate_pps(self, pps: PPS, video: Video):
     self.nal_payload.reset()
     self.generate_nal_header(NAL_REF_IDC_PPS, NAL_UNIT_TYPE_PPS)    
     self.nal_payload.ue(pps.pps_id)
@@ -127,15 +127,15 @@ class AnnexBBitstream:
     self.nal_payload.pack(int(pps.redundant_pic_cnt_present_flag), 1)
     self.finalize_nal_unit()
 
-  def generate_slice_header(self, hslice: HSlice, state: EncoderState):
+  def generate_slice_header(self, hslice: HSlice, video: Video):
     self.nal_payload.reset()
     self.generate_nal_header(hslice.nal_ref_idc, hslice.nal_unit_type)
     self.nal_payload.ue(hslice.first_mb_in_slice)
     self.nal_payload.ue(hslice.slice_type)
     self.nal_payload.ue(hslice.pps_id)
-    pps = state.active_pps[hslice.pps_id]
-    sps = state.active_sps[pps.sps_id]
-    if state.separate_colour_plane_flag:
+    pps = video.ppses[hslice.pps_id]
+    sps = video.sps
+    if video.separate_colour_plane_flag:
       assert False
     nbits = sps.log2_max_frame_num_minus4 + 4
     self.nal_payload.pack(hslice.frame_num, nbits)
@@ -192,7 +192,7 @@ class AnnexBBitstream:
   # Must manually call finalize_nal_unit since you probably call this
   # once per macroblock
   def generate_PCM_macroblock_layer(self, hslice: HSlice, mblk: Macroblock, 
-                                    state: EncoderState):
+                                    video: Video):
     self.nal_payload.ue(mblk.mb_type)
     # pcm_alignment_zero_bit
     self.nal_payload.align(0)
@@ -200,7 +200,7 @@ class AnnexBBitstream:
     Ymb,Cbmb,Crmb = (mblk.mbs[0],
                      mblk.mbs[1],
                      mblk.mbs[2])
-    if state.profile_idc == 66 or state.profile_idc == 77:
+    if video.sps.profile_idc == 66 or video.sps.profile_idc == 77:
       # TODO maybe quicker to pull out the check for 0 into its own loop and 
       # save to intermediate buffer? can vectorize that
       # pcm_sample_luma

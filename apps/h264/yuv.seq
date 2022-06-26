@@ -1,4 +1,5 @@
 from cola.blocks import *
+from collections import *
 from typedefs import *
 
 class YUV420Reader:
@@ -8,11 +9,11 @@ class YUV420Reader:
   width: int
   nframes: int
 
-  def __init__(self, fn, height, width, nframes: int):
-    self.fd = open(fn, 'rb')
-    self.height = height
-    self.width = width
-    self.nframes = nframes
+  def __init__(self, cfg: EncoderCfg):
+    self.fd = open(cfg.input_fn, 'rb')
+    self.height = cfg.height
+    self.width = cfg.width
+    self.nframes = cfg.nframes
 
   def cleanup(self):
     self.fd.close()

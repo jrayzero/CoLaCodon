@@ -5,6 +5,8 @@ from typedefs import *
 @dataclass(init=False)
 class SPS:
   sps_id: int
+  profile_idc: int
+  level_idc: int
   constraint_set0_flag: bool
   constraint_set1_flag: bool
   constraint_set2_flag: bool
@@ -26,6 +28,8 @@ class SPS:
 
   def __init__(self):
     self.sps_id = 0
+    self.profile_idc = 0
+    self.level_idc =0
     self.constraint_set0_flag = False
     self.constraint_set1_flag = False
     self.constraint_set2_flag = False
@@ -79,31 +83,6 @@ class PPS:
     self.deblocking_filter_control_present_flag = False
     self.constrained_intra_pred_flag = False
     self.redundant_pic_cnt_present_flag = False
-
-@dataclass(init=False)
-class EncoderState:
-  profile_idc: int
-  level_idc: int  
-  active_sps: dict[int, SPS]
-  active_pps: dict[int, PPS]
-  pic_H: int
-  pic_W: int
-  separate_colour_plane_flag: bool
-  frame_rate: int
-  use_me: bool
-  qp: int
-
-  def __init__(self):
-    self.profile_idc = 0
-    self.level_idc = 0
-    self.active_sps = {}
-    self.active_pps = {}
-    self.pic_H = 0
-    self.pic_W = 0
-    self.separate_colour_plane_flag = False    
-    self.frame_rate = 0
-    self.use_me = False
-    self.qp = 26
 
 @dataclass(init=False)
 class RefPicListModification:
@@ -166,4 +145,93 @@ class Macroblock:
 
   def __init__(self):
     self.mb_type = 0
+    
+@dataclass(init=False)
+class EncoderCfg:
+  # Input
+  input_fn: str
+  height: int
+  width: int
+  nframes: int
+  frame_rate: int
+  # Output
+  output_fn: str
+  # General encoding
+  profile: int
+  level: int
+  target_bitrate: int
+  pcm_mode: bool
+  # Intra-prediction
+  disable_4x4: bool
+  disable_16x16: bool
+  # Motion estimation
+  disable_motion_estimation: bool
+  # Quantization
+  qp_init: int
+
+  def __init__(self):
+    self.input_fn = ''
+    self.height = -1
+    self.width = -1
+    self.nframes = -1
+    self.frame_rate = -1
+    self.output_fn = ''
+    self.profile = 66
+    self.level = 20
+    self.target_bitrate = -1
+    self.pcm_mode = False
+    self.disable_4x4 = False
+    self.disable_16x16 = False
+    self.disable_motion_estimation = False
+    self.qp_init = 26
+
+  def __str__(self):
+    s = ''
+    s += f'input_fn: {self.input_fn}\n'
+    s += f'height: {self.height}\n'
+    s += f'width: {self.width}\n'
+    s += f'nframes: {self.nframes}\n'
+    s += f'frame_rate: {self.frame_rate}\n'
+    s += f'output_fn: {self.output_fn}\n'
+    s += f'profile: {self.profile}\n'
+    s += f'level: {self.level}\n'
+    s += f'target_bitrate: {self.target_bitrate}\n'
+    s += f'pcm_mode = : {self.pcm_mode}\n'
+    s += f'disable_4x4 = : {self.disable_4x4}\n'
+    s += f'disable_16x16 = : {self.disable_16x16}\n'
+    s += f'disable_motion_estimation = : {self.disable_motion_estimation}\n'
+    s += f'qp_init: {self.qp_init}\n'
+    return s
+
+@dataclass(init=False)
+class Frame[E]:
+
+  frame: Block[E,Tup2]
+  pps_id: int
+
+  def __init__(self, frame, pps_id):
+    self.frame = frame
+    self.pps_id = pps_id
+    
+
+@dataclass(init=False)
+class Video:
+  
+  encoder_cfg: EncoderCfg
+  sps: SPS
+  ppses: dict[int,PPS]
+  # the current frames being processed
+  input_frame: Frame[byte]
+  recons_frame: Frame[int]
+  # other parameters
+  separate_colour_plane_flag: bool
+
+  def __init__(self, encoder_cfg, sps):
+    self.encoder_cfg = encoder_cfg
+    self.sps = sps
+    self.ppses = {}
+    self.separate_colour_plane_flag = False
+
+  def add_pps(self, pps):
+    self.ppses[pps.pps_id] = pps
     

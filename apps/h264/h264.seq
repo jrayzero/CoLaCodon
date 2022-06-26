@@ -1,74 +1,52 @@
-from yuv import *
+import sys
 from cfg import *
+from yuv import *
 from syntax import *
 from collections import *
 from constants import *
 from I import *
 
-def init_encoder():
-  state = EncoderState()
-  state.profile_idc = profile_idc
-  state.level_idc = level_idc
-  state.pic_H = height
-  state.pic_W = width
-  state.frame_rate = frame_rate
-  state.use_me = use_me
-  return state
-
-def init_SPS(state: EncoderState):
+def init_SPS(cfg):
   sps = SPS()
-  state.active_sps[sps.sps_id] = sps
-  if state.profile_idc == 66:
+  sps.profile_idc = cfg.profile
+  sps.level_idc = cfg.level
+  if cfg.profile == 66:
     sps.constraint_set1_flag = True
-  if state.use_me:
+  if not cfg.disable_motion_estimation:
     assert False
   else:
     # force decoding order and display order to be the same
     sps.pic_order_cnt_type = 2
   return sps
 
-def init_PPS(state: EncoderState):
+def init_PPS(cfg):
   pps = PPS()  
-  pps.pic_init_qp_minus26 = state.qp - 26
-  state.active_pps[pps.pps_id] = pps
+  pps.pic_init_qp_minus26 = cfg.qp_init - 26
   return pps
 
-def verify_cfg():
-  assert height % 8 == 0 and width % 8 == 0
-  assert level_idc == 20
-  nmbs_wide = width // 16
-  if width % 16 != 0:
-    nmbs_wide += 1
-  nmbs_height = height // 16
-  if height % 16 != 0:
-    nmbs_height += 1
-  total_mbs = nmbs_wide * nmbs_height
-  if level_idc == 20:
-    # max MB/s
-    assert total_mbs * frame_rate <= 11880
-    # max frame size
-    assert total_mbs <= 396      
-
 def main():
-  verify_cfg()
-  yuv420 = YUV420Reader(input_fn, height, width, nframes)
-  bitstream = AnnexBBitstream(output_fn)
-  state = init_encoder()
-  sps = init_SPS(state)
-  pps = init_PPS(state)
-  bitstream.generate_sps(sps, state)
-  bitstream.generate_pps(pps, state)
+  if len(sys.argv) < 2:
+    print 'Usage: h264.seq <cfg>'
+  cfg = parse_config(sys.argv[1])
+  video = Video(cfg, init_SPS(cfg))  
+  yuv420 = YUV420Reader(cfg)
+  bitstream = AnnexBBitstream(cfg.output_fn)
+  bitstream.generate_sps(video.sps, video)
+  pps = init_PPS(cfg)
+  video.add_pps(pps)
+  bitstream.generate_pps(pps, video)
   frame_idx = 0
   # go through frames
   for Y,Cb,Cr in yuv420:
-    if no_compress:
-      PCM_only(frame_idx == 0, Y, Cb, Cr, state, bitstream)
+    if cfg.pcm_mode:
+      PCM_only(frame_idx == 0, Y, Cb, Cr, video, bitstream)
     else:
-      if state.use_me:
-        assert False
-      else:
-        # intra-prediction only, so use all I frames
-        intra_only(frame_idx == 0, Y, Cb, Cr, state, bitstream)
+      pass
+#      if state.use_me:
+#        assert False
+#      else:
+#        # intra-prediction only, so use all I frames
+#        intra_only(frame_idx == 0, Y, Cb, Cr, state, bitstream)
     frame_idx += 1
   yuv420.cleanup()
   bitstream.cleanup()

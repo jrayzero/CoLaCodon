@@ -1,0 +1,121 @@
+from cola.blocks import *
+from collections import *
+from funcs import *
+from transform import *
+
+def residual4x4(A,B,out):
+  for y in range(4):
+    for x in range(4):
+      out[y,x] = int(A(y,x))-int(B(y,x))
+
+def chroma_4x4_DC_1(pred, ref):
+  offsets = tup_sub(pred.get_starts(), ref.get_starts())
+  yoff,xoff = offsets[-2],offsets[-1]
+  p = ref[pred]
+  s = 4
+  for v in p[:,-1-xoff]:
+    s += v
+  for v in p[-1-yoff,:]:
+    s += v
+  s >>= 3
+  for p in pred.viter():
+    p[0,0] = s
+
+def chroma_4x4_DC_2(pred, ref):
+  offsets = tup_sub(pred.get_starts(), ref.get_starts())
+  yoff,xoff = offsets[-2],offsets[-1]
+  p = ref[pred]
+  s = 2
+  for v in p[:,-1-xoff]:
+    s += v
+  s >>= 2
+  for p in pred.viter():
+    p[0,0] = s
+
+def chroma_4x4_DC_3(pred, ref):
+  offsets = tup_sub(pred.get_starts(), ref.get_starts())
+  yoff,xoff = offsets[-2],offsets[-1]
+  p = ref[pred]
+  s = 2
+  for v in p[-1-yoff,:]:
+    s += v
+  s >>= 2
+  for p in pred.viter():
+    p[0,0] = s
+
+def chroma_4x4_DC_4(pred, bit_depth):
+  s = (1<<(bit_depth-1))
+  for p in pred.viter():
+    p[0,0] = s
+
+def intra_4x4_vertical(pred, ref):
+  p = ref[pred]
+  for y in range(4):
+    for x in range(4):
+      pred[y,x] = p(-1,x)
+
+def intra_4x4_horizontal(pred, ref):
+  p = ref[pred]
+  for y in range(4):
+    for x in range(4):
+      pred[y,x] = p(y,-1)
+
+def intra_4x4_DC_1(pred, ref):
+  p = ref[pred]
+  s = 4
+  for v in p[-1,:]:
+    s += v
+  for v in p[:,-1]:
+    s += v
+  s >>= 3
+  for pout in pred.viter():
+    pout[0,0] = s
+
+def intra_4x4_DC_2(pred, ref):
+  p = ref[pred]
+  s = 2
+  for v in p[:,-1]:
+    s += v
+  s >>= 2
+  for pout in pred.viter():
+    pout[0,0] = s
+
+def intra_4x4_DC_3(pred, ref):
+  p = ref[pred]
+  s = 2
+  for v in p[-1,:]:
+    s += v
+  s >>= 2
+  for pout in pred.viter():
+    p[0,0] = s
+
+def intra_4x4_DC_4(pred, bit_depth):
+  s = (1<<(bit_depth-1))
+  for pout in pred.viter():
+    pout[0,0] = s
+
+def intra_predict4x4(mb: Macroblock):
+  Ymb = mb.mbs[0]
+  for smb8x8 in Ymb.grid((8,8)):
+    for smb4x4 in smb8x8.grid((4,4)):
+      Ypred = Block[int,Tup2](smb4x4)
+      # DC only currently
+      if smb4x4[-1,-1].exists():
+        intra_4x4_DC_1(Ypred, mb.recons_frames[0])
+      elif smb4x4[0,-1].exists():
+        intra_4x4_DC_2(Ypred, mb.recons_frames[0])
+      elif smb4x4[-1,0].exists():
+        intra_4x4_DC_3(Ypred, mb.recons_frames[0]) 
+      else:
+        intra_4x4_DC_4(Ypred, 8)
+      cost = sad(Ypred, mb.inp_frames[0][Ypred])
+      print f'Cost: {cost}'
+      print Ypred.str_like(int)
+      residual4x4(Ypred, mb.mbs[0], Ypred)
+      print Ypred.str_like(int)
+      dct4x4(Ypred,Ypred)
+      print Ypred.str_like(int)
+      exit(1)    
+  exit(1)
+
+# LEFT OFF: do the rest of the prediction pipeline

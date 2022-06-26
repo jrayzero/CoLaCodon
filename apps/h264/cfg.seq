@@ -1,17 +1,74 @@
-import sys
+from collections import *
 
-# Do an input config file instead and have a Config struct to read everything into
-input_fn = sys.argv[1]
-output_fn = input_fn + '.264'
-height = 288
-width = 352
-nframes = 100
-profile_idc = 66 # baseline
-constrained_baseline = True
-level_idc = 20
-frame_rate = 30
-use_me = False
-# defines the initial values for qp
-qp = 26
-# if True, encode everything as PCM frames, so no actual compression happens.
-no_compress = True
+def parse_str(param,value):    
+  if len(value) == 0:
+    print f'Empty string found for {param}'
+    exit(-1)
+  return value
+
+def parse_bool(param,value):
+  value = value.lower()
+  if value != 'true' and value != 'false':
+    print f'Expected boolean, got {value} for {param}' 
+    exit(-1)
+  return value == 'true'
+
+def parse_int(param,value):
+  try:
+    return int(value)
+  except:
+    print f'Expected int, got {value} for {param}'
+    exit(-1)
+  
+
+def parse_param(param, value, cfg):
+  param = param.lower()
+  if param == 'input_fn':
+    cfg.input_fn = parse_str(param,value)
+  elif param == 'height':
+    cfg.height = parse_int(param,value)
+  elif param == 'width':
+    cfg.width = parse_int(param,value)
+  elif param == 'nframes':
+    cfg.nframes = parse_int(param,value)
+  elif param == 'frame_rate':
+    cfg.frame_rate = parse_int(param,value)
+  elif param == 'output_fn':
+    cfg.output_fn = parse_str(param,value)
+  elif param == 'profile':
+    cfg.profile = parse_int(param,value)    
+  elif param == 'level':
+    cfg.level = parse_int(param,value)
+  elif param == 'target_bitrate':
+    cfg.target_bitrate = parse_int(param,value)
+  elif param == 'pcm_mode':
+    cfg.pcm_mode = parse_bool(param,value)
+  elif param == 'disable_4x4':
+    cfg.disable_4x4 = parse_bool(param,value)
+  elif param == 'disable_16x16':
+    cfg.disable_16x16 = parse_bool(param,value)
+  elif param == 'disable_motion_estimation':
+    cfg.disable_motion_estimation = parse_bool(param,value)
+  elif param == 'qp_init':
+    cfg.qp_init = parse_int(param,value)
+  else:
+    print f'Unknown cfg param: {param}'
+  
+def parse_config(cfg_fn: str):
+  fd = open(cfg_fn, 'r')
+  cfg = EncoderCfg()
+  for line in fd:
+    line = line.strip()
+    if len(line) == 0 or line[0] == '#':
+      continue
+    spl = line.split()
+    if len(spl) != 3:
+      print 'Configuration parameter should have form: <param> = <value>'
+      exit(-1)
+    if spl[1].strip() != '=':
+      print 'Configuration parameter should have form: <param> = <value>'
+      exit(-1)      
+    param,value = spl[0].strip(),spl[2].strip()
+    parse_param(param,value,cfg)
+  fd.close()
+  return cfg
