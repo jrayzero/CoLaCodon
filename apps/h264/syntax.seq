@@ -127,7 +127,7 @@ class AnnexBBitstream:
     self.nal_payload.pack(int(pps.redundant_pic_cnt_present_flag), 1)
     self.finalize_nal_unit()
 
-  def generate_slice_header(self, hslice: HSlice, video: Video):
+  def generate_slice_header(self, hslice: PicSlice, video: Video):
     self.nal_payload.reset()
     self.generate_nal_header(hslice.nal_ref_idc, hslice.nal_unit_type)
     self.nal_payload.ue(hslice.first_mb_in_slice)
@@ -173,14 +173,14 @@ class AnnexBBitstream:
     if pps.num_slice_groups_minus1 > 0:
       assert False
 
-  def generate_ref_pic_list_modification(self, hslice: HSlice):
+  def generate_ref_pic_list_modification(self, hslice: PicSlice):
     ref = hslice.ref_pic_list_modification
     if hslice.slice_type % 5 != 2 and hslice.slice_type % 5 != 4:
       assert False
     if hslice.slice_type % 5 == 1:
       assert False
 
-  def generate_dec_ref_pic_marking(self, hslice: HSlice):
+  def generate_dec_ref_pic_marking(self, hslice: PicSlice):
     if hslice.is_idr_pic:
       self.nal_payload.pack(int(hslice.no_output_of_prior_pics_flag), 1)
       self.nal_payload.pack(int(hslice.long_term_reference_flag), 1)
@@ -191,37 +191,34 @@ class AnnexBBitstream:
   # Make sure you already ran generate_slice_header
   # Must manually call finalize_nal_unit since you probably call this
   # once per macroblock
-  def generate_PCM_macroblock_layer(self, hslice: HSlice, mblk: Macroblock, 
+  def generate_PCM_macroblock_layer(self, hslice: PicSlice, mblk: Macroblock, 
                                     video: Video):
     self.nal_payload.ue(mblk.mb_type)
     # pcm_alignment_zero_bit
     self.nal_payload.align(0)
     # write the uncompressed values directly
-    Ymb,Cbmb,Crmb = (mblk.mbs[0],
-                     mblk.mbs[1],
-                     mblk.mbs[2])
     if video.sps.profile_idc == 66 or video.sps.profile_idc == 77:
       # TODO maybe quicker to pull out the check for 0 into its own loop and 
       # save to intermediate buffer? can vectorize that
       # pcm_sample_luma
-      for y in Ymb:
+      for y in mblk.Y_mb:
         yi = int(y) if int(y) != 0 else 1
         self.nal_payload.pack(yi, 8)
       # pcm_sample_chroma
-      for cb in Cbmb:
+      for cb in mblk.Cb_mb:
         cbi = int(cb) if int(cb) != 0 else 1
         self.nal_payload.pack(cbi, 8)
-      for cr in Crmb:
+      for cr in mblk.Cr_mb:
         cri = int(cr) if int(cr) != 0 else 1
         self.nal_payload.pack(cri, 8)
     else:
       # pcm_sample_luma
-      for y in Ymb:
+      for y in mblk.Y_mb:
         self.nal_payload.pack(int(y), 8)
       # pcm_sample_chroma
-      for cb in Cbmb:
+      for cb in mblk.Cb_mb:
         self.nal_payload.pack(int(cb), 8)
-      for cr in Crmb:
+      for cr in mblk.Cr_mb:
         self.nal_payload.pack(int(cr), 8)
 
   def finalize_nal_unit(self):

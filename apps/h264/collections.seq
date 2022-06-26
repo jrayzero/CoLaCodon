@@ -91,7 +91,7 @@ class RefPicListModification:
     pass
 
 @dataclass(init=False)
-class HSlice:
+class PicSlice:
   ref_pic_list_modification: RefPicListModification
   is_idr_pic: bool
   nal_ref_idc: int
@@ -107,7 +107,7 @@ class HSlice:
   long_term_reference_flag: bool
 
   def ISlice(is_idr_pic, is_pcm_slice):
-    hslice = HSlice()
+    hslice = PicSlice()
     hslice.is_idr_pic = is_idr_pic
     hslice.slice_type = I_SLICE_TYPE2
     if is_idr_pic:
@@ -137,11 +137,9 @@ class HSlice:
 class Macroblock:
 
   mb_type: int
-  # Y,Cb,Cr
-  mbs: list[View[byte,Tup2]]
-  inp_frames: list[Block[byte,Tup2]]
-  out_frames: list[Block[int,Tup2]]
-  recons_frames: list[Block[int,Tup2]]
+  Y_mb: View[byte,Tup2]
+  Cb_mb: View[byte,Tup2]
+  Cr_mb: View[byte,Tup2]
 
   def __init__(self):
     self.mb_type = 0
@@ -206,11 +204,15 @@ class EncoderCfg:
 @dataclass(init=False)
 class Frame[E]:
 
-  frame: Block[E,Tup2]
+  Y: Block[E,Tup2]
+  Cb: Block[E,Tup2]
+  Cr: Block[E,Tup2]
   pps_id: int
 
-  def __init__(self, frame, pps_id):
-    self.frame = frame
+  def __init__(self, Y, Cb, Cr, pps_id):
+    self.Y = Y
+    self.Cb = Cb
+    self.Cr = Cr
     self.pps_id = pps_id
     
 

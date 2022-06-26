@@ -38,15 +38,14 @@ def main():
   frame_idx = 0
   # go through frames
   for Y,Cb,Cr in yuv420:
+    frame = Frame[byte](Y,Cb,Cr, pps.pps_id)    
+    video.input_frame = frame
     if cfg.pcm_mode:
-      PCM_only(frame_idx == 0, Y, Cb, Cr, video, bitstream)
+      PCM_only(frame_idx == 0, video, bitstream)
     else:
-      pass
-#      if state.use_me:
-#        assert False
-#      else:
-#        # intra-prediction only, so use all I frames
-#        intra_only(frame_idx == 0, Y, Cb, Cr, state, bitstream)
+      assert False
+      # intra-prediction only, so use all I frames
+#      intra_only(frame_idx == 0, Y, Cb, Cr, video, bitstream)
     frame_idx += 1
   yuv420.cleanup()
   bitstream.cleanup()

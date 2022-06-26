@@ -64,3 +64,6 @@
 #
 # Again, very confused where all of the scaling factors that go into this come from. But
 # I trust the smart compression people, so I'm going with it
+
+#def basic_quantization(coeffs,qcoeffs):
+    
