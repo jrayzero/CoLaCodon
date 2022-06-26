@@ -1,3 +1,6 @@
+from collections import *
+from funcs import *
+
 # ok, every document/paper/website absolutely sucks at describing quantization, and I still don't fully
 # understand it. I don't care about the theory, but I just wanted to understand practically what
 # the computation is. 
@@ -5,7 +8,7 @@
 # Quantization in H264 isn;t just a simple division, because it has to include some scaling that
 # was removed from the DCT inorder to make the DCT integer based.
 # So, the actual quantization function is
-# z_ij = (coeff_ij * m(QP%6,i,j) >> (15 + floor(QP/6))
+# z_ij = (coeff_ij * m(QP%6,i,j)) >> (15 + floor(QP/6)
 # 
 # Here's where those values come from:
 # z_ij is the quantized value
@@ -24,7 +27,8 @@
 # slice_qp_delta. Same with a macroblock, which is mb_qp_delta. So, when we actually get to quantization,
 # for a LUMA component, qp_y is calculated with a nasty computation. Here it is broken down
 # qp_slice = pic_qp_init_minus26 + 26 + slice_qp_delta
-# QPY = ((qp_prev + mb_qp_delta + 52 * 2 * QpBdOffsetY) % (52 + QpBdOffsetY)) - QpBdOffsetY
+# QPY = ((qp_prev + mb_qp_delta + 52 + 2 * QpBdOffsetY) % (52 + QpBdOffsetY)) - QpBdOffsetY
+# qp_prev is the qp for the prior macroblock (in decoding order) (initially set to qp_slice)
 # QpBdOffsetY is derived from the parameter bit_depth_luma_minus8, and 
 # QpBdOffsetY = 6 * bit_depth_luma_minus8. bit_depth_luma_minus8 is usually 0, so yeah.
 # A good value for pic_qp_init_minus26 is 0. So assuming slice_qp_delta is 0 and QpBdOffsetY is 0, 
@@ -40,7 +44,7 @@
 # 
 # For Cr, it's the same, except use second_chroma_qp_index_offset.
 # QpBdOffsetC is 6*bit_depth_chroma_minus8, so is likely also 0.
-# 
+# In reality, it'll probs just be the same as for luma.
 # Anyway, now you have the QP values to acutally use in the stupid quantization thing.
 #
 # m:
@@ -65,5 +69,55 @@
 # Again, very confused where all of the scaling factors that go into this come from. But
 # I trust the smart compression people, so I'm going with it
 
-#def basic_quantization(coeffs,qcoeffs):
+def basic_quantization(coeffs, qcoeffs, qp, quant: Quant):
+  bits = 15 + qp // 6
+  for i in range(4):
+    i2 = i % 2
+    for j in range(4):
+      j2 = j % 2
+      n = 0 if (i2 == 0 and j2 == 0) else (1 if (i2 == 1 and j2 == 1) else 2)
+      coeff = coeffs(i,j)
+      qcoeffs[i,j] = (coeff * quant.m_table(qp % 6, n)) >> bits
     
+# for decoding, run this before idct on 4x4 blocks
+def pre_idct_scale(qcoeffs, coeffs, qp, quant: Quant):
+  # weight scale defaults to 16 (see page 75 of standard)
+  weight_scale = 16
+  if qp >= 24:    
+    bits = (qp//6 - 4)
+    for i in range(4):
+      i2 = i % 2
+      for j in range(4):
+        j2 = j % 2
+        n = 0 if (i2 == 0 and j2 == 0) else (1 if (i2 == 1 and j2 == 1) else 2)
+        term = qcoeffs(i,j) * weight_scale * quant.v_table(qp % 6, n)
+        term <<= bits
+        coeffs[i,j] = clip3(-2**15, 2**15-1, term)
+  else:
+    bits = 4 - qp//6
+    for i in range(4):
+      i2 = i % 2
+      for j in range(4):
+        j2 = j % 2
+        n = 0 if (i2 == 0 and j2 == 0) else (1 if (i2 == 1 and j2 == 1) else 2)
+        term = qcoeffs(i,j) * weight_scale * quant.v_table(qp % 6, n) + 2 ** (3 - qp//6)
+        term >>= bits
+        coeffs[i,j] = clip3(-2**15, 2**15-1, term)
+
+# after the ihadamard, but before the idct. just on the dcs
+def post_hadamard_chroma_DC_scale(qcoeffs, coeffs, qp, quant: Quant):
+  # weight scale defaults to 16 (see page 75 of standard)
+  weight_scale = 16
+  for i in range(2):
+    for j in range(2):
+      term = qcoeffs(i,j) * weight_scale * quant.v_table(qp % 6, 0)
+      term <<= (qp // 6)
+      term >>= 5
+      coeffs[i,j] = clip3(-2**15, 2**15-1, term)  
+
+# for decoding, run this after idct on 4x4 blocks
+def post_idct_scale(coeffs, out_coeffs):
+  for i in range(4):
+    for j in range(4):
+      out_coeffs[i,j] = clip3(-2**15, 2**15-33, (coeffs(i,j)+32) >> 6)
+      

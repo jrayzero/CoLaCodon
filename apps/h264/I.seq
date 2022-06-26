@@ -5,11 +5,11 @@ from intra import *
 def PCM_only(is_idr, video: Video, bitstream: AnnexBBitstream):
   islice = PicSlice.ISlice(is_idr, not is_idr)
   bitstream.generate_slice_header(islice, video)
+  frame = video.input_frame
+  Y,Cb,Cr = frame.Y, frame.Cb, frame.Cr
   # go through macroblocks
   r2 = 0 # for Cb/Cr
   c2 = 0 # for Cb/Cr
-  frame = video.input_frame
-  Y,Cb,Cr = frame.Y, frame.Cb, frame.Cr
   for r in range(0,video.encoder_cfg.height,16):
     for c in range(0,video.encoder_cfg.width,16):
       mblk = Macroblock()
@@ -23,34 +23,27 @@ def PCM_only(is_idr, video: Video, bitstream: AnnexBBitstream):
     c2 = 0
   bitstream.finalize_nal_unit()    
 
-def intra_only(is_idr, Y, Cb, Cr, video: Video, bitstream: AnnexBBitstream):
-  pass
-#  islice = PicSlice.ISlice(is_idr, False)
-#  # output frames that hold the macroblocks that need to be entropy coded
-#  Y_out = Block[int,Tup2](Y)
-#  Cb_out = Block[int,Tup2](Cb)
-#  Cr_out = Block[int,Tup2](Cr)
-#  # output frames that hold the reconstructed macroblocks
-#  Y_recons  = Block[int,Tup2](Y)
-#  Cb_recons = Block[int,Tup2](Cb)
-#  Cr_recons = Block[int,Tup2](Cr)
-#  bitstream.generate_slice_header(islice, video)  
-#  # go through macroblocks
-#  r2 = 0 # for Cb/Cr
-#  c2 = 0 # for Cb/Cr
-#  for r in range(0,video.encoder_cfg.height,16):
-#    for c in range(0,video.encoder_cfg.width,16):
-#      mblk = Macroblock()
-#      mblk.mb_type = I_4x4
-#      mblk.mbs = [Y[r:r+16,c:c+16],Cb[r2:r2+8,c2:c2+8],Cr[r2:r2+8,c2:c2+8]]
-#      mblk.inp_frames = [Y,Cb,Cr]
-#      mblk.out_frames = [Y_out, Cb_out, Cr_out]
-#      mblk.recons_frames = [Y_recons, Cb_recons, Cr_recons]
-#      intra_predict4x4(mblk)
-#      exit(-1) # left off here
-#      #bitstream.generate_slice_data(islice, mblk, video)
-#      c2 += 8
-#    r2 += 8
-#    c2 = 0
-#  bitstream.finalize_nal_unit()      
-#
+def intra_only(is_idr, pps_id, video: Video, bitstream: AnnexBBitstream):
+  frame = video.input_frame
+  Y,Cb,Cr = frame.Y, frame.Cb, frame.Cr
+  islice = PicSlice.ISlice(is_idr, False)
+  recons = Frame[int](Block[int,Tup2](Y), Block[int,Tup2](Cb), Block[int,Tup2](Cr), pps_id)
+  video.recons_frame = recons
+  bitstream.generate_slice_header(islice, video)  
+  # go through macroblocks
+  r2 = 0 # for Cb/Cr
+  c2 = 0 # for Cb/Cr
+  for r in range(0,video.encoder_cfg.height,16):
+    for c in range(0,video.encoder_cfg.width,16):
+      mblk = Macroblock()
+      mblk.mb_type = I_4x4
+      mblk.Y_mb = Y[r:r+16,c:c+16]
+      mblk.Cb_mb = Cb[r2:r2+8,c2:c2+8]
+      mblk.Cr_mb = Cr[r2:r2+8,c2:c2+8]
+      intra_predict4x4(mblk, video)
+      #bitstream.generate_slice_data(islice, mblk, video)
+      c2 += 8
+    r2 += 8
+    c2 = 0
+  bitstream.finalize_nal_unit()      
+

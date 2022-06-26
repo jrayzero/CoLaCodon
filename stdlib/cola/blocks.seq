@@ -131,9 +131,7 @@ class View[E,T]:
 
   @cola
   def __getitem__(self, idxs) -> View[E,T]:
-    if isinstance(idxs, View):
-      return idxs
-    elif isinstance(idxs, Block):
+    if isinstance(idxs, View) or isinstance(idxs, Block):
       return View(idxs.starts, idxs.strides, idxs.dims, self.get_block())
     elif isinstance(idxs, int) or isinstance(idxs, slice):
       if staticlen(self.dims()) != 1:
@@ -282,9 +280,24 @@ class View[E,T]:
 class Block:
 
   @cola
+  def __init__(self, dims: T):
+    self.__init__(tuple_fill(0, staticlen(dims)), tuple_fill(1, staticlen(dims)), dims, tuple_fill(1, staticlen(dims)))
+
+  @cola
+  def __init__(self, obj):
+    if isinstance(obj, Block):
+      self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(),
+                    obj.get_atoms())
+    elif isinstance(obj, View):
+      self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(),
+                    obj.get_block().get_atoms())      
+    else:
+      compile_error('Invalid type to Block.init')    
+
+  @cola
   def __init__(self, starts: T, strides: T, dims: T, atoms: T):
     if not isinstance(T, tuple):
-      compile_error('T must be a tuple')      
+      compile_error('T must be a tuple')
     self.starts = starts
     self.strides = strides
     self.dims = dims
@@ -294,15 +307,6 @@ class Block:
       nunits *= d
     self.nunits = nunits
     self.data = Ptr[E](nunits)
-
-  @cola
-  def __init__(self, obj):
-    if isinstance(obj, Block):
-      self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(),
-                    obj.get_atoms())
-    else:
-      self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(),
-                    obj.get_block().get_atoms())      
   
   @cola
   def get_starts(self):
