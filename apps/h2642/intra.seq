@@ -1,0 +1,245 @@
+from cola.blocks import *
+from video import *
+from funcs import *
+from transform import *
+from quant import *
+
+def residual4x4(A,B,out):
+  for y in range(4):
+    for x in range(4):
+      out[y,x] = int(A(y,x))-int(B(y,x))
+
+def intra_chroma_4x4_DC_1(pred, ref):
+  offsets = tup_sub(pred.get_starts(), ref.get_starts())
+  yoff,xoff = offsets[-2],offsets[-1]
+  p = ref
+  s = 4
+  for v in p[:,-1-xoff]:
+    s += v
+  for v in p[-1-yoff,:]:
+    s += v
+  s >>= 3
+  for y in range(4):
+    for x in range(4):
+      pred[y,x] = s  
+
+def intra_chroma_4x4_DC_2(pred, ref):
+  offsets = tup_sub(pred.get_starts(), ref.get_starts())
+  yoff,xoff = offsets[-2],offsets[-1]
+  p = ref
+  s = 2
+  for v in p[:,-1-xoff]:
+    s += v
+  s >>= 2
+  for y in range(4):
+    for x in range(4):
+      pred[y,x] = s
+
+def intra_chroma_4x4_DC_3(pred, ref):
+  offsets = tup_sub(pred.get_starts(), ref.get_starts())
+  yoff,xoff = offsets[-2],offsets[-1]
+  p = ref
+  s = 2
+  for v in p[-1-yoff,:]:
+    s += v
+  s >>= 2
+  for y in range(4):
+    for x in range(4):
+      pred[y,x] = s
+
+def intra_chroma_4x4_DC_4(pred, bit_depth):
+  s = (1<<(bit_depth-1))
+  for y in range(4):
+    for x in range(4):
+      pred[y,x] = s
+
+def intra_4x4_vertical(pred, ref):
+  p = ref[pred]
+  for y in range(4):
+    for x in range(4):
+      pred[y,x] = p(-1,x)
+
+def intra_4x4_horizontal(pred, ref):
+  p = ref[pred]
+  for y in range(4):
+    for x in range(4):
+      pred[y,x] = p(y,-1)
+
+def intra_4x4_DC_1(pred, ref):
+  p = ref
+  s = 4
+  for v in p[-1,:]:
+    s += v
+  for v in p[:,-1]:
+    s += v
+  s >>= 3
+  for y in range(4):
+    for x in range(4):
+      pred[y,x] = s
+
+def intra_4x4_DC_2(pred, ref):
+  p = ref
+  s = 2
+  for v in p[:,-1]:
+    s += v
+  s >>= 2
+  for y in range(4):
+    for x in range(4):
+      pred[y,x] = s
+
+def intra_4x4_DC_3(pred, ref):
+  p = ref
+  s = 2
+  for v in p[-1,:]:
+    s += v
+  s >>= 2
+  for y in range(4):
+    for x in range(4):
+      pred[y,x] = s
+
+def intra_4x4_DC_4(pred, bit_depth):
+  s = (1<<(bit_depth-1))
+  for y in range(4):
+    for x in range(4):
+      pred[y,x] = s
+
+# TODO TODO If either A or B is 16x16, you HAVE to use the DC mode
+def luma_intra_predict_4x4(mblk: MacroblockLayer, encoder_frame: EncoderFrame, video: Video, quant_tables):
+  Y_raw_mblk_16x16 = mblk.Y_raw_mblk_16x16
+  Y_recons_frame = encoder_frame.Y_recons_frame
+  qp = video.cfg.qp_init
+  mblk.Y_pre_code_mblk_16x16 = Block[int,Tup2](Y_raw_mblk_16x16)
+  print 'Raw luma 16x16'
+  print Y_raw_mblk_16x16.str_like(int)
+  for Y_smblk_8x8 in Y_raw_mblk_16x16.grid((8,8)):
+    for Y_smblk_4x4 in Y_smblk_8x8.grid((4,4)):
+      Y_pred_smblk_4x4 = Block[int,Tup2](Y_smblk_4x4)
+      if Y_smblk_4x4[-1,-1].exists():
+        intra_4x4_DC_1(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4])
+      elif Y_smblk_4x4[0,-1].exists():
+        intra_4x4_DC_2(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4])
+      elif Y_smblk_4x4[-1,0].exists():
+        intra_4x4_DC_3(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4]) 
+      else:
+        intra_4x4_DC_4(Y_pred_smblk_4x4, 8)
+      cost = sad(Y_pred_smblk_4x4, Y_smblk_4x4)      
+      # forward
+      Y_pre_code_smblk_4x4 = mblk.Y_pre_code_mblk_16x16[Y_pred_smblk_4x4]
+      Y_recons_4x4 = Y_recons_frame[Y_pred_smblk_4x4]
+      residual4x4(Y_smblk_4x4, Y_pred_smblk_4x4, Y_pre_code_smblk_4x4)
+      dct4x4(Y_pre_code_smblk_4x4, Y_pre_code_smblk_4x4)
+      basic_quantization(Y_pre_code_smblk_4x4, Y_pre_code_smblk_4x4, qp, quant_tables)
+      nzeros = 0
+      for coeff in Y_pre_code_smblk_4x4:
+        if coeff != 0:
+          nzeros += 1
+      # reconstruct
+      pre_idct_scale(Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables)
+      idct4x4(Y_recons_4x4, Y_recons_4x4)
+      post_idct_scale(Y_recons_4x4, Y_recons_4x4)
+      for i in range(4):
+        for j in range(4):
+          Y_recons_4x4[i,j] = Y_recons_4x4(i,j) + Y_pred_smblk_4x4(i,j)
+      # record how this block was predicted
+      # TODO this assumes just this 4x4 mode
+      Y_pred_modes_smblk_4x4 = encoder_frame.Y_pred_modes_frame[Y_pred_smblk_4x4]
+      Y_nz_smblk_4x4 = encoder_frame.Y_nz_coeffs_frame[Y_pred_smblk_4x4]
+      for i in range(4):
+        for j in range(4):
+          Y_pred_modes_smblk_4x4[i,j] = intra_luma_4x4_DC
+          Y_nz_smblk_4x4[i,j] = nzeros
+  print 'Reconstructed luma 16x16'
+  print Y_recons_frame[Y_raw_mblk_16x16].str_like(int)
+  print 'Pre coded luma 16x16'
+  print mblk.Y_pre_code_mblk_16x16.str_like(int)
+
+def chroma_part1(C_raw_smblk_4x4, C_pred_smblk_4x4, C_recons_smblk_4x4):
+  residual4x4(C_raw_smblk_4x4, C_pred_smblk_4x4, C_recons_smblk_4x4)
+  dct4x4(C_recons_smblk_4x4, C_recons_smblk_4x4)
+
+def chroma_part2(C_recons_mblk_8x8, C_pred_mblk_8x8, C_pre_code_smblk_8x8, C_nz_coeffs_8x8, qp, video, quant_tables):
+  # more forward
+  dcs_2x2 = C_recons_mblk_8x8[::4,::4]
+  hadamard2x2(dcs_2x2, dcs_2x2)
+  for C_recons_smblk_4x4 in C_recons_mblk_8x8.grid((4,4)):
+    basic_quantization(C_recons_smblk_4x4, C_recons_smblk_4x4, qp, quant_tables)
+    # commit this prediction and copy over to entropy block
+    C_nz_smblk_4x4 = C_nz_coeffs_8x8[C_recons_smblk_4x4]
+    nzeros = 0
+    for i in range(4):
+      for j in range(4):
+        coeff = C_recons_smblk_4x4(i,j)
+        if coeff != 0:
+          nzeros += 1
+    for i in range(4):
+      for j in range(4):          
+        C_pre_code_smblk_8x8[C_recons_smblk_4x4][i,j] = C_recons_smblk_4x4(i,j)        
+        C_nz_smblk_4x4[i,j] = nzeros
+  # C_reconstruct
+  ihadamard2x2(dcs_2x2, dcs_2x2)
+  post_hadamard_chroma_DC_scale(dcs_2x2, dcs_2x2, qp, quant_tables)
+  for C_recons_smblk_4x4 in C_recons_mblk_8x8.grid((4,4)):
+    dc00 = C_recons_smblk_4x4(0,0)
+    pre_idct_scale(C_recons_smblk_4x4, C_recons_smblk_4x4, qp, quant_tables)
+    C_recons_smblk_4x4[0,0] = dc00 # not scaled, see 8.5.12.1 in spec
+    idct4x4(C_recons_smblk_4x4, C_recons_smblk_4x4)
+    post_idct_scale(C_recons_smblk_4x4, C_recons_smblk_4x4)
+    for i in range(4):
+      for j in range(4):
+        C_recons_smblk_4x4[i,j] = C_recons_smblk_4x4(i,j) + C_pred_mblk_8x8[C_recons_smblk_4x4](i,j)  
+
+# TODO all the 4x4 blocks get the same mode, so can't switch within the macroblock like you 
+# can with luma
+def chroma_intra_predict_4x4(mblk: MacroblockLayer, encoder_frame: EncoderFrame, video: Video, quant_tables):
+  Cb_raw_mblk_8x8 = mblk.Cb_raw_mblk_8x8
+  Cr_raw_mblk_8x8 = mblk.Cr_raw_mblk_8x8
+  Cb_recons_frame = encoder_frame.Cb_recons_frame
+  Cr_recons_frame = encoder_frame.Cr_recons_frame
+  qp = video.cfg.qp_init
+  Cb_recons_mblk_8x8 = Cb_recons_frame[Cb_raw_mblk_8x8]
+  Cr_recons_mblk_8x8 = Cr_recons_frame[Cr_raw_mblk_8x8]
+  # we need to store all 4x4 sub predictions
+  Cb_pred_mblk_8x8 = Block[int,Tup2](Cb_raw_mblk_8x8)
+  Cr_pred_mblk_8x8 = Block[int,Tup2](Cr_raw_mblk_8x8)
+  mblk.Cb_pre_code_mblk_8x8 = Block[int,Tup2](Cb_raw_mblk_8x8)
+  mblk.Cr_pre_code_mblk_8x8 = Block[int,Tup2](Cr_raw_mblk_8x8)
+  y,x = Cb_raw_mblk_8x8.get_starts()
+  print 'Raw Cb 8x8'
+  print Cb_raw_mblk_8x8.str_like(int)
+  print 'Raw Cr 8x8'
+  print Cr_raw_mblk_8x8.str_like(int)
+  for Cb_raw_smblk_4x4,Cr_raw_smblk_4x4 in zip(Cb_raw_mblk_8x8.grid((4,4)), Cr_raw_mblk_8x8.grid((4,4))):
+    Cb_pred_smblk_4x4 = Cb_pred_mblk_8x8[Cb_raw_smblk_4x4]
+    Cr_pred_smblk_4x4 = Cr_pred_mblk_8x8[Cr_raw_smblk_4x4]
+    Cb_recons_smblk_4x4 = Cb_recons_mblk_8x8[Cb_raw_smblk_4x4]
+    Cr_recons_smblk_4x4 = Cr_recons_mblk_8x8[Cr_raw_smblk_4x4]
+    if y > 0 and x > 0:
+      intra_chroma_4x4_DC_1(Cb_pred_smblk_4x4, Cb_recons_smblk_4x4)
+      intra_chroma_4x4_DC_1(Cr_pred_smblk_4x4, Cr_recons_smblk_4x4)
+    elif x > 0:
+      intra_chroma_4x4_DC_2(Cb_pred_smblk_4x4, Cb_recons_smblk_4x4)
+      intra_chroma_4x4_DC_2(Cr_pred_smblk_4x4, Cr_recons_smblk_4x4)
+    elif y > 0:
+      intra_chroma_4x4_DC_3(Cb_pred_smblk_4x4, Cb_recons_smblk_4x4)
+      intra_chroma_4x4_DC_3(Cr_pred_smblk_4x4, Cr_recons_smblk_4x4)
+    else:
+      intra_chroma_4x4_DC_4(Cb_pred_smblk_4x4, 8)
+      intra_chroma_4x4_DC_4(Cr_pred_smblk_4x4, 8)      
+    chroma_part1(Cb_raw_smblk_4x4, Cb_pred_smblk_4x4, Cb_recons_smblk_4x4)
+    chroma_part1(Cr_raw_smblk_4x4, Cr_pred_smblk_4x4, Cr_recons_smblk_4x4)
+    # TODO this assumes just this 4x4 mode
+    C_pred_modes_smblk_4x4 = encoder_frame.C_pred_modes_frame[Cb_pred_smblk_4x4]
+    for i in range(4):
+      for j in range(4):
+        C_pred_modes_smblk_4x4[i,j] = intra_chroma_4x4_DC
+  chroma_part2(Cb_recons_mblk_8x8, Cb_pred_mblk_8x8, mblk.Cb_pre_code_mblk_8x8, encoder_frame.Cb_nz_coeffs_frame[Cb_raw_mblk_8x8], qp, video, quant_tables)
+  chroma_part2(Cr_recons_mblk_8x8, Cr_pred_mblk_8x8, mblk.Cr_pre_code_mblk_8x8, encoder_frame.Cr_nz_coeffs_frame[Cr_raw_mblk_8x8], qp, video, quant_tables)         
+  print 'Reconstructed Cb 8x8'
+  print Cb_recons_frame[Cb_raw_mblk_8x8].str_like(int)
+  print 'Pre coded Cb 8x8'
+  print mblk.Cb_pre_code_mblk_8x8.str_like(int)
+  print 'Reconstructed Cr 8x8'
+  print Cr_recons_frame[Cr_raw_mblk_8x8].str_like(int)
+  print 'Pre coded Cr 8x8'
+  print mblk.Cr_pre_code_mblk_8x8.str_like(int)
+

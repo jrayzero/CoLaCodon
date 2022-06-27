@@ -10,7 +10,7 @@ def tup_mul_reduce(tup):
   if staticlen(tup) == 1:
     return tup[0]
   else:
-    return tup[0] and tup_mul_reduce(tup[1:])
+    return tup[0] * tup_mul_reduce(tup[1:])
 
 def tup_and_reduce(tup):
   if staticlen(tup) == 1:

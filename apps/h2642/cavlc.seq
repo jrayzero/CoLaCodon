@@ -1,0 +1,273 @@
+from cola.blocks import *
+from constants import *
+from typedefs import *
+from video import *
+
+zigzag = [(0,0),(0,1),(1,0),(2,0),(1,1),(0,2),(0,3),(1,2),(2,1),(3,0),(3,1),(2,2),(1,3),(2,3),(3,2),(3,3)]
+
+
+tbl_9_5 = Block[Tup2,Tup3]((4,17,6), [(1, 1), (3, 2), (15, 4), (3, 6), (1, 2), (1, 1), (5, 6), (11, 6), (15, 6), (0, 6), (7, 6), (15, 7), (7, 8), (7, 6), (11, 6), (4, 6), (4, 6), (14, 7), (7, 9), (7, 7), (8, 6), (8, 6), (3, 6), (7, 9), (7, 10), (7, 8), (15, 7), (12, 6), (2, 6), (6, 9), (7, 11), (4, 8), (11, 7), (16, 6), (0, -1), (7, 10), (15, 13), (7, 9), (9, 7), (20, 6), (0, -1), (7, 11), (11, 13), (15, 11), (8, 7), (24, 6), (0, -1), (7, 12), (8, 13), (11, 11), (15, 8), (28, 6), (0, -1), (7, 13), (15, 14), (15, 12), (11, 8), (32, 6), (0, -1), (0, -1), (11, 14), (11, 12), (15, 9), (36, 6), (0, -1), (0, -1), (15, 15), (8, 12), (11, 9), (40, 6), (0, -1), (0, -1), (11, 15), (15, 13), (8, 9), (44, 6), (0, -1), (0, -1), (15, 16), (11, 13), (13, 10), (48, 6), (0, -1), (0, -1), (11, 16), (7, 13), (9, 10), (52, 6), (0, -1), (0, -1), (7, 16), (9, 14), (5, 10), (56, 6), (0, -1), (0, -1), (4, 16), (7, 14), (1, 10), (60, 6), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 2), (2, 2), (14, 4), (1, 6), (1, 1), (1, 2), (4, 6), (7, 5), (15, 5), (5, 6), (6, 6), (13, 7), (6, 8), (10, 6), (12, 5), (9, 6), (3, 7), (12, 7), (6, 9), (6, 6), (10, 5), (13, 6), (3, 8), (5, 9), (6, 10), (6, 7), (8, 5), (17, 6), (0, -1), (6, 10), (6, 11), (6, 8), (14, 6), (21, 6), (0, -1), (6, 11), (14, 13), (6, 9), (10, 6), (25, 6), (0, -1), (6, 12), (10, 13), (14, 11), (14, 7), (29, 6), (0, -1), (5, 12), (14, 14), (10, 11), (14, 8), (33, 6), (0, -1), (0, -1), (10, 14), (14, 12), (10, 8), (37, 6), (0, -1), (0, -1), (14, 15), (10, 12), (14, 9), (41, 6), (0, -1), (0, -1), (10, 15), (14, 13), (10, 9), (45, 6), (0, -1), (0, -1), (1, 15), (10, 13), (7, 9), (49, 6), (0, -1), (0, -1), (14, 16), (11, 14), (12, 10), (53, 6), (0, -1), (0, -1), (10, 16), (8, 14), (8, 10), (57, 6), (0, -1), (0, -1), (6, 16), (6, 14), (4, 10), (61, 6), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 3), (3, 3), (13, 4), (6, 6), (1, 3), (1, 3), (5, 7), (9, 6), (14, 5), (10, 6), (2, 7), (11, 7), (5, 8), (5, 6), (11, 5), (14, 6), (2, 8), (10, 7), (5, 9), (5, 7), (9, 5), (18, 6), (0, -1), (4, 9), (5, 10), (5, 8), (13, 6), (22, 6), (0, -1), (5, 10), (5, 11), (5, 9), (9, 6), (26, 6), (0, -1), (5, 11), (13, 13), (13, 11), (13, 7), (30, 6), (0, -1), (4, 12), (9, 13), (9, 11), (10, 7), (34, 6), (0, -1), (0, -1), (13, 14), (13, 12), (13, 8), (38, 6), (0, -1), (0, -1), (9, 14), (9, 12), (9, 8), (42, 6), (0, -1), (0, -1), (13, 15), (13, 13), (13, 9), (46, 6), (0, -1), (0, -1), (9, 15), (9, 13), (9, 9), (50, 6), (0, -1), (0, -1), (13, 16), (6, 13), (11, 10), (54, 6), (0, -1), (0, -1), (9, 16), (10, 14), (7, 10), (58, 6), (0, -1), (0, -1), (5, 16), (5, 14), (3, 10), (62, 6), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (3, 5), (5, 4), (12, 4), (11, 6), (5, 6), (1, 5), (3, 6), (4, 4), (11, 4), (15, 6), (0, 7), (1, 6), (4, 7), (6, 5), (10, 4), (19, 6), (0, -1), (9, 7), (4, 8), (8, 6), (9, 4), (23, 6), (0, -1), (8, 7), (4, 9), (4, 6), (8, 4), (27, 6), (0, -1), (4, 10), (4, 10), (4, 7), (13, 5), (31, 6), (0, -1), (4, 11), (4, 11), (4, 9), (12, 6), (35, 6), (0, -1), (0, -1), (12, 13), (12, 11), (12, 7), (39, 6), (0, -1), (0, -1), (12, 14), (8, 11), (12, 8), (43, 6), (0, -1), (0, -1), (8, 14), (12, 12), (8, 8), (47, 6), (0, -1), (0, -1), (12, 15), (12, 13), (12, 9), (51, 6), (0, -1), (0, -1), (8, 15), (8, 13), (10, 10), (55, 6), (0, -1), (0, -1), (12, 16), (1, 13), (6, 10), (59, 6), (0, -1), (0, -1), (8, 16), (4, 14), (2, 10), (63, 6), (0, -1), (0, -1)])
+
+tbl_9_7_and_9_8 = Block[Tup2,Tup2]((16,15), [(1, 1), (7, 3), (5, 4), (3, 5), (5, 4), (1, 6), (1, 6), (1, 6), (1, 6), (1, 5), (0, 4), (0, 4), (0, 3), (0, 2), (0, 1), (3, 3), (6, 3), (7, 3), (7, 3), (4, 4), (1, 5), (1, 5), (1, 4), (0, 6), (0, 5), (1, 4), (1, 4), (1, 3), (1, 2), (1, 1), (2, 3), (5, 3), (6, 3), (5, 4), (3, 4), (7, 3), (5, 3), (1, 5), (1, 4), (1, 3), (1, 3), (1, 2), (1, 1), (1, 1), (0, -1), (3, 4), (4, 3), (5, 3), (4, 4), (7, 3), (6, 3), (4, 3), (3, 3), (3, 2), (3, 2), (2, 3), (1, 1), (1, 2), (0, -1), (0, -1), (2, 4), (3, 3), (4, 4), (6, 3), (6, 3), (5, 3), (3, 3), (3, 2), (2, 2), (2, 2), (1, 1), (1, 3), (0, -1), (0, -1), (0, -1), (3, 5), (5, 4), (3, 4), (5, 3), (5, 3), (4, 3), (3, 2), (2, 2), (1, 3), (1, 2), (3, 3), (0, -1), (0, -1), (0, -1), (0, -1), (2, 5), (4, 4), (4, 3), (4, 3), (4, 3), (3, 3), (2, 3), (2, 3), (1, 2), (1, 4), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (3, 6), (3, 4), (3, 3), (3, 4), (3, 3), (2, 3), (1, 4), (1, 3), (1, 5), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (2, 6), (2, 4), (2, 4), (3, 3), (2, 4), (1, 4), (1, 3), (0, 6), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (3, 7), (3, 5), (3, 5), (2, 4), (1, 5), (1, 3), (0, 6), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (2, 7), (2, 5), (2, 5), (2, 5), (1, 4), (0, 6), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (3, 8), (3, 6), (1, 6), (1, 5), (0, 5), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (2, 8), (2, 6), (1, 5), (0, 5), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (3, 9), (1, 6), (0, 6), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (2, 9), (0, 6), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 9), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1)])
+
+tbl_9_9_a = Block[Tup2,Tup2]((4,3), [(1, 1), (1, 1), (1, 1), (1, 2), (1, 2), (0, 1), (1, 3), (0, 2), (0, -1), (0, 3), (0, -1), (0, -1)])
+
+tbl_9_9_b = Block[Tup2,Tup2]((8,7), [(1, 1), (0, 3), (0, 3), (6, 3), (0, 2), (0, 2), (0, 1), (2, 3), (1, 2), (1, 3), (0, 2), (1, 2), (1, 2), (1, 1), (3, 3), (1, 3), (1, 2), (1, 2), (2, 2), (1, 1), (0, -1), (2, 4), (4, 3), (2, 2), (2, 2), (3, 2), (0, -1), (0, -1), (3, 4), (5, 3), (6, 3), (7, 3), (0, -1), (0, -1), (0, -1), (1, 4), (6, 3), (7, 3), (0, -1), (0, -1), (0, -1), (0, -1), (1, 5), (7, 3), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, 5), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1)])
+
+tbl_9_10 = Block[Tup2,Tup2]((15,7), [(1, 1), (1, 1), (3, 2), (3, 2), (3, 2), (3, 2), (7, 3), (0, 1), (1, 2), (2, 2), (2, 2), (2, 2), (0, 3), (6, 3), (0, -1), (0, 2), (1, 2), (1, 2), (3, 3), (1, 3), (5, 3), (0, -1), (0, -1), (0, 2), (1, 3), (2, 3), (3, 3), (4, 3), (0, -1), (0, -1), (0, -1), (0, 3), (1, 3), (2, 3), (3, 3), (0, -1), (0, -1), (0, -1), (0, -1), (0, 3), (5, 3), (2, 3), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (4, 3), (1, 3), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 4), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 5), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 6), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 7), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 8), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 9), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 10), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 11)])
+# The coefficient token represents the total number of nonzeros, as well as the number of trailing ones
+#def encode_coeff_token(nC, stats, bits):
+#    nC_idx = 0
+#    if 2 <= nC < 4:
+#      nC_idx = 1
+#    elif 4 <= nC < 8:
+#      nC_idx = 2
+#    elif 8 <= nC:
+#      nC_idx = 3
+#    elif nC == -1:
+#      nC_idx = 4
+#    elif nC == -2:
+#      nC_idx = 5          
+#    val,nbits = tbl_9_5(stats.trailing_ones_idx, stats.total_coeffs, nC_idx)
+#    bits.pack(val, nbits)
+#
+## THIS PAPER IS A GODSEND https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6183127
+#def encode_levels(stats, bits):
+#  i = stats.trailing_ones_idx
+#  suffix_length = 0
+#  if stats.total_coeffs > 10 and stats.trailing_ones_idx < 3:
+#    suffix_length = 1
+#  for cidx in range(stats.nonzero_coeffs_idx-1,-1,-1):
+#    # read in reverse order
+#    coeff = stats.nonzero_coeffs[cidx]
+#    level_suffix = level_prefix = level_suffix_size = 0
+#    level_code = 2 * abs(coeff) - (1 if coeff < 0 else 2)
+#    if i == stats.trailing_ones_idx and stats.trailing_ones_idx < 3:
+#      level_code -= 2
+#    thresh = 7 if suffix_length == 0 else 15*(1 << (suffix_length-1))
+#    if abs(coeff) > thresh:
+#      if suffix_length == 0 and abs(coeff) < 16:
+#        level_prefix = 14
+#        level_suffix_size = 4
+#        level_suffix = level_code - level_prefix
+#      else:
+#        level_prefix = 15
+#        if suffix_length == 0:
+#          level_code -= 15
+#        level_suffix_size = 12
+#        level_suffix = level_code - (level_prefix << suffix_length)
+#    else:
+#      level_prefix = level_code >> suffix_length
+#      level_suffix_size = suffix_length
+#      level_suffix = level_code - (level_prefix << suffix_length)
+#    if suffix_length == 0:
+#      suffix_length = 1
+#    if suffix_length < 6 and (abs(coeff) > (3 << (suffix_length - 1))):
+#      suffix_length += 1
+#    # actually encode the stuff
+#    for _ in range(level_prefix):
+#      bits.pack(0,1)
+#    bits.pack(1,1)
+#    bits.pack(level_suffix, level_suffix_size)
+#    i += 1    
+#
+
+#def encode(coeffs, zigzag, blk_coeff_info, is_16x16, bits):
+#  stats = Stats4x4()
+#  gather_stats(coeffs, zigzag, is_16x16, stats)
+#  nC = compute_nC(coeffs, blk_coeff_info)
+#  encode_coeff_token(nC, stats, bits)
+#  bits.pack(stats.trailing_ones, stats.trailing_ones_idx)
+#  encode_levels(stats, bits)
+#  encode_total_zeros(stats, bits, len(coeffs));
+#  encode_runs(stats, bits, len(coeffs))
+#  info = blk_coeff_info[coeffs]
+#  info[!i,!j] = stats.total_coeffs
+#
+#######
+
+def compute_nC(coeffs_4x4, nzeros_frame):
+  nA = 0
+  nB = 0
+  nC = 0
+  A_avail = False
+  B_avail = False
+  if coeffs_4x4[0,-1].exists():
+    nA = nzeros_frame[coeffs_4x4[0,-1]](0,0)
+    A_avail = True
+  if coeffs_4x4[-1,0].exists():
+    nB = nzeros_frame[coeffs_4x4[-1,0]](0,0)
+    B_avail = True
+  if A_avail and B_avail:
+    nC = (nA + nB + 1) >> 1
+  elif A_avail:
+    nC = nA
+  elif B_avail:
+    nC = nB 
+  return nC
+
+#def compute_nC(coeffs_4x4, video: Video):
+#  nC_Y = compute_component_nC(coeffs_4x4, video.encoder_frame.Y_nz_coeffs_frame)
+#  nC_Cb = compute_component_nC(coeffs_4x4, video.encoder_frame.Cb_nz_coeffs_frame)
+#  nC_Cr = compute_component_nC(coeffs_4x4, video.encoder_frame.Cr_nz_coeffs_frame)
+#  return nC_Y, nC_Cb, nC_Cr
+
+def gather_cavlc_stats(coeffs_4x4, is_16x16_pred):
+  ziter = iter(zigzag)
+  trailing_zeros = 0
+  total_zeros = 0
+  cur_zero_run = 0
+  dc = coeffs_4x4(0,0)
+  DC_is_nonzero = dc != 0
+  total_nz_coeffs = 0
+  nz_coeffs = [0] * 16
+  zero_runs = [0] * 16
+  zero_runs_idx = 0
+  trailing_ones_bitmask = 0
+  ntrailing_ones = 0  
+  if is_16x16_pred:
+    next(ziter)
+  for coord in ziter:
+    coeff = coeffs_4x4(*coord)
+    if coeff != 0:
+      nz_coeffs[total_nz_coeffs] = coeff
+      total_nz_coeffs += 1
+      trailing_zeros = 0
+      zero_runs[zero_runs_idx] = cur_zero_run
+      zero_runs_idx += 1
+      cur_zero_run = 0
+      if coeff == -1:
+        trailing_ones_bitmask |= (1 << ntrailing_ones)
+        ntrailing_ones += 1
+      elif coeff == 1:
+        # bit is just a zero, don't need to OR it
+        ntrailing_ones += 1        
+      else:
+        trailing_ones_bitmask = 0
+        ntrailing_ones = 0
+    else:
+      trailing_zeros += 1
+      total_zeros += 1
+      cur_zero_run += 1
+  # don't want to count trailing zeros
+  total_zeros = total_zeros - trailing_zeros
+  if ntrailing_ones > 3:
+    shift = ntrailing_ones-3
+    ntrailing_ones = 3
+    trailing_ones_bitmask >>= shift # remove earlier ones at the front
+  return trailing_zeros,total_zeros,DC_is_nonzero,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones
+
+# The coefficient token represents the total number of nonzeros, as well as the number of trailing ones
+def encode_coeff_token(nC: int, ntrailing_ones: int, total_nz_coeffs: int):
+  nC_idx = 0
+  if 2 <= nC < 4:
+    nC_idx = 1
+  elif 4 <= nC < 8:
+    nC_idx = 2
+  elif 8 <= nC:
+    nC_idx = 3
+  elif nC == -1:
+    nC_idx = 4
+  elif nC == -2:
+    nC_idx = 5          
+  val,nbits = tbl_9_5(ntrailing_ones, total_nz_coeffs, nC_idx)
+  return val,nbits
+
+# nelems = 16 for 4x4
+# zero runs idx represents the last zero run we found
+def encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, nelems):
+  zeros_left = 0 if total_nz_coeffs == nelems else total_zeros
+  zero_runs_idx -= 1 # it ends 1 beyond the last run
+  run_encoding = []
+  while zeros_left > 0:
+    run_before = zero_runs[zero_runs_idx]
+    zero_runs_idx -= 1
+    code,nbits = tbl_9_10(run_before, min(zeros_left-1,6))
+    run_encoding.append((code,nbits))
+    zeros_left -= run_before
+  return run_encoding
+
+def encode_total_zeros(total_nz_coeffs, total_zeros, nelems):
+  if total_nz_coeffs == 0 or total_nz_coeffs == nelems:
+    return (0,0)
+  tzvlc_idx = total_nz_coeffs
+  if nelems == 4:
+    code,nbits = tbl_9_9_a(total_zeros, tzvlc_idx-1)
+    return code,nbits
+  elif nelems == 8:
+    code,nbits = tbl_9_9_b(total_zeros, tzvlc_idx-1)
+    return code,nbits
+  else:
+    code,nbits = tbl_9_7_and_9_8(total_zeros, tzvlc_idx-1)
+    return code,nbits
+
+# THIS PAPER IS A GODSEND https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6183127
+def encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs):
+  i = ntrailing_ones
+  suffix_length = 0
+  if total_nz_coeffs > 10 and ntrailing_ones < 3:
+    suffix_length = 1
+  # read nonzeros coeffs in reverse order
+  level_info = []
+  for cidx in range(total_nz_coeffs-1-ntrailing_ones,-1,-1):
+    coeff = nz_coeffs[cidx]
+    print coeff
+    level_suffix = level_prefix = level_suffix_size = 0
+    level_code = 2 * abs(coeff) - (1 if coeff < 0 else 2)
+    if i == ntrailing_ones and ntrailing_ones < 3:
+      level_code -= 2
+    thresh = 7 if suffix_length == 0 else 15*(1 << (suffix_length-1))
+    if abs(coeff) > thresh:
+      if suffix_length == 0 and abs(coeff) < 16:
+        level_prefix = 14
+        level_suffix_size = 4
+        level_suffix = level_code - level_prefix
+      else:
+        level_prefix = 15
+        if suffix_length == 0:
+          level_code -= 15
+        level_suffix_size = 12
+        level_suffix = level_code - (level_prefix << suffix_length)
+    else:
+      level_prefix = level_code >> suffix_length
+      level_suffix_size = suffix_length
+      level_suffix = level_code - (level_prefix << suffix_length)
+    if suffix_length == 0:
+      suffix_length = 1
+    if suffix_length < 6 and (abs(coeff) > (3 << (suffix_length - 1))):
+      suffix_length += 1
+    # actually encode the stuff
+    level_info.append((level_prefix, level_suffix, level_suffix_size))
+#    for _ in range(level_prefix):
+#      bits.pack(0,1)
+#    bits.pack(1,1)
+#    bits.pack(level_suffix, level_suffix_size)
+    i += 1    
+  return level_info
+
+def encode_CAVLC(coeffs_4x4, is_16x16_pred, nz_coeffs_frame):
+  nC = compute_nC(coeffs_4x4, nz_coeffs_frame)
+  print f'nC: {nC}'
+  
+
+def test_CAVLC():
+  coeffs = Block[int,Tup2]((4,4),[0,3,-1,0,0,-1,1,0,1,0,0,0,0,0,0,0])
+  is_16x16_pred = False
+  nC = 0
+  trailing_zeros,total_zeros,DC_is_nonzero,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones = gather_cavlc_stats(coeffs, is_16x16_pred)
+  print total_nz_coeffs
+  print nz_coeffs
+  print trailing_ones_bitmask
+  print ntrailing_ones
+  a,b = encode_coeff_token(nC, ntrailing_ones, total_nz_coeffs)
+  print f'coeff token val {a}, coeff token nbits {b}'
+  level_info = encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs)
+  print level_info
+  a,b = encode_total_zeros(total_nz_coeffs, total_zeros, 16)
+  print f'total zeros val {a} nbits {b}'
+  # Note, don't need to encode the last one
+  print encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, 16)
+
+test_CAVLC()
+  
+                      

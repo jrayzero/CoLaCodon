@@ -73,5 +73,16 @@ def is_inter(mb_type):
   return False
 
 # actual types of prediction 
-I_4x4_DC = 0
-
+intra_chroma_4x4_DC = 0
+intra_chroma_4x4_horizontal = 1
+intra_chroma_4x4_vertical = 2
+intra_chroma_4x4_plane = 3
+intra_luma_4x4_vertical = 0
+intra_luma_4x4_horizontal = 1
+intra_luma_4x4_DC = 2
+intra_luma_4x4_diagonal_down_left = 3
+intra_luma_4x4_diagonal_down_right = 4
+intra_luma_4x4_vertical_right = 5
+intra_luma_4x4_horizontal_down = 6
+intra_luma_4x4_vertical_left = 7
+intra_luma_4x4_horizontal_up = 8

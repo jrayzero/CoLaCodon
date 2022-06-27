@@ -284,6 +284,10 @@ class Block:
     self.__init__(tuple_fill(0, staticlen(dims)), tuple_fill(1, staticlen(dims)), dims, tuple_fill(1, staticlen(dims)))
 
   @cola
+  def __init__(self, dims: T, init: list[E]):
+    self.__init__(tuple_fill(0, staticlen(dims)), tuple_fill(1, staticlen(dims)), dims, tuple_fill(1, staticlen(dims)), init)
+
+  @cola
   def __init__(self, obj):
     if isinstance(obj, Block):
       self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(),
@@ -308,6 +312,22 @@ class Block:
     self.nunits = nunits
     self.data = Ptr[E](nunits)
   
+  @cola
+  def __init__(self, starts: T, strides: T, dims: T, atoms: T, init: list[E]):
+    if not isinstance(T, tuple):
+      compile_error('T must be a tuple')
+    self.starts = starts
+    self.strides = strides
+    self.dims = dims
+    self.atoms = atoms
+    nunits = 1
+    for d in self.dims:
+      nunits *= d
+    self.nunits = nunits
+    self.data = Ptr[E](nunits)
+    for i in range(nunits):
+      self.data[i] = init[i]
+
   @cola
   def get_starts(self):
     return self.starts

@@ -6,6 +6,7 @@ from encoder_processes import *
 from video import *
 from constants import *
 from annexb import *
+from quant import *
 
 def init_SPS(cfg):
   sps = SPS()
@@ -34,12 +35,13 @@ def main():
   video.sps = init_SPS(cfg)
   yuv420 = YUV420Reader(cfg)
   pps = init_PPS(cfg)
+  quant_tables = Quant()
   frame_idx = 0
   video.encode()
   # go through frames
   for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
     encoder_frame = EncoderFrame(frame_idx, Y_raw_frame, Cb_raw_frame, Cr_raw_frame, pps, frame_idx == 0)    
-    encoder_frame.encode(video)
+    encoder_frame.encode(video, quant_tables)
     frame_idx += 1
   yuv420.cleanup()
   video.bitstream.cleanup()

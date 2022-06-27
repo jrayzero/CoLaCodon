@@ -1,0 +1,29 @@
+import math
+
+def clip3(x,y,z):
+  if z < x:
+    return x
+  elif z > y:
+    return y
+  else:
+    return z
+
+def clip1(val, bit_depth):
+  return clip3(0, (1<<bit_depth)-1, val)
+
+def sad(A, B):
+  cost = 0
+  for a,b in zip(A,B):
+    cost += abs(int(a)-int(b))
+  return cost
+
+def ssd(A, B):
+  cost = 0
+  for a,b in zip(A,B):
+    cost += (int(a)-int(b))**2
+  return cost
+
+def psnr(orig,recons):
+  mse = float(ssd(orig,recons) / len(orig))
+  psnr = 10 * math.log10(((2**8 - 1) ** 2) / mse)
+  return psnr

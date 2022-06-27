@@ -10,18 +10,18 @@ from annexb import *
 class MacroblockLayer:
 
   mb_type: int
-  is_PCM: bool
 
-  # the data that needs to be entropy coded, unless
-  # it's PCM
-  Y_mblk_16x16_to_code: View[int,Tup2]
-  Cb_mblk_8x8_to_code: View[int,Tup2]
-  Cr_mblk_8x8_to_code: View[int,Tup2]
+  # a reference to the location of the current macroblocks
+  # being processed. This is based on the raw input, so
+  # PCM encoding can read from this
+  Y_raw_mblk_16x16: View[byte,Tup2]
+  Cb_raw_mblk_8x8: View[byte,Tup2]
+  Cr_raw_mblk_8x8: View[byte,Tup2]
 
-  # if PCM, this is the raw data to code
-  Y_PCM_mblk_16x16_to_code: View[byte,Tup2]
-  Cb_PCM_mblk_8x8_to_code: View[byte,Tup2]
-  Cr_PCM_mblk_8x8_to_code: View[byte,Tup2]
+  # If predicting, this holds the data that needs to be entropy coded
+  Y_pre_code_mblk_16x16: Block[int,Tup2]
+  Cb_pre_code_mblk_8x8: Block[int,Tup2]
+  Cr_pre_code_mblk_8x8: Block[int,Tup2]
   
 class PicSliceHeader:
   
@@ -73,14 +73,14 @@ class EncoderFrame:
 
   # the number of non-zero coefficients within each 4x4 block
   # (but currently stored per-pixel)
-  Y_nz_coeffs: Block[int,Tup2]
-  Cb_nz_coeffs: Block[int,Tup2]
-  Cr_nz_coeffs: Block[int,Tup2]
+  Y_nz_coeffs_frame: Block[int,Tup2]
+  Cb_nz_coeffs_frame: Block[int,Tup2]
+  Cr_nz_coeffs_frame: Block[int,Tup2]
   # the type of macroblock each pixel belongs to
   mb_type: Block[int,Tup2] # same for Y, Cb, and Cr
   # how each pixel was predicted
-  Y_pred_modes: Block[int,Tup2]
-  C_pred_modes: Block[int,Tup2] # same for Cb and Cr
+  Y_pred_modes_frame: Block[int,Tup2]
+  C_pred_modes_frame: Block[int,Tup2] # same for Cb and Cr
 
 class Video:
     
@@ -142,12 +142,12 @@ class EncoderFrame:
     self.Y_recons_frame = Block[int,Tup2](Y_raw_frame)
     self.Cb_recons_frame = Block[int,Tup2](Cb_raw_frame)
     self.Cr_recons_frame = Block[int,Tup2](Cr_raw_frame)
-    self.Y_nz_coeffs = Block[int,Tup2](Y_raw_frame)
-    self.Cb_nz_coeffs = Block[int,Tup2](Cb_raw_frame)
-    self.Cr_nz_coeffs = Block[int,Tup2](Cr_raw_frame)
+    self.Y_nz_coeffs_frame = Block[int,Tup2](Y_raw_frame)
+    self.Cb_nz_coeffs_frame = Block[int,Tup2](Cb_raw_frame)
+    self.Cr_nz_coeffs_frame = Block[int,Tup2](Cr_raw_frame)
     self.mb_type = Block[int,Tup2](Y_raw_frame) 
-    self.Y_pred_modes = Block[int,Tup2](Y_raw_frame)
-    self.C_pred_modes = Block[int,Tup2](Cb_raw_frame)
+    self.Y_pred_modes_frame = Block[int,Tup2](Y_raw_frame)
+    self.C_pred_modes_frame = Block[int,Tup2](Cb_raw_frame)
     self.pic_slice = PicSlice()
 
 @extend
@@ -155,4 +155,4 @@ class MacroblockLayer:
 
   def __init__(self):
     self.mb_type = 0
-    self.is_PCM = False
+    

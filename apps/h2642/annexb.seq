@@ -12,6 +12,9 @@ class Bitstream:
   def se(self, val):
     golomb_se(val, self)
 
+  def me(self, val):
+    golomb_me(val, me_cat_1_2_intra, self)
+
   # TODO pack 1 and all the 0s at once
   def rbsp_trailing_bits(self):
     self.pack(1, 1)
