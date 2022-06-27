@@ -103,7 +103,6 @@ class MacroblockLayer:
       # need to actually do compression-y things with this macroblock
       self.intra_predict(encoder_frame, video, quant_tables)
       video.bitstream.nal_payload.ue(self.mb_type)
-      video.bitstream.nal_payload.align(0)
       #### mb_pred
       # luma modes require some context
 #      print f'Y 16x16 block @ {self.Y_pre_code_mblk_16x16.get_starts()}'
