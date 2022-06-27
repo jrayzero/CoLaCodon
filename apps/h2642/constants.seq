@@ -86,3 +86,37 @@ intra_luma_4x4_vertical_right = 5
 intra_luma_4x4_horizontal_down = 6
 intra_luma_4x4_vertical_left = 7
 intra_luma_4x4_horizontal_up = 8
+
+def luma_mode_to_str(mode):
+  if mode == intra_luma_4x4_vertical:
+    return 'vertical 4x4'
+  elif mode == intra_luma_4x4_horizontal:
+    return 'horizontal 4x4'
+  elif mode == intra_luma_4x4_DC:
+    return 'DC 4x4'
+  elif mode == intra_luma_4x4_diagonal_down_left:
+    return 'diagonal_down_left 4x4'
+  elif mode == intra_luma_4x4_diagonal_down_right:
+    return 'diagonal_down_right 4x4'
+  elif mode == intra_luma_4x4_vertical_right:
+    return 'vertical_right 4x4'
+  elif mode == intra_luma_4x4_horizontal_down:
+    return 'horizontal_down 4x4'
+  elif mode == intra_luma_4x4_vertical_left:
+    return 'vertical_left 4x4'
+  elif mode == intra_luma_4x4_horizontal_up:
+    return 'horizontal_up 4x4'
+  else: 
+    return ''
+
+def chroma_mode_to_str(mode):
+  if mode == intra_chroma_4x4_DC:
+    return 'DC 4x4'
+  elif mode == intra_chroma_4x4_horizontal:
+    return 'horizontal 4x4'
+  elif mode == intra_chroma_4x4_vertical:
+    return 'vertical 4x4'
+  elif mode == intra_chroma_4x4_plane:
+    return 'plane 4x4'
+  else:
+    return ''

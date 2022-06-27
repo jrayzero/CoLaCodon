@@ -15,77 +15,6 @@ tbl_9_9_a = Block[Tup2,Tup2]((4,3), [(1, 1), (1, 1), (1, 1), (1, 2), (1, 2), (0,
 tbl_9_9_b = Block[Tup2,Tup2]((8,7), [(1, 1), (0, 3), (0, 3), (6, 3), (0, 2), (0, 2), (0, 1), (2, 3), (1, 2), (1, 3), (0, 2), (1, 2), (1, 2), (1, 1), (3, 3), (1, 3), (1, 2), (1, 2), (2, 2), (1, 1), (0, -1), (2, 4), (4, 3), (2, 2), (2, 2), (3, 2), (0, -1), (0, -1), (3, 4), (5, 3), (6, 3), (7, 3), (0, -1), (0, -1), (0, -1), (1, 4), (6, 3), (7, 3), (0, -1), (0, -1), (0, -1), (0, -1), (1, 5), (7, 3), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, 5), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1)])
 
 tbl_9_10 = Block[Tup2,Tup2]((15,7), [(1, 1), (1, 1), (3, 2), (3, 2), (3, 2), (3, 2), (7, 3), (0, 1), (1, 2), (2, 2), (2, 2), (2, 2), (0, 3), (6, 3), (0, -1), (0, 2), (1, 2), (1, 2), (3, 3), (1, 3), (5, 3), (0, -1), (0, -1), (0, 2), (1, 3), (2, 3), (3, 3), (4, 3), (0, -1), (0, -1), (0, -1), (0, 3), (1, 3), (2, 3), (3, 3), (0, -1), (0, -1), (0, -1), (0, -1), (0, 3), (5, 3), (2, 3), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (4, 3), (1, 3), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 4), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 5), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 6), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 7), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 8), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 9), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 10), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1), (1, 11)])
-# The coefficient token represents the total number of nonzeros, as well as the number of trailing ones
-#def encode_coeff_token(nC, stats, bits):
-#    nC_idx = 0
-#    if 2 <= nC < 4:
-#      nC_idx = 1
-#    elif 4 <= nC < 8:
-#      nC_idx = 2
-#    elif 8 <= nC:
-#      nC_idx = 3
-#    elif nC == -1:
-#      nC_idx = 4
-#    elif nC == -2:
-#      nC_idx = 5          
-#    val,nbits = tbl_9_5(stats.trailing_ones_idx, stats.total_coeffs, nC_idx)
-#    bits.pack(val, nbits)
-#
-## THIS PAPER IS A GODSEND https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6183127
-#def encode_levels(stats, bits):
-#  i = stats.trailing_ones_idx
-#  suffix_length = 0
-#  if stats.total_coeffs > 10 and stats.trailing_ones_idx < 3:
-#    suffix_length = 1
-#  for cidx in range(stats.nonzero_coeffs_idx-1,-1,-1):
-#    # read in reverse order
-#    coeff = stats.nonzero_coeffs[cidx]
-#    level_suffix = level_prefix = level_suffix_size = 0
-#    level_code = 2 * abs(coeff) - (1 if coeff < 0 else 2)
-#    if i == stats.trailing_ones_idx and stats.trailing_ones_idx < 3:
-#      level_code -= 2
-#    thresh = 7 if suffix_length == 0 else 15*(1 << (suffix_length-1))
-#    if abs(coeff) > thresh:
-#      if suffix_length == 0 and abs(coeff) < 16:
-#        level_prefix = 14
-#        level_suffix_size = 4
-#        level_suffix = level_code - level_prefix
-#      else:
-#        level_prefix = 15
-#        if suffix_length == 0:
-#          level_code -= 15
-#        level_suffix_size = 12
-#        level_suffix = level_code - (level_prefix << suffix_length)
-#    else:
-#      level_prefix = level_code >> suffix_length
-#      level_suffix_size = suffix_length
-#      level_suffix = level_code - (level_prefix << suffix_length)
-#    if suffix_length == 0:
-#      suffix_length = 1
-#    if suffix_length < 6 and (abs(coeff) > (3 << (suffix_length - 1))):
-#      suffix_length += 1
-#    # actually encode the stuff
-#    for _ in range(level_prefix):
-#      bits.pack(0,1)
-#    bits.pack(1,1)
-#    bits.pack(level_suffix, level_suffix_size)
-#    i += 1    
-#
-
-#def encode(coeffs, zigzag, blk_coeff_info, is_16x16, bits):
-#  stats = Stats4x4()
-#  gather_stats(coeffs, zigzag, is_16x16, stats)
-#  nC = compute_nC(coeffs, blk_coeff_info)
-#  encode_coeff_token(nC, stats, bits)
-#  bits.pack(stats.trailing_ones, stats.trailing_ones_idx)
-#  encode_levels(stats, bits)
-#  encode_total_zeros(stats, bits, len(coeffs));
-#  encode_runs(stats, bits, len(coeffs))
-#  info = blk_coeff_info[coeffs]
-#  info[!i,!j] = stats.total_coeffs
-#
-#######
-
 def compute_nC(coeffs_4x4, nzeros_frame):
   nA = 0
   nB = 0
@@ -106,13 +35,7 @@ def compute_nC(coeffs_4x4, nzeros_frame):
     nC = nB 
   return nC
 
-#def compute_nC(coeffs_4x4, video: Video):
-#  nC_Y = compute_component_nC(coeffs_4x4, video.encoder_frame.Y_nz_coeffs_frame)
-#  nC_Cb = compute_component_nC(coeffs_4x4, video.encoder_frame.Cb_nz_coeffs_frame)
-#  nC_Cr = compute_component_nC(coeffs_4x4, video.encoder_frame.Cr_nz_coeffs_frame)
-#  return nC_Y, nC_Cb, nC_Cr
-
-def gather_cavlc_stats(coeffs_4x4, is_16x16_pred):
+def gather_cavlc_stats(coeffs_4x4, skip_DC):
   ziter = iter(zigzag)
   trailing_zeros = 0
   total_zeros = 0
@@ -125,7 +48,7 @@ def gather_cavlc_stats(coeffs_4x4, is_16x16_pred):
   zero_runs_idx = 0
   trailing_ones_bitmask = 0
   ntrailing_ones = 0  
-  if is_16x16_pred:
+  if skip_DC:
     next(ziter)
   for coord in ziter:
     coeff = coeffs_4x4(*coord)
@@ -158,7 +81,7 @@ def gather_cavlc_stats(coeffs_4x4, is_16x16_pred):
   return trailing_zeros,total_zeros,DC_is_nonzero,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones
 
 # The coefficient token represents the total number of nonzeros, as well as the number of trailing ones
-def encode_coeff_token(nC: int, ntrailing_ones: int, total_nz_coeffs: int):
+def encode_coeff_token(nC: int, ntrailing_ones: int, total_nz_coeffs: int, bitstream):
   nC_idx = 0
   if 2 <= nC < 4:
     nC_idx = 1
@@ -171,47 +94,45 @@ def encode_coeff_token(nC: int, ntrailing_ones: int, total_nz_coeffs: int):
   elif nC == -2:
     nC_idx = 5          
   val,nbits = tbl_9_5(ntrailing_ones, total_nz_coeffs, nC_idx)
-  return val,nbits
+#  print f'    coeff token val: {val}, nbits: {nbits}'
+  bitstream.pack(val, nbits)
 
 # nelems = 16 for 4x4
 # zero runs idx represents the last zero run we found
-def encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, nelems):
+def encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, nelems, bitstream):
   zeros_left = 0 if total_nz_coeffs == nelems else total_zeros
   zero_runs_idx -= 1 # it ends 1 beyond the last run
-  run_encoding = []
   while zeros_left > 0:
     run_before = zero_runs[zero_runs_idx]
     zero_runs_idx -= 1
     code,nbits = tbl_9_10(run_before, min(zeros_left-1,6))
-    run_encoding.append((code,nbits))
+    bitstream.pack(code,nbits)
+#    print f'    runs code: {code}, nbits: {nbits}'
     zeros_left -= run_before
-  return run_encoding
 
-def encode_total_zeros(total_nz_coeffs, total_zeros, nelems):
+def encode_total_zeros(total_nz_coeffs, total_zeros, nelems, bitstream):
   if total_nz_coeffs == 0 or total_nz_coeffs == nelems:
-    return (0,0)
+    return
   tzvlc_idx = total_nz_coeffs
   if nelems == 4:
     code,nbits = tbl_9_9_a(total_zeros, tzvlc_idx-1)
-    return code,nbits
+    bitstream.pack(code,nbits)
   elif nelems == 8:
     code,nbits = tbl_9_9_b(total_zeros, tzvlc_idx-1)
-    return code,nbits
+    bitstream.pack(code,nbits)
   else:
     code,nbits = tbl_9_7_and_9_8(total_zeros, tzvlc_idx-1)
-    return code,nbits
+    bitstream.pack(code,nbits)
 
 # THIS PAPER IS A GODSEND https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6183127
-def encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs):
+def encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, bitstream):
   i = ntrailing_ones
   suffix_length = 0
   if total_nz_coeffs > 10 and ntrailing_ones < 3:
     suffix_length = 1
   # read nonzeros coeffs in reverse order
-  level_info = []
   for cidx in range(total_nz_coeffs-1-ntrailing_ones,-1,-1):
     coeff = nz_coeffs[cidx]
-    print coeff
     level_suffix = level_prefix = level_suffix_size = 0
     level_code = 2 * abs(coeff) - (1 if coeff < 0 else 2)
     if i == ntrailing_ones and ntrailing_ones < 3:
@@ -237,37 +158,39 @@ def encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs):
     if suffix_length < 6 and (abs(coeff) > (3 << (suffix_length - 1))):
       suffix_length += 1
     # actually encode the stuff
-    level_info.append((level_prefix, level_suffix, level_suffix_size))
-#    for _ in range(level_prefix):
-#      bits.pack(0,1)
-#    bits.pack(1,1)
-#    bits.pack(level_suffix, level_suffix_size)
+#    print f'    level_prefix: {level_prefix}, level_suffix: {level_suffix}, size: {level_suffix_size}'
+    for _ in range(level_prefix):
+      bitstream.pack(0,1)
+    bitstream.pack(1,1)
+    bitstream.pack(level_suffix, level_suffix_size)
     i += 1    
-  return level_info
 
-def encode_CAVLC(coeffs_4x4, is_16x16_pred, nz_coeffs_frame):
+def encode_CAVLC(coeffs_4x4, skip_DC, nz_coeffs_frame, video):
   nC = compute_nC(coeffs_4x4, nz_coeffs_frame)
-  print f'nC: {nC}'
+#  print f'    nC: {nC}'
+  trailing_zeros,total_zeros,DC_is_nonzero,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones = gather_cavlc_stats(coeffs_4x4, skip_DC)
+  encode_coeff_token(nC, ntrailing_ones, total_nz_coeffs, video.bitstream.nal_payload)
+  encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, video.bitstream.nal_payload)
+  encode_total_zeros(total_nz_coeffs, total_zeros, 16, video.bitstream.nal_payload)
+  encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, 16, video.bitstream.nal_payload)
   
+#def test_CAVLC():
+#  coeffs = Block[int,Tup2]((4,4),[0,3,-1,0,0,-1,1,0,1,0,0,0,0,0,0,0])
+#  skip_DC = False
+#  nC = 0
+#  trailing_zeros,total_zeros,DC_is_nonzero,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones = gather_cavlc_stats(coeffs, skip_DC)
+#  print total_nz_coeffs
+#  print nz_coeffs
+#  print trailing_ones_bitmask
+#  print ntrailing_ones
+#  a,b = encode_coeff_token(nC, ntrailing_ones, total_nz_coeffs)
+#  print f'coeff token val {a}, coeff token nbits {b}'
+#  level_info = encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs)
+#  print level_info
+#  a,b = encode_total_zeros(total_nz_coeffs, total_zeros, 16)
+#  print f'total zeros val {a} nbits {b}'
+#  # Note, don't need to encode the last one
+#  print encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, 16)
 
-def test_CAVLC():
-  coeffs = Block[int,Tup2]((4,4),[0,3,-1,0,0,-1,1,0,1,0,0,0,0,0,0,0])
-  is_16x16_pred = False
-  nC = 0
-  trailing_zeros,total_zeros,DC_is_nonzero,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones = gather_cavlc_stats(coeffs, is_16x16_pred)
-  print total_nz_coeffs
-  print nz_coeffs
-  print trailing_ones_bitmask
-  print ntrailing_ones
-  a,b = encode_coeff_token(nC, ntrailing_ones, total_nz_coeffs)
-  print f'coeff token val {a}, coeff token nbits {b}'
-  level_info = encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs)
-  print level_info
-  a,b = encode_total_zeros(total_nz_coeffs, total_zeros, 16)
-  print f'total zeros val {a} nbits {b}'
-  # Note, don't need to encode the last one
-  print encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, 16)
-
-test_CAVLC()
   
                       
