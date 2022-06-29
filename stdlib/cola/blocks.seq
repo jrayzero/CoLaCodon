@@ -276,6 +276,14 @@ class View[E,T]:
     all_valid = lower_bound_valid and upper_bound_valid
     return all_valid  
     
+  # logically exists if the indices are >= 0, so doesn't care about the actual block
+  @cola
+  def logically_exists(self):
+    exists = True
+    for start in self.get_starts():
+      exists &= (start >= 0)
+    return exists
+
 @extend  
 class Block:
 
@@ -463,6 +471,10 @@ class Block:
 
   @cola
   def exists(self):
+    return True
+
+  @cola
+  def logically_exists(self):
     return True
 
 @extend

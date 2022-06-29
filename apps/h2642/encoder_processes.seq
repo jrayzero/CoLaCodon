@@ -34,7 +34,7 @@ class SPS:
     video.bitstream.nal_payload.ue(self.pic_order_cnt_type)
     if self.pic_order_cnt_type == 0:
       video.bitstream.nal_payload.ue(self.log2_max_pic_order_cnt_lsb_minus4)    
-    elif self.pic_order_cnt_type != 2:
+    else:#if self.pic_order_cnt_type != 2:
       assert False
     video.bitstream.nal_payload.ue(self.max_num_ref_frames)
     video.bitstream.nal_payload.pack(int(self.gaps_in_frame_num_value_allowed_flag), 1)
@@ -177,6 +177,7 @@ class MacroblockLayer:
         i8x8 = 0
         # TODO this is different for 16x16
         i4x4 = 0
+        
         for Y_pre_code_smblk_8x8 in self.Y_pre_code_mblk_16x16.grid((8,8)):
           for Y_pre_code_smblk_4x4 in Y_pre_code_smblk_8x8.grid((4,4)):
 #            print f'  Y 4x4 block CAVLC @ {Y_pre_code_smblk_4x4.get_starts()}'
@@ -189,19 +190,21 @@ class MacroblockLayer:
         ### CAVLC for chroma 
         # first code the DC coefficients of the 4x4 blocks of Cb and Cr if they exist
         if (cbp_chroma & 3) > 0:
+          assert False
           # some DC is nonzero
           Cb_DCs_2x2 = self.Cb_pre_code_mblk_8x8[::4,::4]
           Cr_DCs_2x2 = self.Cr_pre_code_mblk_8x8[::4,::4]
           encode_CAVLC(Cb_DCs_2x2, False, encoder_frame.Cb_nz_coeffs_frame, video)
           encode_CAVLC(Cr_DCs_2x2, False, encoder_frame.Cr_nz_coeffs_frame, video)
         # now ACs. Do all of Cb, then Cr
-        for Cb_pre_code_smblk_4x4 in self.Cb_pre_code_mblk_8x8.grid((4,4)):
-          if (cbp_chroma & 2) > 0:
+        if (cbp_chroma & 2) > 0:
+          assert False
+          for Cb_pre_code_smblk_4x4 in self.Cb_pre_code_mblk_8x8.grid((4,4)):
             # some AC is nonzero
 #            print f'  Cb 4x4 block CAVLC @ {Cb_pre_code_smblk_4x4.get_starts()}'
             encode_CAVLC(Cb_pre_code_smblk_4x4, True, encoder_frame.Cb_nz_coeffs_frame, video)
-        for Cr_pre_code_smblk_4x4 in self.Cr_pre_code_mblk_8x8.grid((4,4)):
-          if (cbp_chroma & 2) > 0:
+        if (cbp_chroma & 2) > 0:
+          for Cr_pre_code_smblk_4x4 in self.Cr_pre_code_mblk_8x8.grid((4,4)):
             # some AC is nonzero
 #            print f'  Cr 4x4 block CAVLC @ {Cr_pre_code_smblk_4x4.get_starts()}'
             encode_CAVLC(Cr_pre_code_smblk_4x4, True, encoder_frame.Cr_nz_coeffs_frame, video)
@@ -245,6 +248,10 @@ class PicSliceHeader:
     video.bitstream.nal_payload.pack(self.frame_num, nbits)
     if self.is_idr_slice:
       video.bitstream.nal_payload.ue(self.idr_pic_id)
+    if video.sps.pic_order_cnt_type == 0:
+      video.bitstream.nal_payload.pack(self.pic_order_cnt_lsb, video.sps.log2_max_pic_order_cnt_lsb_minus4+4)
+    else:
+      assert False
     if self.nal_ref_idc != 0:
       # dec_ref_pic_marking
       if self.is_idr_slice:

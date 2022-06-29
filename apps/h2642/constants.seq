@@ -34,6 +34,7 @@ def is_SI_slice(si):
 
 # macroblock types, I slices
 I_4x4 = 0
+I_8x8 = 0
 I_16x16_0_0_0 = 1
 I_16x16_1_0_0 = 2
 I_16x16_2_0_0 = 3

@@ -121,16 +121,16 @@ def luma_intra_predict_4x4(mblk: MacroblockLayer, encoder_frame: EncoderFrame, v
       else:
         intra_4x4_DC_4(Y_pred_smblk_4x4, 8)
       cost = sad(Y_pred_smblk_4x4, Y_smblk_4x4)      
-      # forward
+      # forward      
       Y_pre_code_smblk_4x4 = mblk.Y_pre_code_mblk_16x16[Y_pred_smblk_4x4]
       Y_recons_4x4 = Y_recons_frame[Y_pred_smblk_4x4]
       residual4x4(Y_smblk_4x4, Y_pred_smblk_4x4, Y_pre_code_smblk_4x4)
       dct4x4(Y_pre_code_smblk_4x4, Y_pre_code_smblk_4x4)
       basic_quantization(Y_pre_code_smblk_4x4, Y_pre_code_smblk_4x4, qp, quant_tables)
-      nzeros = 0
+      ncoeffs = 0
       for coeff in Y_pre_code_smblk_4x4:
-        if coeff == 0:
-          nzeros += 1
+        if coeff != 0:
+          ncoeffs += 1
       # reconstruct
       pre_idct_scale(Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables)
       idct4x4(Y_recons_4x4, Y_recons_4x4)
@@ -145,19 +145,18 @@ def luma_intra_predict_4x4(mblk: MacroblockLayer, encoder_frame: EncoderFrame, v
       for i in range(4):
         for j in range(4):
           Y_pred_modes_smblk_4x4[i,j] = intra_luma_4x4_DC
-          Y_nz_smblk_4x4[i,j] = nzeros
-  print '======='
-  print Y_raw_mblk_16x16.get_starts()
-  print Y_raw_mblk_16x16.str_like(int)
-  print Y_recons_frame[Y_raw_mblk_16x16].str_like(int)
+          Y_nz_smblk_4x4[i,j] = ncoeffs
+#  print '======='
+#  print Y_raw_mblk_16x16.get_starts()
+#  print Y_raw_mblk_16x16.str_like(int)
+#  print Y_recons_frame[Y_raw_mblk_16x16].str_like(int)
 #  s = f'Y Frame: {encoder_frame.frame_idx}\n  mblk: {Y_raw_mblk_16x16.get_starts()}\n'
 #  for a in encoder_frame.Y_nz_coeffs_frame[Y_raw_mblk_16x16].grid((8,8)):
 #    for b in a.grid((4,4)):
 #      nz = encoder_frame.Y_nz_coeffs_frame[b](0,0)
 #      mode = encoder_frame.Y_pred_modes_frame[b](0,0)
 #      s += f'    4x4 @ {b.get_starts()} has {nz} zeros, predicted with mode {luma_mode_to_str(mode)}\n'
-#  print s
-      
+#  print s      
 
 def chroma_part1(C_raw_smblk_4x4, C_pred_smblk_4x4, C_recons_smblk_4x4):
   residual4x4(C_raw_smblk_4x4, C_pred_smblk_4x4, C_recons_smblk_4x4)
@@ -236,6 +235,11 @@ def chroma_intra_predict_4x4(mblk: MacroblockLayer, encoder_frame: EncoderFrame,
         C_pred_modes_smblk_4x4[i,j] = intra_chroma_4x4_DC
   chroma_part2(Cb_recons_mblk_8x8, Cb_pred_mblk_8x8, mblk.Cb_pre_code_mblk_8x8, encoder_frame.Cb_nz_coeffs_frame[Cb_raw_mblk_8x8], qp, video, quant_tables)
   chroma_part2(Cr_recons_mblk_8x8, Cr_pred_mblk_8x8, mblk.Cr_pre_code_mblk_8x8, encoder_frame.Cr_nz_coeffs_frame[Cr_raw_mblk_8x8], qp, video, quant_tables)
+  # DEBUG ALL ZEROS
+  for i in range(8):
+    for j in range(8):
+      mblk.Cb_pre_code_mblk_8x8[i,j] = 0
+      mblk.Cr_pre_code_mblk_8x8[i,j] = 0
 #  s = f'Cb Frame: {encoder_frame.frame_idx}\n  mblk: {Cb_raw_mblk_8x8.get_starts()}\n'
 #  for a in encoder_frame.Cb_nz_coeffs_frame[Cb_raw_mblk_8x8].grid((4,4)):
 #    nz = encoder_frame.Cb_nz_coeffs_frame[a](0,0)
