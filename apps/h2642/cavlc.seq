@@ -5,6 +5,18 @@ from video import *
 
 zigzag = [(0,0),(0,1),(1,0),(2,0),(1,1),(0,2),(0,3),(1,2),(2,1),(3,0),(3,1),(2,2),(1,3),(2,3),(3,2),(3,3)]
 
+tbl_9_5_nC_neg_1_bits = Block[int,Tup2]((4,5),
+                                        [2,6,6,6,6,
+                                         0,1,6,7,8,
+                                         0,0,3,7,8,
+                                         0,0,0,6,7])
+
+tbl_9_5_nC_neg_1_codenum = Block[int,Tup2]((4,5),
+                                           [1,7,4,3,2,
+                                            0,1,6,3,3,
+                                            0,0,1,2,2,
+                                            0,0,0,5,0])
+                                                                                                                                   
 tbl_9_5_vlc_bits = Block[int,Tup3]((3,4,17),
                                    [1, 6, 8, 9,10,11,13,13,13,14,14,15,15,16,16,16,16,
                                     0, 2, 6, 8, 9,10,11,13,13,14,14,15,15,15,16,16,16,
@@ -61,23 +73,17 @@ def compute_nC(coeffs_4x4, nzeros_frame):
   print f'nA {nA}, nB {nB}, nC {nC}'
   return nC
 
-def gather_cavlc_stats(coeffs_4x4, skip_DC):
-  ziter = iter(zigzag)
+def gather_cavlc_stats_raster(coeffs):
   trailing_zeros = 0
   total_zeros = 0
   cur_zero_run = 0
-  dc = coeffs_4x4(0,0)
-  DC_is_nonzero = dc != 0
   total_nz_coeffs = 0
   nz_coeffs = [0] * 16
   zero_runs = [0] * 16
   zero_runs_idx = 0
   trailing_ones_bitmask = 0
   ntrailing_ones = 0  
-  if skip_DC:
-    next(ziter)
-  for coord in ziter:
-    coeff = coeffs_4x4(*coord)
+  for coeff in coeffs:
     if coeff != 0:
       nz_coeffs[total_nz_coeffs] = coeff
       total_nz_coeffs += 1
@@ -104,7 +110,50 @@ def gather_cavlc_stats(coeffs_4x4, skip_DC):
     shift = ntrailing_ones-3
     ntrailing_ones = 3
     trailing_ones_bitmask >>= shift # remove earlier ones at the front
-  return trailing_zeros,total_zeros,DC_is_nonzero,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones
+  return trailing_zeros,total_zeros,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones
+  
+def gather_cavlc_stats_zigzag(coeffs, skip_DC):
+  ziter = iter(zigzag)
+  trailing_zeros = 0
+  total_zeros = 0
+  cur_zero_run = 0
+  total_nz_coeffs = 0
+  nz_coeffs = [0] * 16
+  zero_runs = [0] * 16
+  zero_runs_idx = 0
+  trailing_ones_bitmask = 0
+  ntrailing_ones = 0  
+  if skip_DC:
+    next(ziter)
+  for coord in ziter:
+    coeff = coeffs(*coord)
+    if coeff != 0:
+      nz_coeffs[total_nz_coeffs] = coeff
+      total_nz_coeffs += 1
+      trailing_zeros = 0
+      zero_runs[zero_runs_idx] = cur_zero_run
+      zero_runs_idx += 1
+      cur_zero_run = 0
+      if coeff == -1:
+        trailing_ones_bitmask |= (1 << ntrailing_ones)
+        ntrailing_ones += 1
+      elif coeff == 1:
+        # bit is just a zero, don't need to OR it
+        ntrailing_ones += 1        
+      else:
+        trailing_ones_bitmask = 0
+        ntrailing_ones = 0
+    else:
+      trailing_zeros += 1
+      total_zeros += 1
+      cur_zero_run += 1
+  # don't want to count trailing zeros
+  total_zeros = total_zeros - trailing_zeros
+  if ntrailing_ones > 3:
+    shift = ntrailing_ones-3
+    ntrailing_ones = 3
+    trailing_ones_bitmask >>= shift # remove earlier ones at the front
+  return trailing_zeros,total_zeros,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones
 
 # The coefficient token represents the total number of nonzeros, as well as the number of trailing ones
 def encode_coeff_token(nC: int, ntrailing_ones: int, total_nz_coeffs: int, bitstream):
@@ -116,9 +165,12 @@ def encode_coeff_token(nC: int, ntrailing_ones: int, total_nz_coeffs: int, bitst
   elif 8 <= nC:
     nC_idx = 3
   elif nC == -1:
-    assert False # CHROMA DC USES THE -1 THING
+    val,nbits = tbl_9_5_nC_neg_1_codenum(ntrailing_ones,total_nz_coeffs),tbl_9_5_nC_neg_1_bits(ntrailing_ones,total_nz_coeffs)
+    print f'coeff token {val} @ {nbits}'
+    bitstream.pack(val, nbits)
+    return
   elif nC == -2:
-    assert False # think this is for chroma array type 2     
+    assert False # think this is for chroma array type 2
   val = nbits = 0
   if nC_idx == 3:
     # FLC
@@ -128,21 +180,16 @@ def encode_coeff_token(nC: int, ntrailing_ones: int, total_nz_coeffs: int, bitst
     else:
       val = 3 # all zero
   else:
-#  elif nC == -1:
-#    nC_idx = 4
-#  elif nC == -2:
-#    nC_idx = 5
     val,nbits = tbl_9_5_vlc_codenum(nC_idx, ntrailing_ones, total_nz_coeffs),tbl_9_5_vlc_bits(nC_idx, ntrailing_ones, total_nz_coeffs)#tbl_9_5(ntrailing_ones, total_nz_coeffs, nC_idx)
-  print f'ntrailing ones {ntrailing_ones}, total_nz_coeffs {total_nz_coeffs}, vlc table {nC_idx}, coeff token val: {val}, nbits: {nbits}'
-  bitstream.pack(val, nbits)
-  
+#  print f'ntrailing ones {ntrailing_ones}, total_nz_coeffs {total_nz_coeffs}, vlc table {nC_idx}, coeff token val: {val}, nbits: {nbits}'
+  bitstream.pack(val, nbits)  
 
 # nelems = 16 for 4x4
 # zero runs idx represents the last zero run we found
-def encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, nelems, bitstream):
-  zeros_left = 0 if total_nz_coeffs == nelems else total_zeros
+def encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, max_nz_coeffs, bitstream):
+  zeros_left = 0 if total_nz_coeffs == max_nz_coeffs else total_zeros
   zero_runs_idx -= 1 # it ends 1 beyond the last run
-  # you don't encode the final run because it can automatically be inferred.
+  # you don't encode the final run because it can automatically be inferred
   # so to handle that, we can remove however many zeros are at the front
   #zeros_left -= zero_runs[0]
   coeff_idx = total_nz_coeffs - 1
@@ -155,15 +202,15 @@ def encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, nelems, 
     zeros_left -= run_before
     coeff_idx -= 1
 
-def encode_total_zeros(total_nz_coeffs, total_zeros, nelems, bitstream):
-  if total_nz_coeffs == 0 or total_nz_coeffs == nelems:
+def encode_total_zeros(total_nz_coeffs, total_zeros, max_nz_coeffs, bitstream):
+  if total_nz_coeffs == 0 or total_nz_coeffs == max_nz_coeffs:
     return
   tzvlc_idx = total_nz_coeffs
-  if nelems == 4:
+  if max_nz_coeffs == 4:
     code,nbits = tbl_9_9_a(total_zeros, tzvlc_idx-1)
     bitstream.pack(code,nbits)
     print f'zeros {code} @ {nbits}'
-  elif nelems == 8:
+  elif max_nz_coeffs == 8:
     code,nbits = tbl_9_9_b(total_zeros, tzvlc_idx-1)
     bitstream.pack(code,nbits)
     print f'zeros {code} @ {nbits}'
@@ -171,63 +218,6 @@ def encode_total_zeros(total_nz_coeffs, total_zeros, nelems, bitstream):
     code,nbits = tbl_9_7_and_9_8(total_zeros, tzvlc_idx-1)
     bitstream.pack(code,nbits)
     print f'zeros {code} @ {nbits}'
-
-def levels2(ntrailing_ones, trailing_ones_bitmask, total_nz_coeffs, nz_coeffs, bitstream):
-  level_val = [0]*16
-  # trailing ones
-  i = ntrailing_ones  
-  bitstream.pack(trailing_ones_bitmask, ntrailing_ones)
-  # the number of bits to take from the suffix of the coefficient 
-  suffix_length = 1 if (total_nz_coeffs > 10 and ntrailing_ones <= 3) else 0
-  num_iters = total_nz_coeffs - ntrailing_ones
-  tidx = total_nz_coeffs-1
-  for _ in range(num_iters):
-    coeff = nz_coeffs[tidx] # read in reverse
-    tidx -= 1
-    # get the prefix/suffix
-    suffix_mask = (1 << suffix_length) - 1
-    level_suffix = coeff & suffix_mask
-    level_prefix = coeff >> suffix_length
-    # encode the prefix, which is prefix worth of 0 bits, followed by a one
-    bitstream.pack(0, level_prefix)
-    bitstream.pack(1, 1)
-    level_suffix_size = 0
-    if level_prefix == 14 and suffix_length == 0:
-      level_suffix_size = 4
-    elif level_prefix >= 15:
-      level_suffix_size = level_prefix - 3
-    else:
-      level_suffix_size = suffix_length
-    # encode the suffix
-    if level_suffix_size > 0:
-      bitstream.pack(level_suffix, level_suffix_size)
-    print f'level_prefix {level_prefix}, level_suffix {level_suffix}, level_suffix_size {level_suffix_size}'
-    # else, inferred to be zero
-    level_code = (min(15,level_prefix)<<suffix_length) + level_suffix
-    if level_prefix >= 15 and suffix_length == 0:
-      level_code += 15
-    if level_prefix >= 16:
-      level_code += (1<<(level_prefix-3))-4096
-    if i == ntrailing_ones and ntrailing_ones < 3:
-      level_code += 2
-    if suffix_length == 0: 
-      suffix_length = 1
-    if abs(coeff) > (3<<(suffix_length-1)) and suffix_length < 6:
-      suffix_length += 1
-    i += 1
-    
-def encode_levels3(ntrailing_ones, total_nz_coeffs, nz_coeffs, bitstream):
-  suffix_length = 0
-  if total_nz_coeffs > 10 and ntrailing_ones < 3:
-    suffix_length = 1  
-  first = suffix_length == 0 and (total_nz_coeffs <= 3 or ntrailing_ones < 3)
-  for cidx in range(total_nz_coeffs-1-ntrailing_ones,-1,-1):
-    coeff = nz_coeffs[cidx]
-    if first:
-      # get the last coeff
-      coeff = nz_coeffs[total_nz_coeffs-1-ntrailing_ones]
-      coeff = coeff-1 if coeff > 0 else coeff+1
-    first = False
     
 # THIS PAPER IS A GODSEND https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6183127
 def encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, bitstream):
@@ -239,8 +229,6 @@ def encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, bitstream):
   first = True
   for cidx in range(total_nz_coeffs-1-ntrailing_ones,-1,-1):
     coeff = nz_coeffs[cidx]
-#    if first and ntrailing_ones < 3:
-#      coeff = coeff - 1 if coeff > 0 else coeff + 1
     first = False
     level_suffix = level_prefix = level_suffix_size = 0
     level_code = 2 * abs(coeff) - (1 if coeff < 0 else 2)
@@ -267,6 +255,7 @@ def encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, bitstream):
     if suffix_length < 6 and (abs(coeff) > (3 << (suffix_length - 1))):
       suffix_length += 1
     # actually encode the stuff
+    assert level_prefix <= 15
     for _ in range(level_prefix):
       bitstream.pack(0,1)
     bitstream.pack(1,1)
@@ -274,42 +263,20 @@ def encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, bitstream):
     print f'0 @ {level_prefix}, 1 @ 1, {level_suffix} @ {level_suffix_size}'
     i += 1    
 
-def encode_CAVLC(coeffs_4x4, skip_DC, nz_coeffs_frame, video):
-  print '==============='
-  print video.bitstream.nal_payload.total
-  print coeffs_4x4.str_like(int)
-  
-#  for i in range(4):
-#    for j in range(4):
-#      coeffs_4x4[i,j] = 0
-#  coeffs_4x4[0,0] = -2
-#  coeffs_4x4[0,1] = 4
-#  coeffs_4x4[0,3] = -1
-#  coeffs_4x4[1,0] = 3
-#  coeffs_4x4[2,0] = -3
-#  print coeffs_4x4.str_like(int)
-#  video.bitstream.nal_payload.pack(4,7)
-#  video.bitstream.nal_payload.pack(0,1)
-#  video.bitstream.nal_payload.pack(1,1)
-#  video.bitstream.nal_payload.pack(1,1)
-#  video.bitstream.nal_payload.pack(1,1)
-#  video.bitstream.nal_payload.pack(2,4)
-#  video.bitstream.nal_payload.pack(7,3)
-#  video.bitstream.nal_payload.pack(2,2)
-#  video.bitstream.nal_payload.pack(1,1)
-#  video.bitstream.nal_payload.pack(1,1)
-#  video.bitstream.nal_payload.pack(1,2)
-  nC = compute_nC(coeffs_4x4, nz_coeffs_frame)
-  trailing_zeros,total_zeros,DC_is_nonzero,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones = gather_cavlc_stats(coeffs_4x4, skip_DC)
+def encode_CAVLC(coeffs, is_chroma_DC, skip_DC, nz_coeffs_frame, video):
+  print coeffs.str_like(int)
+  print f'skip DC {skip_DC}'
+  nC = -1 if is_chroma_DC else compute_nC(coeffs, nz_coeffs_frame)
+  trailing_zeros,total_zeros,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones = gather_cavlc_stats_zigzag(coeffs, skip_DC) if not is_chroma_DC else gather_cavlc_stats_raster(coeffs)
+  print f'nz {total_nz_coeffs}'
   encode_coeff_token(nC, ntrailing_ones, total_nz_coeffs, video.bitstream.nal_payload)
   if total_nz_coeffs > 0:
     video.bitstream.nal_payload.pack(trailing_ones_bitmask, ntrailing_ones)
     print f'T1 {trailing_ones_bitmask} @ {ntrailing_ones}'
     encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, video.bitstream.nal_payload)
-    #levels2(ntrailing_ones, trailing_ones_bitmask, total_nz_coeffs, nz_coeffs, video.bitstream.nal_payload)
-    encode_total_zeros(total_nz_coeffs, total_zeros, 16, video.bitstream.nal_payload)
+    encode_total_zeros(total_nz_coeffs, total_zeros, len(coeffs) if not skip_DC else len(coeffs)-1, video.bitstream.nal_payload)
     print f'runs: {zero_runs}, ridx: {zero_runs_idx}'
-    encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, 16, video.bitstream.nal_payload)
+    encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, len(coeffs) if not skip_DC else len(coeffs)-1, video.bitstream.nal_payload)
 
 #  
 ##def test_CAVLC():
