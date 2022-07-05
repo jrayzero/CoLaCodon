@@ -7,10 +7,12 @@ class Bitstream:
   # idx within accumulator
   bit_idx: int
   accum: u64
+  total: int
 
   def __init__(self, capacity=2048):
     self.capacity = capacity 
     self.bits = Ptr[byte](capacity)
+    self.total = 0
 
   def resize(self):
     bits_new = Ptr[byte](self.capacity*2)
@@ -36,6 +38,7 @@ class Bitstream:
   def pack(self, val: int, nbits: int):
     if nbits <= 0 or nbits >= 64:
       return
+    self.total += nbits
     # can pack up to 57 bits in one go through here
     val2 = val
     mask = (1 << nbits) - 1
@@ -56,6 +59,7 @@ class Bitstream:
   def pack_with_flush(self, val: int, nbits, fd):
     if nbits <= 0 or nbits >= 64:
       return
+    self.total += nbits
     # can pack up to 57 bits in one go through here
     val2 = val
     mask = (1 << nbits) - 1
@@ -79,6 +83,7 @@ class Bitstream:
     for i in range(self.capacity):
       self.bits[i] = byte(0)
     self.accum = u64(0)
+    self.total = 0
 
   def __iter__(self):
     for i in range(self.byte_idx):

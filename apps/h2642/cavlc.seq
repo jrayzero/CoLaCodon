@@ -70,7 +70,6 @@ def compute_nC(coeffs_4x4, nzeros_frame):
     nC = nA
   elif B_avail:
     nC = nB 
-  print f'nA {nA}, nB {nB}, nC {nC}'
   return nC
 
 def gather_cavlc_stats_raster(coeffs):
@@ -166,7 +165,6 @@ def encode_coeff_token(nC: int, ntrailing_ones: int, total_nz_coeffs: int, bitst
     nC_idx = 3
   elif nC == -1:
     val,nbits = tbl_9_5_nC_neg_1_codenum(ntrailing_ones,total_nz_coeffs),tbl_9_5_nC_neg_1_bits(ntrailing_ones,total_nz_coeffs)
-    print f'coeff token {val} @ {nbits}'
     bitstream.pack(val, nbits)
     return
   elif nC == -2:
@@ -181,7 +179,6 @@ def encode_coeff_token(nC: int, ntrailing_ones: int, total_nz_coeffs: int, bitst
       val = 3 # all zero
   else:
     val,nbits = tbl_9_5_vlc_codenum(nC_idx, ntrailing_ones, total_nz_coeffs),tbl_9_5_vlc_bits(nC_idx, ntrailing_ones, total_nz_coeffs)#tbl_9_5(ntrailing_ones, total_nz_coeffs, nC_idx)
-#  print f'ntrailing ones {ntrailing_ones}, total_nz_coeffs {total_nz_coeffs}, vlc table {nC_idx}, coeff token val: {val}, nbits: {nbits}'
   bitstream.pack(val, nbits)  
 
 # nelems = 16 for 4x4
@@ -197,7 +194,6 @@ def encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, max_nz_c
     run_before = zero_runs[zero_runs_idx]    
     zero_runs_idx -= 1
     code,nbits = tbl_9_10(run_before, min(zeros_left-1,6))
-    print f'run {run_before} run code {code} @ {nbits}'
     bitstream.pack(code,nbits)
     zeros_left -= run_before
     coeff_idx -= 1
@@ -209,15 +205,12 @@ def encode_total_zeros(total_nz_coeffs, total_zeros, max_nz_coeffs, bitstream):
   if max_nz_coeffs == 4:
     code,nbits = tbl_9_9_a(total_zeros, tzvlc_idx-1)
     bitstream.pack(code,nbits)
-    print f'zeros {code} @ {nbits}'
   elif max_nz_coeffs == 8:
     code,nbits = tbl_9_9_b(total_zeros, tzvlc_idx-1)
     bitstream.pack(code,nbits)
-    print f'zeros {code} @ {nbits}'
   else:
     code,nbits = tbl_9_7_and_9_8(total_zeros, tzvlc_idx-1)
     bitstream.pack(code,nbits)
-    print f'zeros {code} @ {nbits}'
     
 # THIS PAPER IS A GODSEND https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6183127
 def encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, bitstream):
@@ -260,39 +253,14 @@ def encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, bitstream):
       bitstream.pack(0,1)
     bitstream.pack(1,1)
     bitstream.pack(level_suffix, level_suffix_size)
-    print f'0 @ {level_prefix}, 1 @ 1, {level_suffix} @ {level_suffix_size}'
     i += 1    
 
 def encode_CAVLC(coeffs, is_chroma_DC, skip_DC, nz_coeffs_frame, video):
-  print coeffs.str_like(int)
-  print f'skip DC {skip_DC}'
   nC = -1 if is_chroma_DC else compute_nC(coeffs, nz_coeffs_frame)
   trailing_zeros,total_zeros,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones = gather_cavlc_stats_zigzag(coeffs, skip_DC) if not is_chroma_DC else gather_cavlc_stats_raster(coeffs)
-  print f'nz {total_nz_coeffs}'
   encode_coeff_token(nC, ntrailing_ones, total_nz_coeffs, video.bitstream.nal_payload)
   if total_nz_coeffs > 0:
     video.bitstream.nal_payload.pack(trailing_ones_bitmask, ntrailing_ones)
-    print f'T1 {trailing_ones_bitmask} @ {ntrailing_ones}'
     encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, video.bitstream.nal_payload)
     encode_total_zeros(total_nz_coeffs, total_zeros, len(coeffs) if not skip_DC else len(coeffs)-1, video.bitstream.nal_payload)
-    print f'runs: {zero_runs}, ridx: {zero_runs_idx}'
     encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, len(coeffs) if not skip_DC else len(coeffs)-1, video.bitstream.nal_payload)
-
-#  
-##def test_CAVLC():
-##  coeffs = Block[int,Tup2]((4,4),[0,3,-1,0,0,-1,1,0,1,0,0,0,0,0,0,0])
-##  skip_DC = False
-#  nC = 0
-#  trailing_zeros,total_zeros,DC_is_nonzero,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones = gather_cavlc_stats(coeffs, skip_DC)
-#  print total_nz_coeffs
-#  print nz_coeffs
-#  print trailing_ones_bitmask
-#  print ntrailing_ones
-#  a,b = encode_coeff_token(nC, ntrailing_ones, total_nz_coeffs)
-#  print f'coeff token val {a}, coeff token nbits {b}'
-#  level_info = encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs)
-#  print level_info
-#  a,b = encode_total_zeros(total_nz_coeffs, total_zeros, 16)
-#  print f'total zeros val {a} nbits {b}'
-#  # Note, don't need to encode the last one
-#  print encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, 16)

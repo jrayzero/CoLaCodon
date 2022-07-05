@@ -81,17 +81,20 @@ ctr = 0
 class MacroblockLayer:
 
   def compute_C_coded_block_pattern(C, C_nz):
-    has_at_least_one_nz_DC = False
+    has_DC = False
     has_at_least_one_nz_AC = False
     for c4x4 in C.grid((4,4)):
+      nz = 0
+      for coeff in c4x4:
+        if coeff != 0:
+          nz += 1
       dc = c4x4(0,0)
-      nz = C_nz[c4x4](0,0)
       if dc != 0:
-        has_at_least_one_nz_DC = True
-        nz -= 1 # only want AC nonzeros in this count
+        has_DC = True
+        nz -= 1 # don't count towards the non-zeros 
       if nz > 0:
-        has_at_least_one_nz_AC
-    return has_at_least_one_nz_DC,has_at_least_one_nz_AC
+        has_at_least_one_nz_AC = True
+    return has_DC,has_at_least_one_nz_AC
 
   def encode(self, is_first_mblk, is_PCM_slice, encoder_frame: EncoderFrame, video: Video, quant_tables: Quant):
     global ctr
@@ -176,38 +179,32 @@ class MacroblockLayer:
         ### CAVLC for luma
         i8x8 = 0
         # TODO this is different for 16x16
-        i4x4 = 0
-        
+        i4x4 = 0        
         for Y_pre_code_smblk_8x8 in self.Y_pre_code_mblk_16x16.grid((8,8)):
           for Y_pre_code_smblk_4x4 in Y_pre_code_smblk_8x8.grid((4,4)):
 #            print f'  Y 4x4 block CAVLC @ {Y_pre_code_smblk_4x4.get_starts()}'
             # basically, only write out non zero things by checking CBP
             if (cbp_luma & (1<<i8x8)) > 0:
               # okay, there are nonzeros
-              encode_CAVLC(Y_pre_code_smblk_4x4, False, encoder_frame.Y_nz_coeffs_frame, video)
+              encode_CAVLC(Y_pre_code_smblk_4x4, False, False, encoder_frame.Y_nz_coeffs_frame, video)
             i4x4 += 1
           i8x8 += 1     
         ### CAVLC for chroma 
         # first code the DC coefficients of the 4x4 blocks of Cb and Cr if they exist
         if (cbp_chroma & 3) > 0:
-          assert False
           # some DC is nonzero
           Cb_DCs_2x2 = self.Cb_pre_code_mblk_8x8[::4,::4]
           Cr_DCs_2x2 = self.Cr_pre_code_mblk_8x8[::4,::4]
-          encode_CAVLC(Cb_DCs_2x2, False, encoder_frame.Cb_nz_coeffs_frame, video)
-          encode_CAVLC(Cr_DCs_2x2, False, encoder_frame.Cr_nz_coeffs_frame, video)
+          encode_CAVLC(Cb_DCs_2x2, True, False, encoder_frame.Cb_nz_coeffs_frame, video)
+          encode_CAVLC(Cr_DCs_2x2, True, False, encoder_frame.Cr_nz_coeffs_frame, video)
         # now ACs. Do all of Cb, then Cr
         if (cbp_chroma & 2) > 0:
-          assert False
           for Cb_pre_code_smblk_4x4 in self.Cb_pre_code_mblk_8x8.grid((4,4)):
             # some AC is nonzero
-#            print f'  Cb 4x4 block CAVLC @ {Cb_pre_code_smblk_4x4.get_starts()}'
-            encode_CAVLC(Cb_pre_code_smblk_4x4, True, encoder_frame.Cb_nz_coeffs_frame, video)
-        if (cbp_chroma & 2) > 0:
+            encode_CAVLC(Cb_pre_code_smblk_4x4, False, True, encoder_frame.Cb_nz_coeffs_frame, video)
           for Cr_pre_code_smblk_4x4 in self.Cr_pre_code_mblk_8x8.grid((4,4)):
             # some AC is nonzero
-#            print f'  Cr 4x4 block CAVLC @ {Cr_pre_code_smblk_4x4.get_starts()}'
-            encode_CAVLC(Cr_pre_code_smblk_4x4, True, encoder_frame.Cr_nz_coeffs_frame, video)
+            encode_CAVLC(Cr_pre_code_smblk_4x4, False, True, encoder_frame.Cr_nz_coeffs_frame, video)
     else:
       self.mb_type = I_PCM
       video.bitstream.nal_payload.ue(self.mb_type)
