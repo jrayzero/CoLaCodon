@@ -56,8 +56,15 @@ class AnnexBBitstream:
       b = int(self.nal_payload.bits[i+1])
       c = int(self.nal_payload.bits[i+2])
       window = (a << 18) | (b << 8) | c
-      if window == 0x000001:
+#      print f'Window: 0x{window} ({i})'
+      if window == 0x000000:
+        self.compressed.pack_with_flush(0x00000300, 32, self.fd)
+        i += 3
+      elif window == 0x000001:
         self.compressed.pack_with_flush(0x00000301, 32, self.fd)
+        i += 3
+      elif window == 0x000002:
+        self.compressed.pack_with_flush(0x00000302, 32, self.fd)
         i += 3
       else:
         self.compressed.pack_with_flush(a, 8, self.fd)
