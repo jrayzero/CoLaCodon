@@ -3,7 +3,8 @@ from video import *
 from parameter_sets import *
 from constants import *
 from typedefs import *
-from intra import *
+from intra_luma import *
+from intra_chroma import *
 from quant import *
 from cavlc import *
 
@@ -76,11 +77,11 @@ class PPS:
     video.bitstream.nal_payload.pack(int(self.constrained_intra_pred_flag), 1)
     video.bitstream.nal_payload.pack(int(self.redundant_pic_cnt_present_flag), 1)
     video.bitstream.finalize_nal_unit()
-ctr = 0
+
 @extend 
 class MacroblockLayer:
 
-  def compute_C_coded_block_pattern(C, C_nz):
+  def compute_chroma_cbp_stats(C, C_nz):
     has_DC = False
     has_at_least_one_nz_AC = False
     for c4x4 in C.grid((4,4)):
@@ -96,141 +97,168 @@ class MacroblockLayer:
         has_at_least_one_nz_AC = True
     return has_DC,has_at_least_one_nz_AC
 
-  def encode(self, is_first_mblk, is_PCM_slice, encoder_frame: EncoderFrame, video: Video, quant_tables: Quant):
-    global ctr
-    if not is_PCM_slice:
-      self.mb_type = I_4x4
-      for i in range(16):
-        for j in range(16):
-          encoder_frame.mb_type[self.Y_raw_mblk_16x16][i,j] = self.mb_type
-      # need to actually do compression-y things with this macroblock
-      self.intra_predict(encoder_frame, video, quant_tables)
-      video.bitstream.nal_payload.ue(self.mb_type)
-      #### mb_pred
-      # luma modes require some context
-#      print f'Y 16x16 block @ {self.Y_pre_code_mblk_16x16.get_starts()}'
+  def compute_chroma_cbp(self, encoder_frame):
+    has_nz_DC_Cb,has_nz_AC_Cb = MacroblockLayer.compute_chroma_cbp_stats(self.Cb_pre_code_mblk_8x8, encoder_frame.Cb_nz_coeffs_frame)
+    has_nz_DC_Cr,has_nz_AC_Cr = MacroblockLayer.compute_chroma_cbp_stats(self.Cr_pre_code_mblk_8x8, encoder_frame.Cr_nz_coeffs_frame)    
+    cbp_chroma = 0
+    if has_nz_AC_Cb or has_nz_AC_Cr:
+      cbp_chroma = 2
+    elif has_nz_DC_Cb or has_nz_DC_Cr:
+      cbp_chroma = 1
+    return cbp_chroma
+
+  def compute_luma_cbp(self, encoder_frame):
+    cbp_idx = 0
+    cbp_luma = 0
+    for Y_nz_smblk_8x8 in encoder_frame.Y_nz_coeffs_frame[self.Y_pre_code_mblk_16x16].grid((8,8)):
+      has_non_zero = False
+      for Y_nz_smblk_4x4 in Y_nz_smblk_8x8.grid((4,4)):
+        # same for all elements in the 4x4 block
+        if Y_nz_smblk_4x4(0,0) > 0:
+          has_non_zero = True
+          break
+      if has_non_zero:
+        cbp_luma |= (1<<cbp_idx)
+      cbp_idx += 1
+    return cbp_luma
+
+  def compute_and_write_cbp(self, encoder_frame, video):
+    cbp_luma = self.compute_luma_cbp(encoder_frame)
+    cbp_chroma = self.compute_chroma_cbp(encoder_frame)
+    cbp = (cbp_chroma << 4) | cbp_luma
+    video.bitstream.nal_payload.me(cbp)
+    return cbp,cbp_luma,cbp_chroma
+
+  def set_mb_type(self, mb_type, encoder_frame):
+    self.mb_type = mb_type
+    for i in range(16):
+      for j in range(16):
+        encoder_frame.mb_type[self.Y_raw_mblk_16x16][i,j] = self.mb_type    
+
+  def write_luma_cavlc(self, cbp_luma, encoder_frame, video):
+    if cbp_luma > 0:
+      i8x8 = 0
+      # TODO this is different for 16x16
       for Y_pre_code_smblk_8x8 in self.Y_pre_code_mblk_16x16.grid((8,8)):
         for Y_pre_code_smblk_4x4 in Y_pre_code_smblk_8x8.grid((4,4)):
-#          print f'  Y 4x4 block @ {Y_pre_code_smblk_4x4.get_starts()}'
-          actual_mode = encoder_frame.Y_pred_modes_frame[Y_pre_code_smblk_4x4](0,0)
-          # so, if the mode is DC because that was best (and it was not forced b/c of things
-          # not available), DC_pred_mode_predicted will be 0, I think.
-          # basically, we are figuring out how the decoder would predict the mode to
-          # use, and making sure to guide it appropriately
-          A = encoder_frame.Y_pred_modes_frame[Y_pre_code_smblk_4x4][0,-1]
-          B = encoder_frame.Y_pred_modes_frame[Y_pre_code_smblk_4x4][-1,0]
-          DC_pred_mode_predicted = False
-          # TODO would need to check blk type here for availability, not just existance
-          if not A.exists() or not B.exists() or is_first_mblk:
-            DC_pred_mode_predicted = True
-          intra_A_mode = 0
-          intra_B_mode = 0
-          if DC_pred_mode_predicted:
-            intra_A_mode = 2
-            intra_B_mode = 2
-#            print f'    Using DC modes for A,B'
+          # basically, only write out non zero things by checking CBP
+          if (cbp_luma & (1<<i8x8)) > 0:
+            # okay, there are nonzeros
+            encode_CAVLC(Y_pre_code_smblk_4x4, False, False, encoder_frame.Y_nz_coeffs_frame, video)
+        i8x8 += 1     
+
+  def write_C_DC_cavlc(C_pre_code_mblk_8x8, C_nz_coeffs_frame, video):
+    C_DCs_2x2 = C_pre_code_mblk_8x8[::4,::4]
+    encode_CAVLC(C_DCs_2x2, True, False, C_nz_coeffs_frame, video)
+
+  def write_chroma_DC_cavlc(self, cbp_chroma, encoder_frame, video):
+    if (cbp_chroma & 3) > 0:
+      # some DC is nonzero
+      MacroblockLayer.write_C_DC_cavlc(self.Cb_pre_code_mblk_8x8, encoder_frame.Cb_nz_coeffs_frame, video)
+      MacroblockLayer.write_C_DC_cavlc(self.Cr_pre_code_mblk_8x8, encoder_frame.Cr_nz_coeffs_frame, video)
+
+  def write_C_AC_cavlc(C_pre_code_mblk_8x8, C_nz_coeffs_frame, video):
+    for C_pre_code_smblk_4x4 in C_pre_code_mblk_8x8.grid((4,4)):
+      encode_CAVLC(C_pre_code_smblk_4x4, False, True, C_nz_coeffs_frame, video)
+
+  def write_chroma_AC_cavlc(self, cbp_chroma, encoder_frame, video):
+    if (cbp_chroma & 2) > 0:
+      # some AC is nonzero
+      MacroblockLayer.write_C_AC_cavlc(self.Cb_pre_code_mblk_8x8, encoder_frame.Cb_nz_coeffs_frame, video)
+      MacroblockLayer.write_C_AC_cavlc(self.Cr_pre_code_mblk_8x8, encoder_frame.Cr_nz_coeffs_frame, video)
+
+  def write_chroma_cavlc(self, cbp_chroma, encoder_frame, video):
+    self.write_chroma_DC_cavlc(cbp_chroma, encoder_frame, video)
+    self.write_chroma_AC_cavlc(cbp_chroma, encoder_frame, video)
+
+  def write_cavlc(self, cbp_luma, cbp_chroma, encoder_frame, video):
+    self.write_luma_cavlc(cbp_luma, encoder_frame, video)
+    self.write_chroma_cavlc(cbp_chroma, encoder_frame, video)
+        
+  # compute and writeout the correct prediction information to send based on the prior prediction modes
+  def compute_and_write_mb_pred(self, encoder_frame, video, is_first_mblk):
+    for Y_pre_code_smblk_8x8 in self.Y_pre_code_mblk_16x16.grid((8,8)):
+      for Y_pre_code_smblk_4x4 in Y_pre_code_smblk_8x8.grid((4,4)):
+        actual_mode = encoder_frame.Y_pred_modes_frame[Y_pre_code_smblk_4x4](0,0)
+        # so, if the mode is DC because that was best (and it was not forced b/c of things
+        # not available), DC_pred_mode_predicted will be 0, I think.
+        # basically, we are figuring out how the decoder would predict the mode to
+        # use, and making sure to guide it appropriately
+        A = encoder_frame.Y_pred_modes_frame[Y_pre_code_smblk_4x4][0,-1]
+        B = encoder_frame.Y_pred_modes_frame[Y_pre_code_smblk_4x4][-1,0]
+        DC_pred_mode_predicted = False
+        # TODO would need to check blk type here for availability, not just existance
+        if not A.exists() or not B.exists() or is_first_mblk:
+          DC_pred_mode_predicted = True
+        intra_A_mode = 0
+        intra_B_mode = 0
+        if DC_pred_mode_predicted:
+          intra_A_mode = 2
+          intra_B_mode = 2
+        else:
+          # both A and B must be available. grab their actual modes
+          intra_A_mode = A(0,0)
+          intra_B_mode = B(0,0)
+        predicted_pred_mode = min(intra_A_mode, intra_B_mode)
+        # does this equal the mode we actually used?
+        if predicted_pred_mode == actual_mode:
+          video.bitstream.nal_payload.pack(1, 1)
+        else:
+          video.bitstream.nal_payload.pack(0, 1)
+          # need to tell the decoder how to compute
+          if actual_mode < predicted_pred_mode:
+            video.bitstream.nal_payload.pack(actual_mode, 3)
           else:
-            # both A and B must be available. grab their actual modes
-            intra_A_mode = A(0,0)
-            intra_B_mode = B(0,0)
-#            print f'    Using actual modes for A,B: {intra_A_mode}, {intra_B_mode}'
-          predicted_pred_mode = min(intra_A_mode, intra_B_mode)
-#          print f'    Y Mode predicted: {predicted_pred_mode}, Actual mode: {actual_mode}'
-          # does this equal the mode we actually used?
-          if predicted_pred_mode == actual_mode:
-            video.bitstream.nal_payload.pack(1, 1)
-          else:
-            video.bitstream.nal_payload.pack(0, 1)
-            # need to tell the decoder how to compute
-            if actual_mode < predicted_pred_mode:
-              video.bitstream.nal_payload.pack(actual_mode, 3)
-            else:
-              video.bitstream.nal_payload.pack(actual_mode-1, 3)
-      # chroma just gets the mode written directly
-      C_pred_mode = encoder_frame.C_pred_modes_frame[self.Cb_raw_mblk_8x8](0,0)
-      video.bitstream.nal_payload.ue(C_pred_mode)
-      #### coded block pattern
-      # TODO only do if not 16x16
-      has_nz_DC_Cb,has_nz_AC_Cb = MacroblockLayer.compute_C_coded_block_pattern(self.Cb_pre_code_mblk_8x8, encoder_frame.Cb_nz_coeffs_frame)
-      has_nz_DC_Cr,has_nz_AC_Cr = MacroblockLayer.compute_C_coded_block_pattern(self.Cr_pre_code_mblk_8x8, encoder_frame.Cr_nz_coeffs_frame)
-      cbp_chroma = 0
-      if has_nz_AC_Cb or has_nz_AC_Cr:
-        cbp_chroma = 2
-      elif has_nz_DC_Cb or has_nz_DC_Cr:
-        cbp_chroma = 1
-      cbp_luma = 0
-      # care about the 8x8 regions, so need to check nz of each 4x4
-      cbp_idx = 0
-      for Y_nz_smblk_8x8 in encoder_frame.Y_nz_coeffs_frame[self.Y_pre_code_mblk_16x16].grid((8,8)):
-        has_non_zero = False
-        for Y_nz_smblk_4x4 in Y_nz_smblk_8x8.grid((4,4)):
-          # same for all elements in the 4x4 block
-          if Y_nz_smblk_4x4(0,0) > 0:
-            has_non_zero = True
-            break
-        if has_non_zero:
-          cbp_luma |= (1<<cbp_idx)
-        cbp_idx += 1
-      cbp = (cbp_chroma << 4) | cbp_luma
-#      print f'  cbp: {cbp}, cbp luma: {cbp_luma}, cbp chroma: {cbp_chroma}'
-      video.bitstream.nal_payload.me(cbp)
-      if cbp_luma > 0 or cbp_chroma > 0: # or is 16x16 pred mode
-        video.bitstream.nal_payload.se(0) # mb_qp_delta      
-        ### CAVLC for luma
-        i8x8 = 0
-        # TODO this is different for 16x16
-        i4x4 = 0        
-        for Y_pre_code_smblk_8x8 in self.Y_pre_code_mblk_16x16.grid((8,8)):
-          for Y_pre_code_smblk_4x4 in Y_pre_code_smblk_8x8.grid((4,4)):
-#            print f'  Y 4x4 block CAVLC @ {Y_pre_code_smblk_4x4.get_starts()}'
-            # basically, only write out non zero things by checking CBP
-            if (cbp_luma & (1<<i8x8)) > 0:
-              # okay, there are nonzeros
-              encode_CAVLC(Y_pre_code_smblk_4x4, False, False, encoder_frame.Y_nz_coeffs_frame, video)
-            i4x4 += 1
-          i8x8 += 1     
-        ### CAVLC for chroma 
-        # first code the DC coefficients of the 4x4 blocks of Cb and Cr if they exist
-        if (cbp_chroma & 3) > 0:
-          # some DC is nonzero
-          Cb_DCs_2x2 = self.Cb_pre_code_mblk_8x8[::4,::4]
-          Cr_DCs_2x2 = self.Cr_pre_code_mblk_8x8[::4,::4]
-          encode_CAVLC(Cb_DCs_2x2, True, False, encoder_frame.Cb_nz_coeffs_frame, video)
-          encode_CAVLC(Cr_DCs_2x2, True, False, encoder_frame.Cr_nz_coeffs_frame, video)
-        # now ACs. Do all of Cb, then Cr
-        if (cbp_chroma & 2) > 0:
-          for Cb_pre_code_smblk_4x4 in self.Cb_pre_code_mblk_8x8.grid((4,4)):
-            # some AC is nonzero
-            encode_CAVLC(Cb_pre_code_smblk_4x4, False, True, encoder_frame.Cb_nz_coeffs_frame, video)
-          for Cr_pre_code_smblk_4x4 in self.Cr_pre_code_mblk_8x8.grid((4,4)):
-            # some AC is nonzero
-            encode_CAVLC(Cr_pre_code_smblk_4x4, False, True, encoder_frame.Cr_nz_coeffs_frame, video)
+            video.bitstream.nal_payload.pack(actual_mode-1, 3)
+    # chroma just gets the mode directly
+    C_pred_mode = encoder_frame.C_pred_modes_frame[self.Cb_raw_mblk_8x8](0,0)
+    video.bitstream.nal_payload.ue(C_pred_mode)
+
+  # Writes out a raw macroblock
+  def handle_PCM_macroblock(self, video):
+    self.mb_type = I_PCM
+    video.bitstream.nal_payload.ue(self.mb_type)
+    video.bitstream.nal_payload.align(0)
+    # write the raw data
+    if video.sps.profile_idc == 66 or video.sps.profile_idc == 77:
+      for y in self.Y_raw_mblk_16x16:
+        yi = int(y) if int(y) != 0 else 1
+        video.bitstream.nal_payload.pack(yi, 8)
+      for cb in self.Cb_raw_mblk_8x8:
+        cbi = int(cb) if int(cb) != 0 else 1
+        video.bitstream.nal_payload.pack(cbi, 8)
+      for cr in self.Cr_raw_mblk_8x8:
+        cri = int(cr) if int(cr) != 0 else 1
+        video.bitstream.nal_payload.pack(cri, 8)
     else:
-      self.mb_type = I_PCM
-      video.bitstream.nal_payload.ue(self.mb_type)
-      video.bitstream.nal_payload.align(0)
-      # write the raw data
-      if video.sps.profile_idc == 66 or video.sps.profile_idc == 77:
-        for y in self.Y_raw_mblk_16x16:
-          yi = int(y) if int(y) != 0 else 1
-          video.bitstream.nal_payload.pack(yi, 8)
-        for cb in self.Cb_raw_mblk_8x8:
-          cbi = int(cb) if int(cb) != 0 else 1
-          video.bitstream.nal_payload.pack(cbi, 8)
-        for cr in self.Cr_raw_mblk_8x8:
-          cri = int(cr) if int(cr) != 0 else 1
-          video.bitstream.nal_payload.pack(cri, 8)
-      else:
-        for y in self.Y_raw_mblk_16x16:
-          video.bitstream.nal_payload.pack(int(y), 8)
-        for cb in self.Cb_raw_mblk_8x8:
-          video.bitstream.nal_payload.pack(int(cb), 8)
-        for cr in self.Cr_raw_mblk_8x8:
-          video.bitstream.nal_payload.pack(int(cr), 8)
+      for y in self.Y_raw_mblk_16x16:
+        video.bitstream.nal_payload.pack(int(y), 8)
+      for cb in self.Cb_raw_mblk_8x8:
+        video.bitstream.nal_payload.pack(int(cb), 8)
+      for cr in self.Cr_raw_mblk_8x8:
+        video.bitstream.nal_payload.pack(int(cr), 8)
 
   def intra_predict(self, encoder_frame, video, quant_tables):
     luma_intra_predict_4x4(self, encoder_frame, video, quant_tables)
     chroma_intra_predict_4x4(self, encoder_frame, video, quant_tables)
+
+  # This is the main encoding loop
+  def encode(self, is_first_mblk, is_PCM_slice, encoder_frame: EncoderFrame, video: Video, quant_tables: Quant):
+    if not is_PCM_slice:
+      self.set_mb_type(I_4x4, encoder_frame)
+      video.bitstream.nal_payload.ue(self.mb_type)
+      # need to actually do compression-y things with this macroblock
+      self.intra_predict(encoder_frame, video, quant_tables)
+      # Based on what happened with prediction, write out some initial info BEFORE writing out the actual prediction result
+      self.compute_and_write_mb_pred(encoder_frame, video, is_first_mblk)
+      # TODO only do if not 16x16
+      cbp,cbp_luma,cbp_chroma = self.compute_and_write_cbp(encoder_frame, video)
+      if cbp_luma > 0 or cbp_chroma > 0: # or is 16x16 pred mode
+        video.bitstream.nal_payload.se(0) # mb_qp_delta      
+      # now write out the results on intra prediction
+      self.write_cavlc(cbp_luma, cbp_chroma, encoder_frame, video)
+    else:
+      self.handle_PCM_macroblock(video)
 
 @extend
 class PicSliceHeader:

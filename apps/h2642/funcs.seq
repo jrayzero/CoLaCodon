@@ -27,3 +27,8 @@ def psnr(orig,recons):
   mse = float(ssd(orig,recons) / len(orig))
   psnr = 10 * math.log10(((2**8 - 1) ** 2) / mse)
   return psnr
+
+def residual4x4(A,B,out):
+  for y in range(4):
+    for x in range(4):
+      out[y,x] = int(A(y,x))-int(B(y,x))

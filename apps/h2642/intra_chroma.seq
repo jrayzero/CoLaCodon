@@ -4,11 +4,6 @@ from funcs import *
 from transform import *
 from quant import *
 
-def residual4x4(A,B,out):
-  for y in range(4):
-    for x in range(4):
-      out[y,x] = int(A(y,x))-int(B(y,x))
-
 def intra_chroma_4x4_DC_1(pred, ref_left, ref_up):
   s = 4
   for v in ref_left[:,-1]:
@@ -43,101 +38,6 @@ def intra_chroma_4x4_DC_4(pred, bit_depth):
   for y in range(4):
     for x in range(4):
       pred[y,x] = s
-
-def intra_4x4_vertical(pred, ref):
-  p = ref[pred]
-  for y in range(4):
-    for x in range(4):
-      pred[y,x] = p(-1,x)
-
-def intra_4x4_horizontal(pred, ref):
-  p = ref[pred]
-  for y in range(4):
-    for x in range(4):
-      pred[y,x] = p(y,-1)
-
-def intra_4x4_DC_1(pred, ref):
-  p = ref
-  s = 4
-  for v in p[-1,:]:
-    s += v
-  for v in p[:,-1]:
-    s += v
-  s >>= 3
-  for y in range(4):
-    for x in range(4):
-      pred[y,x] = s
-
-def intra_4x4_DC_2(pred, ref):
-  p = ref
-  s = 2
-  for v in p[:,-1]:
-    s += v
-  s >>= 2
-  for y in range(4):
-    for x in range(4):
-      pred[y,x] = s
-
-def intra_4x4_DC_3(pred, ref):
-  p = ref
-  s = 2
-  for v in p[-1,:]:
-    s += v
-  s >>= 2
-  for y in range(4):
-    for x in range(4):
-      pred[y,x] = s
-
-def intra_4x4_DC_4(pred, bit_depth):
-  s = (1<<(bit_depth-1))
-  for y in range(4):
-    for x in range(4):
-      pred[y,x] = s
-
-# TODO TODO If either A or B is 16x16 (and you are 4x4), you HAVE to use the DC mode
-def luma_intra_predict_4x4(mblk: MacroblockLayer, encoder_frame: EncoderFrame, video: Video, quant_tables):
-  Y_raw_mblk_16x16 = mblk.Y_raw_mblk_16x16
-  Y_recons_frame = encoder_frame.Y_recons_frame
-  qp = video.cfg.qp_init
-  mblk.Y_pre_code_mblk_16x16 = Block[int,Tup2](Y_raw_mblk_16x16)
-  for Y_smblk_8x8 in Y_raw_mblk_16x16.grid((8,8)):
-    for Y_smblk_4x4 in Y_smblk_8x8.grid((4,4)):
-      Y_pred_smblk_4x4 = Block[int,Tup2](Y_smblk_4x4)
-      if Y_smblk_4x4[-1,-1].exists():
-        intra_4x4_DC_1(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4])
-      elif Y_smblk_4x4[0,-1].exists():
-        intra_4x4_DC_2(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4])
-      elif Y_smblk_4x4[-1,0].exists():
-        intra_4x4_DC_3(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4]) 
-      else:
-        intra_4x4_DC_4(Y_pred_smblk_4x4, 8)
-      cost = sad(Y_pred_smblk_4x4, Y_smblk_4x4)      
-      # forward      
-      Y_pre_code_smblk_4x4 = mblk.Y_pre_code_mblk_16x16[Y_pred_smblk_4x4]
-      Y_recons_4x4 = Y_recons_frame[Y_pred_smblk_4x4]
-      residual4x4(Y_smblk_4x4, Y_pred_smblk_4x4, Y_pre_code_smblk_4x4)
-      dct4x4(Y_pre_code_smblk_4x4, Y_pre_code_smblk_4x4)
-      basic_quantization(Y_pre_code_smblk_4x4, Y_pre_code_smblk_4x4, qp, quant_tables)
-      ncoeffs = 0
-      for coeff in Y_pre_code_smblk_4x4:
-        if coeff != 0:
-          ncoeffs += 1
-      # reconstruct
-      pre_idct_scale(Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables)
-      idct4x4(Y_recons_4x4, Y_recons_4x4)
-      post_idct_scale(Y_recons_4x4, Y_recons_4x4)
-      for i in range(4):
-        for j in range(4):
-          Y_recons_4x4[i,j] = Y_recons_4x4(i,j) + Y_pred_smblk_4x4(i,j)
-      # record how this block was predicted
-      # TODO this assumes just this 4x4 mode
-      Y_pred_modes_smblk_4x4 = encoder_frame.Y_pred_modes_frame[Y_pred_smblk_4x4]
-      Y_nz_smblk_4x4 = encoder_frame.Y_nz_coeffs_frame[Y_pred_smblk_4x4]
-      for i in range(4):
-        for j in range(4):
-          Y_pred_modes_smblk_4x4[i,j] = intra_luma_4x4_DC
-          Y_nz_smblk_4x4[i,j] = ncoeffs
-
 
 def chroma_part1(C_raw_smblk_4x4, C_pred_smblk_4x4, C_recons_smblk_4x4):
   residual4x4(C_raw_smblk_4x4, C_pred_smblk_4x4, C_recons_smblk_4x4)
