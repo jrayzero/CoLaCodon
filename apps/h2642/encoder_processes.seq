@@ -238,9 +238,9 @@ class MacroblockLayer:
       for cr in self.Cr_raw_mblk_8x8:
         video.bitstream.nal_payload.pack(int(cr), 8)
 
-  def intra_predict(self, encoder_frame, video, quant_tables):
-    luma_intra_predict_4x4(self, encoder_frame, video, quant_tables)
-    chroma_intra_predict_4x4(self, encoder_frame, video, quant_tables)
+  def predict(self, encoder_frame, video, quant_tables):
+    luma_intra_4x4_and_reconstruct(self, encoder_frame, video, quant_tables)
+    chroma_intra_4x4_and_reconstruct(self, encoder_frame, video, quant_tables)
 
   # This is the main encoding loop
   def encode(self, is_first_mblk, is_PCM_slice, encoder_frame: EncoderFrame, video: Video, quant_tables: Quant):
@@ -248,7 +248,7 @@ class MacroblockLayer:
       self.set_mb_type(I_4x4, encoder_frame)
       video.bitstream.nal_payload.ue(self.mb_type)
       # need to actually do compression-y things with this macroblock
-      self.intra_predict(encoder_frame, video, quant_tables)
+      self.predict(encoder_frame, video, quant_tables)
       # Based on what happened with prediction, write out some initial info BEFORE writing out the actual prediction result
       self.compute_and_write_mb_pred(encoder_frame, video, is_first_mblk)
       # TODO only do if not 16x16

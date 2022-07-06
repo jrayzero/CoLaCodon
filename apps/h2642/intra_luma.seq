@@ -54,8 +54,37 @@ def intra_4x4_DC_4(pred, bit_depth):
     for x in range(4):
       pred[y,x] = s
 
+# run the forward process on predicted values
+def luma_forward_4x4(Y_smblk_4x4, Y_pred_smblk_4x4, Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables):
+  residual4x4(Y_smblk_4x4, Y_pred_smblk_4x4, Y_pre_code_smblk_4x4)
+  dct4x4(Y_pre_code_smblk_4x4, Y_pre_code_smblk_4x4)
+  basic_quantization(Y_pre_code_smblk_4x4, Y_pre_code_smblk_4x4, qp, quant_tables)
+
+# run the inverse process for reconstruction
+def luma_inverse_4x4(Y_pred_smblk_4x4, Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables):
+  pre_idct_scale(Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables)
+  idct4x4(Y_recons_4x4, Y_recons_4x4)
+  post_idct_scale(Y_recons_4x4, Y_recons_4x4)
+
+def luma_commit_recons_4x4(Y_recons_4x4, Y_pred_smblk_4x4):
+  for i in range(4):
+    for j in range(4):
+      Y_recons_4x4[i,j] = Y_recons_4x4(i,j) + Y_pred_smblk_4x4(i,j)  
+
+def luma_commit_nnz_coeffs(Y_pre_code_smblk_4x4, Y_nz_smblk_4x4):
+  nnz = compute_nnz_coeffs(Y_pre_code_smblk_4x4)
+  for i in range(4):
+    for j in range(4):
+      Y_nz_smblk_4x4[i,j] = nnz
+
+def luma_commit_pred_mode(Y_pred_modes_smblk_4x4, mode):
+  for i in range(4):
+    for j in range(4):
+      Y_pred_modes_smblk_4x4[i,j] = mode
+
 # TODO TODO If either A or B is 16x16 (and you are 4x4), you HAVE to use the DC mode
-def luma_intra_predict_4x4(mblk: MacroblockLayer, encoder_frame: EncoderFrame, video: Video, quant_tables):
+# Main intra prediction loop
+def luma_intra_4x4_and_reconstruct(mblk: MacroblockLayer, encoder_frame: EncoderFrame, video: Video, quant_tables):
   Y_raw_mblk_16x16 = mblk.Y_raw_mblk_16x16
   Y_recons_frame = encoder_frame.Y_recons_frame
   qp = video.cfg.qp_init
@@ -71,30 +100,16 @@ def luma_intra_predict_4x4(mblk: MacroblockLayer, encoder_frame: EncoderFrame, v
         intra_4x4_DC_3(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4]) 
       else:
         intra_4x4_DC_4(Y_pred_smblk_4x4, 8)
-      cost = sad(Y_pred_smblk_4x4, Y_smblk_4x4)      
       # forward      
       Y_pre_code_smblk_4x4 = mblk.Y_pre_code_mblk_16x16[Y_pred_smblk_4x4]
       Y_recons_4x4 = Y_recons_frame[Y_pred_smblk_4x4]
-      residual4x4(Y_smblk_4x4, Y_pred_smblk_4x4, Y_pre_code_smblk_4x4)
-      dct4x4(Y_pre_code_smblk_4x4, Y_pre_code_smblk_4x4)
-      basic_quantization(Y_pre_code_smblk_4x4, Y_pre_code_smblk_4x4, qp, quant_tables)
-      ncoeffs = 0
-      for coeff in Y_pre_code_smblk_4x4:
-        if coeff != 0:
-          ncoeffs += 1
+      luma_forward_4x4(Y_smblk_4x4, Y_pred_smblk_4x4, Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables)
       # reconstruct
-      pre_idct_scale(Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables)
-      idct4x4(Y_recons_4x4, Y_recons_4x4)
-      post_idct_scale(Y_recons_4x4, Y_recons_4x4)
-      for i in range(4):
-        for j in range(4):
-          Y_recons_4x4[i,j] = Y_recons_4x4(i,j) + Y_pred_smblk_4x4(i,j)
+      luma_inverse_4x4(Y_pred_smblk_4x4, Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables)
       # record how this block was predicted
+      luma_commit_recons_4x4(Y_recons_4x4, Y_pred_smblk_4x4)
       # TODO this assumes just this 4x4 mode
-      Y_pred_modes_smblk_4x4 = encoder_frame.Y_pred_modes_frame[Y_pred_smblk_4x4]
+      Y_pred_modes_smblk_4x4 = encoder_frame.Y_pred_modes_frame[Y_pred_smblk_4x4]      
+      luma_commit_pred_mode(Y_pred_modes_smblk_4x4, intra_luma_4x4_DC)
       Y_nz_smblk_4x4 = encoder_frame.Y_nz_coeffs_frame[Y_pred_smblk_4x4]
-      for i in range(4):
-        for j in range(4):
-          Y_pred_modes_smblk_4x4[i,j] = intra_luma_4x4_DC
-          Y_nz_smblk_4x4[i,j] = ncoeffs
-
+      luma_commit_nnz_coeffs(Y_pre_code_smblk_4x4, Y_nz_smblk_4x4)
