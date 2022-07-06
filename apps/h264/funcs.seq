@@ -27,3 +27,20 @@ def psnr(orig,recons):
   mse = float(ssd(orig,recons) / len(orig))
   psnr = 10 * math.log10(((2**8 - 1) ** 2) / mse)
   return psnr
+
+def residual4x4(A,B,out):
+  for y in range(4):
+    for x in range(4):
+      out[y,x] = int(A(y,x))-int(B(y,x))
+
+def compute_nnz_coeffs(blk):
+  nnz_coeffs = 0
+  for coeff in blk:
+    if coeff != 0:
+      nnz_coeffs += 1
+  return nnz_coeffs
+
+def set_all_2D(blk, val):
+  for i in range(blk.get_dims()[0]):
+    for j in range(blk.get_dims()[1]):
+      blk[i,j] = val

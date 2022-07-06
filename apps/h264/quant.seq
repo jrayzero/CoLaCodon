@@ -1,4 +1,4 @@
-from collections import *
+from video import *
 from funcs import *
 
 # ok, every document/paper/website absolutely sucks at describing quantization, and I still don't fully
@@ -69,6 +69,54 @@ from funcs import *
 # Again, very confused where all of the scaling factors that go into this come from. But
 # I trust the smart compression people, so I'm going with it
 
+@dataclass(init=False)
+class Quant:
+  # for quant
+  m_table: Block[int,Tup2]
+  # for dequant
+  v_table: Block[int,Tup2]
+
+  def __init__(self):
+    self.m_table = Block[int,Tup2]((6,3))
+    self.m_table[0,0] = 13107
+    self.m_table[0,1] = 5243
+    self.m_table[0,2] = 8066
+    self.m_table[1,0] = 11916
+    self.m_table[1,1] = 4660
+    self.m_table[1,2] = 7490
+    self.m_table[2,0] = 10082
+    self.m_table[2,1] = 4194
+    self.m_table[2,2] = 6554
+    self.m_table[3,0] = 9362
+    self.m_table[3,1] = 3647
+    self.m_table[3,2] = 5825
+    self.m_table[4,0] = 8192
+    self.m_table[4,1] = 3355
+    self.m_table[4,2] = 5243
+    self.m_table[5,0] = 7282
+    self.m_table[5,1] = 2893
+    self.m_table[5,2] = 4559
+
+    self.v_table = Block[int,Tup2]((6,3))
+    self.v_table[0,0] = 10
+    self.v_table[0,1] = 16
+    self.v_table[0,2] = 13
+    self.v_table[1,0] = 11
+    self.v_table[1,1] = 18
+    self.v_table[1,2] = 14
+    self.v_table[2,0] = 13
+    self.v_table[2,1] = 20
+    self.v_table[2,2] = 16
+    self.v_table[3,0] = 14
+    self.v_table[3,1] = 23
+    self.v_table[3,2] = 18
+    self.v_table[4,0] = 16
+    self.v_table[4,1] = 25
+    self.v_table[4,2] = 20
+    self.v_table[5,0] = 18
+    self.v_table[5,1] = 29
+    self.v_table[5,2] = 23
+
 def basic_quantization(coeffs, qcoeffs, qp, quant: Quant):
   bits = 15 + qp // 6
   for i in range(4):
@@ -77,7 +125,7 @@ def basic_quantization(coeffs, qcoeffs, qp, quant: Quant):
       j2 = j % 2
       n = 0 if (i2 == 0 and j2 == 0) else (1 if (i2 == 1 and j2 == 1) else 2)
       coeff = coeffs(i,j)
-      qcoeffs[i,j] = (coeff * quant.m_table(qp % 6, n)) >> bits
+      qcoeffs[i,j] = (coeff * quant.m_table(qp % 6, n)+174592) >> bits
     
 # for decoding, run this before idct on 4x4 blocks
 def pre_idct_scale(qcoeffs, coeffs, qp, quant: Quant):

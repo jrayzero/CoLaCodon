@@ -1,22 +1,23 @@
 import sys
 from cfg import *
 from yuv import *
-from syntax import *
-from collections import *
+from parameter_sets import *
+from encoder_processes import *
+from video import *
 from constants import *
-from I import *
+from annexb import *
+from quant import *
 
 def init_SPS(cfg):
   sps = SPS()
   sps.profile_idc = cfg.profile
   sps.level_idc = cfg.level
-  if cfg.profile == 66:
-    sps.constraint_set1_flag = True
+#  if cfg.profile == 66:
+#    sps.constraint_set1_flag = True
   if not cfg.disable_motion_estimation:
     assert False
   else:
-    # force decoding order and display order to be the same
-    sps.pic_order_cnt_type = 2
+    sps.pic_order_cnt_type = 0
   return sps
 
 def init_PPS(cfg):
@@ -28,26 +29,21 @@ def main():
   if len(sys.argv) < 2:
     print 'Usage: h264.seq <cfg>'
   cfg = parse_config(sys.argv[1])
-  video = Video(cfg, init_SPS(cfg))  
+  video = Video(init_SPS(cfg), cfg, AnnexBBitstream(cfg.output_fn))
+  video.cfg = cfg
+  video.sps = init_SPS(cfg)
   yuv420 = YUV420Reader(cfg)
-  bitstream = AnnexBBitstream(cfg.output_fn)
-  bitstream.generate_sps(video.sps, video)
   pps = init_PPS(cfg)
-  video.add_pps(pps)
-  bitstream.generate_pps(pps, video)
+  quant_tables = Quant()
   frame_idx = 0
+  video.encode()
   # go through frames
-  for Y,Cb,Cr in yuv420:
-    print f'frame: {frame_idx}'
-    frame = Frame[byte](Y, Cb, Cr, pps.pps_id)    
-    video.input_frame = frame
-    if cfg.pcm_mode:
-      PCM_only(frame_idx == 0, video, bitstream)
-    else:
-      # intra-prediction only, so use all I frames
-      intra_only(frame_idx == 0, pps.pps_id, video, bitstream)
+  for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
+    print f'Frame: {frame_idx}'
+    encoder_frame = EncoderFrame(frame_idx, Y_raw_frame, Cb_raw_frame, Cr_raw_frame, pps, frame_idx == 0)    
+    encoder_frame.encode(video, quant_tables)
     frame_idx += 1
   yuv420.cleanup()
-  bitstream.cleanup()
+  video.bitstream.cleanup()
 
 main()

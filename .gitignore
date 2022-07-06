@@ -77,3 +77,4 @@ gtest_parallel.py
 **/*.264
 **/*.mp4
 **/#*
+apps/h264.old

@@ -1,5 +1,5 @@
 from cola.blocks import *
-from collections import *
+from cfg import *
 from typedefs import *
 
 class YUV420Reader:

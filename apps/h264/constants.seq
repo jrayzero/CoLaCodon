@@ -1,12 +1,8 @@
 # nal info
 
-NAL_REF_IDC_PCM_SLICE = 3
-NAL_UNIT_TYPE_PCM_SLICE = 1
-NAL_REF_IDC_IDR_PIC = 3
-NAL_UNIT_TYPE_IDR_PIC = 5
-NAL_REF_IDC_SPS = 3
+NAL_UNIT_TYPE_NON_IDR = 1
+NAL_UNIT_TYPE_IDR = 5
 NAL_UNIT_TYPE_SPS = 7 
-NAL_REF_IDC_PPS = 3
 NAL_UNIT_TYPE_PPS = 8
 
 # slice types
@@ -38,6 +34,7 @@ def is_SI_slice(si):
 
 # macroblock types, I slices
 I_4x4 = 0
+I_8x8 = 0
 I_16x16_0_0_0 = 1
 I_16x16_1_0_0 = 2
 I_16x16_2_0_0 = 3
@@ -63,3 +60,64 @@ I_16x16_1_2_1 = 22
 I_16x16_2_2_1 = 23
 I_16x16_3_2_1 = 24
 I_PCM = 25
+
+def is_I_4x4(mb_type):
+  return mb_type == I_4x4
+
+def is_I_16x16(mb_type):
+  return mb_type >= I_16x16_0_0_0 and mb_type <= I_16x16_3_2_1
+
+def is_intra(mb_type):
+  return is_I_4x4(mb_type) or is_I_16x16(mb_type)
+
+def is_inter(mb_type):
+  return False
+
+# actual types of prediction 
+intra_chroma_4x4_DC = 0
+intra_chroma_4x4_horizontal = 1
+intra_chroma_4x4_vertical = 2
+intra_chroma_4x4_plane = 3
+intra_luma_4x4_vertical = 0
+intra_luma_4x4_horizontal = 1
+intra_luma_4x4_DC = 2
+intra_luma_4x4_diagonal_down_left = 3
+intra_luma_4x4_diagonal_down_right = 4
+intra_luma_4x4_vertical_right = 5
+intra_luma_4x4_horizontal_down = 6
+intra_luma_4x4_vertical_left = 7
+intra_luma_4x4_horizontal_up = 8
+
+def luma_mode_to_str(mode):
+  if mode == intra_luma_4x4_vertical:
+    return 'vertical 4x4'
+  elif mode == intra_luma_4x4_horizontal:
+    return 'horizontal 4x4'
+  elif mode == intra_luma_4x4_DC:
+    return 'DC 4x4'
+  elif mode == intra_luma_4x4_diagonal_down_left:
+    return 'diagonal_down_left 4x4'
+  elif mode == intra_luma_4x4_diagonal_down_right:
+    return 'diagonal_down_right 4x4'
+  elif mode == intra_luma_4x4_vertical_right:
+    return 'vertical_right 4x4'
+  elif mode == intra_luma_4x4_horizontal_down:
+    return 'horizontal_down 4x4'
+  elif mode == intra_luma_4x4_vertical_left:
+    return 'vertical_left 4x4'
+  elif mode == intra_luma_4x4_horizontal_up:
+    return 'horizontal_up 4x4'
+  else: 
+    return ''
+
+def chroma_mode_to_str(mode):
+  if mode == intra_chroma_4x4_DC:
+    return 'DC 4x4'
+  elif mode == intra_chroma_4x4_horizontal:
+    return 'horizontal 4x4'
+  elif mode == intra_chroma_4x4_vertical:
+    return 'vertical 4x4'
+  elif mode == intra_chroma_4x4_plane:
+    return 'plane 4x4'
+  else:
+    return ''
