@@ -1,0 +1,25 @@
+from ..common.generic_bitstream import *
+
+@extend
+class Bitstream:
+
+  def align(self, bit: Static[int]):
+    while self.bit_idx % 8 != 0:
+      self.pack(bit, 1)    
+
+@dataclass(init=False)
+class H261Bitstream:
+
+  compressed: Bitstream
+  fd: File
+
+  def __init__(self, output_fn):
+    self.compressed = Bitstream(32768)
+    self.fd = open(output_fn, 'wb')
+
+  def cleanup(self):
+    self.compressed.align(0)
+    self.compressed.flush(self.fd)
+    self.fd.flush()
+    self.fd.close()  
+    

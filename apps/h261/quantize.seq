@@ -1,0 +1,21 @@
+def quantize(coeffs, scale):
+  assert scale != 0
+  for i in range(coeffs.get_dims()[0]):
+    for j in range(coeffs.get_dims()[1]):
+      coeffs[i,j] = coeffs(i,j)//(scale*2)
+
+def intra_quantize(coeffs, scale):
+  dc = coeffs(0,0)
+  quantize(coeffs, scale)
+  dc //= 8 # fixed in the standard
+  coeffs[0,0] = dc
+
+def clip(coeffs):
+  for i in range(coeffs.get_dims()[0]):
+    for j in range(coeffs.get_dims()[1]):
+      coeff = coeffs(i,j)
+      if coeff > 127:
+        coeff = 127
+      elif coeff < -127:
+        coeff = -127
+      coeffs[i,j] = coeff

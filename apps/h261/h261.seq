@@ -1,0 +1,22 @@
+import sys
+from cfg import *
+from encoder import *
+from h261_bitstream import *
+from ..common.yuv import *
+
+def main():
+  if len(sys.argv) < 2:
+    print 'Usage: h261.seq <cfg>'
+  cfg = parse_config(sys.argv[1], parse_param, H261Cfg)
+  yuv420 = YUV420Reader(cfg)
+  frame_idx = 0
+  bitstream = H261Bitstream(cfg.output_fn)
+  # go through frames
+  for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
+    print f'Frame: {frame_idx}'
+    transmitted = PicLayer.process(Y_raw_frame, Cb_raw_frame, Cr_raw_frame, frame_idx, 0b000011 if not cfg.cif else 0b000111, cfg, bitstream)
+    frame_idx += 1
+  yuv420.cleanup()
+  bitstream.cleanup()
+
+main()

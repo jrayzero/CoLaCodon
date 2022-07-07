@@ -1,0 +1,368 @@
+from cola.blocks import *
+from ..common.typedefs import *
+from dct import *
+from quantize import *
+from constants import *
+
+zigzag = [(0,0),(0,1),(1,0),(2,0),(1,1),(0,2),(0,3),(1,2),
+          (2,1),(3,0),(4,0),(3,1),(2,2),(1,3),(0,4),(0,5),
+          (1,4),(2,3),(3,2),(4,1),(5,0),(6,0),(5,1),(4,2),
+          (3,3),(2,4),(1,5),(0,6),(0,7),(1,6),(2,5),(3,4),
+          (4,3),(5,2),(6,1),(7,0),(7,1),(6,2),(5,3),(4,4),
+          (3,5),(2,6),(1,7),(2,7),(3,6),(4,5),(5,4),(6,3),
+          (7,2),(7,3),(6,4),(5,5),(4,6),(3,7),(4,7),(5,6),
+          (6,5),(7,4),(7,5),(6,6),(5,7),(6,7),(7,6),(7,7)]
+
+MBA_codewords = [
+  1,  3,  2,  3,
+  2,  3,  2,  7,
+  6, 11, 10,  9,
+  8,  7,  6, 23,
+  22, 21, 20, 19,
+  18, 35, 34, 33,
+  32, 31, 30, 29,
+  28, 27, 26, 25,
+  24,
+  15, # (MBA stuffing)
+  1]  # (start code)
+
+MBA_nbits = [
+  1,  3,  3,  4,
+  4,  5,  5,  7,
+  7,  8,  8,  8,
+  8,  8,  8, 10,
+  10, 10, 10, 10,
+  10, 11, 11, 11,
+  11, 11, 11, 11,
+  11, 11, 11, 11,
+  11,
+  11, # (MBA stuffing)
+  16]  # (start code)
+
+mtype_nbits = [4, 7, 1, 5, 9, 8, 10, 3, 2, 6]
+
+mvd_codewords_nbits = [
+  (  1, 1 ), (  1, 2 ), ( 1, 3 ), (  1,  4 ), (  3,  6 ), (  5,  7 ), (  4,  7 ), (  3,  7 ),
+  ( 11, 9 ), ( 10, 9 ), ( 9, 9 ), ( 17, 10 ), ( 16, 10 ), ( 15, 10 ), ( 14, 10 ), ( 13, 10 ), ( 12, 10 )]
+
+CBP_vlc = [( 11, 5 ), (  9, 5 ), ( 13, 6 ), ( 13, 4 ), ( 23, 7 ), ( 19, 7 ), ( 31, 8 ), ( 12, 4 ),
+           ( 22, 7 ), ( 18, 7 ), ( 30, 8 ), ( 19, 5 ), ( 27, 8 ), ( 23, 8 ), ( 19, 8 ), ( 11, 4 ),
+           ( 21, 7 ), ( 17, 7 ), ( 29, 8 ), ( 17, 5 ), ( 25, 8 ), ( 21, 8 ), ( 17, 8 ), ( 15, 6 ),
+           ( 15, 8 ), ( 13, 8 ), (  3, 9 ), ( 15, 5 ), ( 11, 8 ), (  7, 8 ), (  7, 9 ), ( 10, 4 ),
+           ( 20, 7 ), ( 16, 7 ), ( 28, 8 ), ( 14, 6 ), ( 14, 8 ), ( 12, 8 ), (  2, 9 ), ( 16, 5 ),
+           ( 24, 8 ), ( 20, 8 ), ( 16, 8 ), ( 14, 5 ), ( 10, 8 ), (  6, 8 ), (  6, 9 ), ( 18, 5 ),
+           ( 26, 8 ), ( 22, 8 ), ( 18, 8 ), ( 13, 5 ), (  9, 8 ), (  5, 8 ), (  5, 9 ), ( 12, 5 ),
+           (  8, 8 ), (  4, 8 ), (  4, 9 ), (  7, 3 ), ( 10, 5 ), (  8, 5 ), ( 12, 6 )]
+
+tcoeff_vlc = {0:{2:(0b0100,4), 3:(0b00101,5), 4:(0b0000110,7), 5:(0b00100110,8), 
+                 6:(0b00100001,8), 7:(0b0000001010,10), 8:(0b000000011101,12),
+                 9:(0b000000011000,12), 10:(0b000000010011,12), 11:(0b000000010000,12), 12:(0b0000000011010,13), 13:(0b0000000011001,13),
+                 14:(0b0000000011000,13), 15:(0b0000000010111,13)},
+              1:{1:(0b011,3), 2:(0b000110,6), 3:(0b00100101,8), 4:(0b0000001100,10), 
+                 5:(0b000000011011,12), 6:(0b0000000010110,13), 7:(0b0000000010101,13)},
+              2:{1:(0b0101,4), 2:(0b0000100,7), 3:(0b00100101,8), 4:(0b0000001100,10), 5:(0b000000011011,12)},
+              3:{1:(0b00111,5), 2:(0b00100100,8), 3:(0b000000011100,12), 4:(0b0000000010011,13)},
+              4:{1:(0b00110,5), 2:(0b0000001111,10), 3:(0b000000010010,12)},
+              5:{1:(0b000111,6), 2:(0b0000001001,10), 3:(0b0000000010010,13)},
+              6:{1:(0b000101,6), 2:(0b000000011110,12)},
+              7:{1:(0b000100,6), 2:(0b000000010101,12)},
+              8:{1:(0b0000111,7), 2:(0b000000010001,12)},
+              9:{1:(0b0000101,7), 2:(0b0000000010001,13)},
+              10:{1:(0b00100111,8), 2:(0b0000000010000,13)},
+              11:{1:(0b00100011,8)},
+              12:{1:(0b00100010,8)},
+              13:{1:(0b00100000,8)},
+              14:{1:(0b0000001110,10)},
+              15:{1:(0b0000001101,10)},
+              16:{1:(0b0000001000,10)},
+              17:{1:(0b000000011111,12)},
+              18:{1:(0b000000011010,12)},
+              19:{1:(0b000000011001,12)},
+              20:{1:(0b000000010111,12)},
+              21:{1:(0b000000010110,12)},
+              22:{1:(0b0000000011111,13)},
+              23:{1:(0b0000000011110,13)},
+              24:{1:(0b0000000011101,13)},
+              25:{1:(0b0000000011100,13)},
+              26:{1:(0b0000000011011,13)}}
+
+class Prediction:
+  
+  def inter(raw_coeffs, coeffs, prev_frame):
+    pass
+  
+class BlockLayer:
+    
+  nnz: int
+  nbits: int
+  rle: list[Tuple[int,int]]
+  intra_mode: bool
+  
+  def __init__(self, nnz, nbits, rle, intra_mode):
+    self.nnz = nnz
+    self.nbits = nbits
+    self.rle = rle
+    self.intra_mode = intra_mode
+
+  def encode(raw_coeffs, scale: int, intra_mode: bool, prev_frame):
+    coeffs = Block[int,Tup2](raw_coeffs)
+    # Do prediction
+    if intra_mode:
+      # no actual prediction for intra, just use the raw values
+      for i in range(8):
+        for j in range(8):
+          coeff = int(raw_coeffs(i,j))
+          if coeff > 254:
+            coeff = 254
+          if coeff < 1:
+            coeff = 1
+          coeffs[i,j] = coeff
+    else:
+      assert False
+      # TODO predict and get residual
+      Prediction.inter(raw_coeffs, coeffs, ~prev_frame)
+    # dct + quantize + clip
+#    naive_dct(coeffs)
+    dct8x8(coeffs)
+#    dct_clip(coeffs)
+    if intra_mode:      
+      intra_quantize(coeffs, scale) 
+      dc = coeffs(0,0)
+      if dc > 254:
+        dc = 254
+      elif dc < 1:
+        dc = 1
+      coeffs[0,0] = dc
+    else:
+      quantize(coeffs, scale)
+    clip(coeffs)
+    dc = coeffs(0,0)
+#    for i in range(8):
+#      for j in range(8):
+#        coeffs[i,j] = 1
+    coeffs[0,0] = dc
+    
+    # get the nonzero coefficients
+    nnz = 0
+    for c in coeffs:
+      if c != 0:
+        nnz += 1
+    # RLE in zigzag order
+    # if intra, include the DC separately
+    run = 0
+    rle = []
+    first = True
+    print coeffs.str_like(int)
+    for zz in zigzag:
+      coeff = coeffs(*zz)
+      if intra_mode and first == True:
+        dc = coeff
+        rle.append((0,dc)) # special value
+        first = False
+        continue
+      first = False
+      if coeff == 0:
+        run += 1
+      else:
+        rle.append((run,coeff))
+        run = 0
+    # don't need the last run because it'll just be EOB
+    nbits = 0 # TODO nbits required to encode this block
+    return BlockLayer(nnz,nbits,rle,intra_mode)
+
+  def maybe_vlc(run,coeff,bitstream):
+    if run in tcoeff_vlc:
+      run_info = tcoeff_vlc[run]
+      if coeff in run_info:
+        # vlc
+        scoeff = coeff
+        if coeff < 0:
+          coeff = -coeff
+        codeword,nbits = run_info[coeff]
+        print f'packed vlc {codeword}@{nbits} for {run},{coeff}'        
+        bitstream.compressed.pack(codeword,nbits)
+        # sign bit 's' 
+        if scoeff < 0:
+          bitstream.compressed.pack(1,1)
+        else:
+          bitstream.compressed.pack(0,1)
+        return True
+    return False
+
+  def flc(run, coeff, bitstream):
+    bitstream.compressed.pack(tcoeff_escape_codeword, tcoeff_escape_nbits)
+    bitstream.compressed.pack(run, 6)
+    bitstream.compressed.pack(coeff, 8)    
+
+  def commit(self, bitstream):
+    # for coeff, if it is negative, you use the absolute value to actually look up 
+    # in the VLC table.
+    # for the FLC, you use the unsigned value
+    # when using fixed run/level codes, its just the straightup bit representation
+    if self.intra_mode:      
+      dc = self.rle[0][1]
+      if dc == 128:
+        bitstream.compressed.pack(0xFF,8)
+      else:
+        bitstream.compressed.pack(dc,8)
+    else:
+      # the first transmitted level gets special treatment if run == 0 and coeff == 1
+      first_run = self.rle[0]
+      if first_run[0] == 0 and first_run[1] == 1:
+        bitstream.compressed.pack(1,1)
+      else:
+        zrun = first_run[0]
+        coeff = first_run[1]
+        if not BlockLayer.maybe_vlc(zrun, coeff, bitstream):
+          BlockLayer.flc(zrun, coeff, bitstream)
+
+    for zrun,coeff in self.rle[1:]:
+      if zrun == 0 and (coeff == 1 or coeff == -1):
+        bitstream.compressed.pack(0b11,2) # not first coeff in block
+        # sign bit 's' 
+        if coeff == 1:
+          bitstream.compressed.pack(0,1)
+        else:
+          bitstream.compressed.pack(1,1)
+      else:
+        if not BlockLayer.maybe_vlc(zrun, coeff, bitstream):
+          BlockLayer.flc(zrun, coeff, bitstream)       
+      first = False
+    bitstream.compressed.pack(tcoeff_EOB_codeword, tcoeff_EOB_nbits)
+
+class MacroblockLayer:
+
+  addr: int
+  mtype: int
+  mquant: int
+  mvd_h: int
+  mvd_v: int
+  cbp: int
+  last_mtype: int
+  blocks: list[BlockLayer]
+
+  def __init__(self, addr, mtype, last_mtype, blocks):
+    self.addr = addr
+    self.mtype = mtype
+    self.mquant = 0
+    self.mvd_h = 0
+    self.mvd_v = 0
+    self.cbp = 0
+    self.last_mtype = last_mtype
+    self.blocks = blocks
+
+  def process(addr, last_addr, last_mtype, Y_mblk, Cb_mblk, Cr_mblk, cfg, bitstream):
+    # once you determine the macroblock parameters, you can immediately commit it + sub blocks
+    layer = MacroblockLayer.encode(addr, last_mtype, Y_mblk, Cb_mblk, Cr_mblk, cfg)
+    layer.commit(last_addr, bitstream)
+    for block in layer.blocks:
+      block.commit(bitstream)
+    bitstream.compressed.pack(MBA_stuffing_codeword, MBA_stuffing_nbits)
+    return True,layer.mtype # transmitted
+
+  # TODO rate control
+  def encode(addr, last_mtype, Y_mblk, Cb_mblk, Cr_mblk, cfg):
+    mtype = INTRA0
+    # The selected block parameterizations to encode
+    # Y,Y,Y,Y,Cb,Cr
+    blocks = [] 
+    # INTER MODE
+    try_intra = True
+    # INTRA MODE
+    if try_intra:
+      for Y_smblk_8x8 in Y_mblk.grid((8,8)):
+        block = BlockLayer.encode(Y_smblk_8x8, cfg.scale_init, True, None)
+        blocks.append(block)
+      Cb_block = BlockLayer.encode(Cb_mblk, cfg.scale_init, True, None)
+      Cr_block = BlockLayer.encode(Cr_mblk, cfg.scale_init, True, None)    
+      blocks.append(Cb_block)
+      blocks.append(Cr_block)
+      # TODO pick the final set of block encodings to use
+      mtype = INTRA0
+    # Return the final selection
+    return MacroblockLayer(addr, mtype, last_mtype, blocks)
+    
+  def commit(self, last_addr, bitstream):    
+    # figure out what we have
+    has_mquant = self.mtype == INTRA1 or self.mtype == INTER1 or self.mtype == INTER_MC2 or self.mtype == INTER_MC_FIL2
+    has_mvd = self.mtype >= INTER_MC0
+    has_cbp = self.mtype == INTER0 or self.mtype == INTER1 or self.mtype == INTER_MC1 or self.mtype == INTER_MC2 or self.mtype == INTER_MC_FIL1 or self.mtype == INTER_MC_FIL2
+    last_was_mvd = self.last_mtype >= INTER_MC0
+    # now commit it
+    addr_to_transmit = 1 if self.addr == 1 else self.addr - last_addr
+    code,nbits = MBA_codewords[addr_to_transmit-1], MBA_nbits[addr_to_transmit-1] # -1 b/c it is a 1-based index
+#    print f'addr: {addr_to_transmit}, {code}@{nbits}'
+    bitstream.compressed.pack(code, nbits)
+    code,nbits = 1, mtype_nbits[self.mtype]
+    bitstream.compressed.pack(code, nbits)
+    if has_mquant:
+      assert False
+      bitstream.compressed.pack(self.mquant, 5)
+    if has_mvd:
+      assert False # Need to figure out the mvd codewords
+#      if self.addr == 1 or self.addr == 12 or self.addr == 23 or addr_to_transmit != 1 or not last_was_mvd:
+#        last_mvd_H = 0
+#        last_mvd_V = 0
+#      mvd_H = self.mvd_H - last_mvd_H
+#      mvd_V = self.mvd_V - last_mvd_V
+#      code,nbits = mvd_codewords[mvd_h+16],mvd_nbits[mvd_h+16]
+#      bitstream.compressed.pack(code,nbits)
+#      code,nbits = mvd_codewords[mvd_V+16],mvd_nbits[mvd_V+16]
+#      bitstream.compressed.pack(code,nbits)      
+    if has_cbp:
+      assert False
+      code,nbits = CBP_vlc[self.cbp-1]
+      bitstream.compressed.pack(code,nbits)
+    
+class GOBLayer:
+
+  def process(Y_gob, Cb_gob, Cr_gob, gn: int, gquant: int, cfg, bitstream):
+    # can immediately commit the header
+    bitstream.compressed.pack(GBSC, 16)
+    bitstream.compressed.pack(gn, 4)
+    bitstream.compressed.pack(gquant, 5)
+    bitstream.compressed.pack(0, 1) # GEI
+    bitstream.compressed.pack(MBA_stuffing_codeword, MBA_stuffing_nbits)
+    # now do macroblock things
+    return GOBLayer.encode(Y_gob, Cb_gob, Cr_gob, cfg, bitstream)
+
+  def encode(Y_gob, Cb_gob, Cr_gob, cfg, bitstream):
+    midx = 1
+    last_midx = 0
+    last_mtype = 0
+    # True if any macroblock in the GOB gets transmitted
+    transmitted = False
+    for Y_mblk,Cb_mblk,Cr_mblk in zip(Y_gob.grid((16,16)),Cb_gob.grid((8,8)),Cr_gob.grid((8,8))):
+      transmitted2,mtype = MacroblockLayer.process(midx, last_midx, last_mtype, Y_mblk, Cb_mblk, Cr_mblk, cfg, bitstream)
+      if transmitted2:
+        last_midx = midx
+        last_mtype = mtype
+        transmitted = True
+      midx += 1      
+    return transmitted
+
+class PicLayer:
+
+  def process(Y_frame, Cb_frame, Cr_frame, tr, ptype, cfg, bitstream):
+    # can immediately commit the header
+    bitstream.compressed.pack(PSC, 20)
+    bitstream.compressed.pack(tr, 5)
+    bitstream.compressed.pack(ptype, 6)
+    bitstream.compressed.pack(0, 1) # pei
+    # now do GOB things
+    return PicLayer.encode(Y_frame, Cb_frame, Cr_frame, cfg, bitstream)
+
+  def encode(Y_frame, Cb_frame, Cr_frame, cfg, bitstream):
+    gn = 1
+    incr = 1 if cfg.cif else 2
+    transmitted = False
+    for Y_gob,Cb_gob,Cr_gob in zip(Y_frame.grid((48,176)),Cb_frame.grid((24,88)),Cr_frame.grid((24,88))):
+      transmitted |= GOBLayer.process(Y_gob, Cb_gob, Cr_gob, gn, cfg.scale_init, cfg, bitstream)
+      gn += incr
+    # if false, the whole picture was skipped
+    return transmitted
+      
+      
+
+
+

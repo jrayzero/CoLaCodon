@@ -1,0 +1,55 @@
+from ..common.cfg_utils import *
+
+@dataclass(init=False)
+class H261Cfg:
+  # Input
+  input_fn: str
+  cif: bool
+  height: int
+  width: int
+  nframes: int
+  # Output
+  output_fn: str
+  # Quantize
+  scale_init: int
+
+  def __init__(self):
+    self.input_fn = ''
+    self.height = 144
+    self.width = 176
+    self.nframes = -1
+    self.output_fn = ''
+    self.scale_init = 0
+
+  def __str__(self):
+    s = ''
+    s += f'input_fn: {self.input_fn}\n'
+    s += f'cif: {self.cif}\n'
+    s += f'height: {self.height}\n'
+    s += f'width: {self.width}\n'
+    s += f'nframes: {self.nframes}\n'
+    s += f'output_fn: {self.output_fn}\n'
+    s += f'scale_init: {self.scale_init}\n'
+    return s
+  
+def parse_param(param, value, cfg):
+  param = param.lower()
+  if param == 'input_fn':
+    cfg.input_fn = parse_str(param,value)
+  elif param == 'cif':
+    cif = parse_bool(param,value)
+    cfg.cif = cif
+    if cif:
+      cfg.height = 288
+      cfg.width = 352
+    else:
+      cfg.height = 144
+      cfg.width = 176
+  elif param == 'nframes':
+    cfg.nframes = parse_int(param,value)
+  elif param == 'output_fn':
+    cfg.output_fn = parse_str(param,value)
+  elif param == 'scale_init':
+    cfg.scale_init = parse_int(param,value)
+  else:
+    print f'Unknown cfg param: {param}'

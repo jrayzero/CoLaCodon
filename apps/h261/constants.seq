@@ -1,0 +1,24 @@
+PSC = 0x00010
+GBSC = 0x0001
+MBA_stuffing_codeword = 0b00000001111
+MBA_stuffing_nbits = 11
+
+tcoeff_0_1_first_codeword = 0b1
+tcoeff_0_1_first_nbits = 1
+tcoeff_0_1_not_first_codeword = 0b11
+tcoeff_0_1_not_first_nbits = 2
+tcoeff_EOB_codeword = 0b10
+tcoeff_EOB_nbits = 2
+tcoeff_escape_codeword = 0b000001
+tcoeff_escape_nbits = 6
+
+INTRA0 = 0
+INTRA1 = 1
+INTER0 = 2
+INTER1 = 3
+INTER_MC0 = 4
+INTER_MC1 = 5
+INTER_MC2 = 6
+INTER_MC_FIL0 = 7
+INTER_MC_FIL1 = 8
+INTER_MC_FIL2 = 9
