@@ -1,7 +1,6 @@
 from constants import *
-from collections import *
 from golomb import *
-from generic_bitstream import *
+from ..common.generic_bitstream import *
 
 @extend
 class Bitstream:

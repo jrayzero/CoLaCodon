@@ -1,5 +1,5 @@
 from cola.blocks import *
-from typedefs import *
+from ..common.typedefs import *
 from parameter_sets import *
 from cfg import *
 from annexb import *
@@ -103,7 +103,7 @@ class Video:
   def __init__(self, sps, cfg, bitstream):
     self.sps = sps
     self.cfg = cfg
-    self.bistream = bitstream
+    self.bitstream = bitstream
 
 @extend
 class PicSlice:

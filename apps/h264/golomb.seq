@@ -1,5 +1,5 @@
 from cola.blocks import *
-from generic_bitstream import *
+from ..common.generic_bitstream import *
 import math
 
 """

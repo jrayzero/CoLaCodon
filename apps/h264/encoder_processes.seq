@@ -2,7 +2,7 @@ from cola.blocks import *
 from video import *
 from parameter_sets import *
 from constants import *
-from typedefs import *
+from ..common.typedefs import *
 from intra_luma import *
 from intra_chroma import *
 from quant import *
