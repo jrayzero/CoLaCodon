@@ -36,3 +36,19 @@ def clip1(coeff, lower: Static[int], upper: Static[int]):
     return lower
   else:
     return coeff
+
+def iquantize(coeffs, out_coeffs, step):
+  even = step & 2 == 0
+  for i in range(8):
+    for j in range(8):
+      coeff = coeffs(i,j)
+      if even:
+        out_coeffs[i,j] = step * (2 * coeff + 1) - 1 if coeff > 0 else step * (2 * coeff - 1) + 1 
+      else:
+        out_coeffs[i,j] = step * (2 * coeff + 1) if coeff > 0 else step * (2 * coeff - 1)
+
+def intra_iquantize(coeffs, out_coeffs, step):
+  dc = coeffs(0,0)
+  iquantize(coeffs, out_coeffs, step)
+  dc *= 8
+  out_coeffs[0,0] = dc

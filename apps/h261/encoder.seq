@@ -104,7 +104,7 @@ class BlockLayer:
     self.rle = rle
     self.intra_mode = intra_mode
 
-  def encode(raw_coeffs, scale: int, intra_mode: bool, prev_frame):
+  def encode(raw_coeffs, scale: int, intra_mode: bool, prev_frame, rblock):
     coeffs = Block[int,Tup2](raw_coeffs)
     # Do prediction
     if intra_mode:
@@ -121,6 +121,7 @@ class BlockLayer:
       assert False
       # TODO predict and get residual
       Prediction.inter(raw_coeffs, coeffs, ~prev_frame)
+
     # dct + quantize    
     chen_DCT(coeffs)
   
@@ -137,7 +138,15 @@ class BlockLayer:
     dc = coeffs(0,0)
     clip(coeffs, -127, 127)
     coeffs[0,0] = clip1(dc, 1, 254)
- #   exit(10)
+
+    # reconstruct
+    if intra_mode:
+      intra_iquantize(coeffs, rblock, scale)
+    else:
+      iquantize(coeffs, rblock, scale)
+    chen_IDCT(rblock)
+    clip(rblock, 0, 255)
+
     # get the nonzero coefficients
     nnz = 0
     for c in coeffs:
@@ -245,9 +254,9 @@ class MacroblockLayer:
     self.last_mtype = last_mtype
     self.blocks = blocks
 
-  def process(addr, last_addr, last_mtype, Y_mblk, Cb_mblk, Cr_mblk, cfg, bitstream):
+  def process(addr, last_addr, last_mtype, Y_mblk, Cb_mblk, Cr_mblk, cfg, bitstream, Y_rmblk, Cb_rmblk, Cr_rmblk):
     # once you determine the macroblock parameters, you can immediately commit it + sub blocks
-    layer = MacroblockLayer.encode(addr, last_mtype, Y_mblk, Cb_mblk, Cr_mblk, cfg)
+    layer = MacroblockLayer.encode(addr, last_mtype, Y_mblk, Cb_mblk, Cr_mblk, cfg, Y_rmblk, Cb_rmblk, Cr_rmblk)
     layer.commit(last_addr, bitstream)
     for block in layer.blocks:
       block.commit(bitstream)
@@ -255,7 +264,7 @@ class MacroblockLayer:
     return True,layer.mtype # transmitted
 
   # TODO rate control
-  def encode(addr, last_mtype, Y_mblk, Cb_mblk, Cr_mblk, cfg):
+  def encode(addr, last_mtype, Y_mblk, Cb_mblk, Cr_mblk, cfg, Y_rmblk, Cb_rmblk, Cr_rmblk):
     mtype = INTRA0
     # The selected block parameterizations to encode
     # Y,Y,Y,Y,Cb,Cr
@@ -265,10 +274,10 @@ class MacroblockLayer:
     # INTRA MODE
     if try_intra:
       for Y_smblk_8x8 in Y_mblk.grid((8,8)):
-        block = BlockLayer.encode(Y_smblk_8x8, cfg.scale_init, True, None)
+        block = BlockLayer.encode(Y_smblk_8x8, cfg.scale_init, True, None, Y_rmblk[Y_smblk_8x8])
         blocks.append(block)
-      Cb_block = BlockLayer.encode(Cb_mblk, cfg.scale_init, True, None)
-      Cr_block = BlockLayer.encode(Cr_mblk, cfg.scale_init, True, None)    
+      Cb_block = BlockLayer.encode(Cb_mblk, cfg.scale_init, True, None, Cb_rmblk[Cb_mblk])
+      Cr_block = BlockLayer.encode(Cr_mblk, cfg.scale_init, True, None, Cr_rmblk[Cr_mblk])
       blocks.append(Cb_block)
       blocks.append(Cr_block)
       # TODO pick the final set of block encodings to use
@@ -309,7 +318,7 @@ class MacroblockLayer:
     
 class GOBLayer:
 
-  def process(Y_gob, Cb_gob, Cr_gob, gn: int, gquant: int, cfg, bitstream):
+  def process(Y_gob, Cb_gob, Cr_gob, gn: int, gquant: int, cfg, bitstream, Y_rgob, Cb_rgob, Cr_rgob):
     # can immediately commit the header
     bitstream.compressed.pack(GBSC, 16)
     bitstream.compressed.pack(gn, 4)
@@ -317,16 +326,16 @@ class GOBLayer:
     bitstream.compressed.pack(0, 1) # GEI
     bitstream.compressed.pack(MBA_stuffing_codeword, MBA_stuffing_nbits)
     # now do macroblock things
-    return GOBLayer.encode(Y_gob, Cb_gob, Cr_gob, cfg, bitstream)
+    return GOBLayer.encode(Y_gob, Cb_gob, Cr_gob, cfg, bitstream, Y_rgob, Cb_rgob, Cr_rgob)
 
-  def encode(Y_gob, Cb_gob, Cr_gob, cfg, bitstream):
+  def encode(Y_gob, Cb_gob, Cr_gob, cfg, bitstream, Y_rgob, Cb_rgob, Cr_rgob):
     midx = 1
     last_midx = 0
     last_mtype = 0
     # True if any macroblock in the GOB gets transmitted
     transmitted = False
     for Y_mblk,Cb_mblk,Cr_mblk in zip(Y_gob.grid((16,16)),Cb_gob.grid((8,8)),Cr_gob.grid((8,8))):
-      transmitted2,mtype = MacroblockLayer.process(midx, last_midx, last_mtype, Y_mblk, Cb_mblk, Cr_mblk, cfg, bitstream)
+      transmitted2,mtype = MacroblockLayer.process(midx, last_midx, last_mtype, Y_mblk, Cb_mblk, Cr_mblk, cfg, bitstream, Y_rgob[Y_mblk], Cb_rgob[Cb_mblk], Cr_rgob[Cr_mblk])
       if transmitted2:
         last_midx = midx
         last_mtype = mtype
@@ -336,21 +345,21 @@ class GOBLayer:
 
 class PicLayer:
 
-  def process(Y_frame, Cb_frame, Cr_frame, tr, ptype, cfg, bitstream):
+  def process(Y_frame, Cb_frame, Cr_frame, tr, ptype, cfg, bitstream, Y_rframe, Cb_rframe, Cr_rframe):
     # can immediately commit the header
     bitstream.compressed.pack(PSC, 20)
     bitstream.compressed.pack(tr, 5)
     bitstream.compressed.pack(ptype, 6)
     bitstream.compressed.pack(0, 1) # pei
     # now do GOB things
-    return PicLayer.encode(Y_frame, Cb_frame, Cr_frame, cfg, bitstream)
+    return PicLayer.encode(Y_frame, Cb_frame, Cr_frame, cfg, bitstream, Y_rframe, Cb_rframe, Cr_rframe)
 
-  def encode(Y_frame, Cb_frame, Cr_frame, cfg, bitstream):
+  def encode(Y_frame, Cb_frame, Cr_frame, cfg, bitstream, Y_rframe, Cb_rframe, Cr_rframe):
     gn = 1
     incr = 1 if cfg.cif else 2
     transmitted = False
     for Y_gob,Cb_gob,Cr_gob in zip(Y_frame.grid((48,176)),Cb_frame.grid((24,88)),Cr_frame.grid((24,88))):
-      transmitted |= GOBLayer.process(Y_gob, Cb_gob, Cr_gob, gn, cfg.scale_init, cfg, bitstream)
+      transmitted |= GOBLayer.process(Y_gob, Cb_gob, Cr_gob, gn, cfg.scale_init, cfg, bitstream, Y_rframe[Y_gob], Cb_rframe[Cb_gob], Cr_rframe[Cr_gob])
       gn += incr
     # if false, the whole picture was skipped
     return transmitted

@@ -14,7 +14,11 @@ def main():
   # go through frames
   for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
     print f'Frame: {frame_idx}'
-    transmitted = PicLayer.process(Y_raw_frame, Cb_raw_frame, Cr_raw_frame, frame_idx, 0b000011 if not cfg.cif else 0b000111, cfg, bitstream)
+    # recons versions
+    Y_rframe = Block[int,Tup2](Y_raw_frame)
+    Cb_rframe = Block[int,Tup2](Cb_raw_frame)
+    Cr_rframe = Block[int,Tup2](Cr_raw_frame)
+    transmitted = PicLayer.process(Y_raw_frame, Cb_raw_frame, Cr_raw_frame, frame_idx, 0b000011 if not cfg.cif else 0b000111, cfg, bitstream, Y_rframe, Cb_rframe, Cr_rframe)
     frame_idx += 1
   yuv420.cleanup()
   bitstream.cleanup()
