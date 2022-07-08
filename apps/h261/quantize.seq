@@ -1,21 +1,38 @@
-def quantize(coeffs, scale):
-  assert scale != 0
-  for i in range(coeffs.get_dims()[0]):
-    for j in range(coeffs.get_dims()[1]):
-      coeffs[i,j] = coeffs(i,j)//(scale*2)
+def do_quant(level, step, scale):
+  return (32 * level + (1 if level > 0 else -1)*step*scale)//(2*2*step)  
 
-def intra_quantize(coeffs, scale):
-  dc = coeffs(0,0)
-  quantize(coeffs, scale)
-  dc //= 8 # fixed in the standard
-  coeffs[0,0] = dc
-
-def clip(coeffs):
+def quantize(coeffs, step):
+  even = step % 2 == 0
+  assert step != 0
   for i in range(coeffs.get_dims()[0]):
     for j in range(coeffs.get_dims()[1]):
       coeff = coeffs(i,j)
-      if coeff > 127:
-        coeff = 127
-      elif coeff < -127:
-        coeff = -127
+      if even:
+        coeffs[i,j] = (coeff + 1 if coeff > 0 else coeff - 1) // (2*step)
+      else:
+        coeffs[i,j] = coeff // (2*step)
+
+def intra_quantize(coeffs, step):
+  # quant = 4
+  dc = coeffs(0,0)
+  quantize(coeffs, step)
+  dc = (dc + 3 if dc < 0 else dc + 4)//8 # fixed in the standard
+  coeffs[0,0] = dc
+
+def clip(coeffs, lower: Static[int], upper: Static[int]):
+  for i in range(coeffs.get_dims()[0]):
+    for j in range(coeffs.get_dims()[1]):
+      coeff = coeffs(i,j)
+      if coeff > upper:
+        coeff = upper
+      elif coeff < lower:
+        coeff = lower
       coeffs[i,j] = coeff
+
+def clip1(coeff, lower: Static[int], upper: Static[int]):
+  if coeff > upper:
+    return upper
+  elif coeff < lower:
+    return lower
+  else:
+    return coeff

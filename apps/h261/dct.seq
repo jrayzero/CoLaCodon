@@ -1,5 +1,13 @@
 import math
 
+c1d4 = 362
+c1d8 = 473
+c3d8 = 196
+c1d16 = 502
+c3d16 = 426
+c5d16 = 284
+c7d16 = 100
+
 FIX_0_298631336 = 2446
 FIX_0_390180644 = 3196
 FIX_0_541196100 = 4433
@@ -124,3 +132,71 @@ def naive_dct(coeffs):
     for y in range(8):
       fxy = naive_dct_inner(coeffs, x, y)
       coeffs[x,y] = int(fxy)
+
+def mscale(val):
+  return val >> 9
+
+# https://github.com/chengscott/h261
+def chen_DCT(coeffs):
+  # columns
+  for i in range(8):    
+    col = coeffs[:,i]
+    a0 = int(col(0,0) + col(7,0))<<2
+    c3 = int(col(0,0) - col(7,0))<<2
+    a1 = int(col(1,0) + col(6,0))<<2
+    c2 = int(col(1,0) - col(6,0))<<2
+    a2 = int(col(2,0) + col(5,0))<<2
+    c1 = int(col(2,0) - col(5,0))<<2
+    a3 = int(col(3,0) + col(4,0))<<2
+    c0 = int(col(3,0) - col(4,0))<<2
+    b0 = a0+a3
+    b1 = a1+a2
+    b2 = a1-a2
+    b3 = a0-a3
+    col[0,0] = mscale(c1d4*(b0+b1))
+    col[4,0] = mscale(c1d4*(b0-b1))
+    col[2,0] = mscale((c3d8*b2)+(c1d8*b3))
+    col[6,0] = mscale((c3d8*b3)-(c1d8*b2))
+    b0 = mscale(c1d4*(c2-c1))
+    b1 = mscale(c1d4*(c2+c1))
+    a0 = c0+b0
+    a1 = c0-b0
+    a2 = c3-b1
+    a3 = c3+b1
+    col[1,0] = mscale((c7d16*a0)+(c1d16*a3))
+    col[3,0] = mscale((c3d16*a2)-(c5d16*a1))
+    col[5,0] = mscale((c3d16*a1)+(c5d16*a2))
+    col[7,0] = mscale((c7d16*a3)-(c1d16*a0))
+  for i in range(8):
+    row = coeffs[i,:]
+    a0 = int(row(0,0) + row(0,7))>>1
+    c3 = int(row(0,0) - row(0,7))>>1
+    a1 = int(row(0,1) + row(0,6))>>1
+    c2 = int(row(0,1) - row(0,6))>>1
+    a2 = int(row(0,2) + row(0,5))>>1
+    c1 = int(row(0,2) - row(0,5))>>1
+    a3 = int(row(0,3) + row(0,4))>>1
+    c0 = int(row(0,3) - row(0,4))>>1 
+    b0 = a0+a3
+    b1 = a1+a2
+    b2 = a1-a2
+    b3 = a0-a3
+    row[0,0] = mscale(c1d4*(b0+b1))
+    row[0,4] = mscale(c1d4*(b0-b1))
+    row[0,2] = mscale((c3d8*b2)+(c1d8*b3))
+    row[0,6] = mscale((c3d8*b3)-(c1d8*b2))
+    b0 = mscale(c1d4*(c2-c1))
+    b1 = mscale(c1d4*(c2+c1))
+    a0 = c0+b0
+    a1 = c0-b0
+    a2 = c3-b1
+    a3 = c3+b1
+    row[0,1] = mscale((c7d16*a0)+(c1d16*a3))
+    row[0,3] = mscale((c3d16*a2)-(c5d16*a1))
+    row[0,5] = mscale((c3d16*a1)+(c5d16*a2))
+    row[0,7] = mscale((c7d16*a3)-(c1d16*a0))
+  for i in range(8):
+    for j in range(8):
+      coeff = coeffs(i,j)
+      coeff = (coeff-4 if coeff < 0 else coeff+4)//8
+      coeffs[i,j] = coeff

@@ -14,6 +14,12 @@ class YUV420Reader:
     self.width = cfg.width
     self.nframes = cfg.nframes
 
+  def __init__(self, fn, H, W, n):
+    self.fd = open(fn, 'rb')
+    self.height = H
+    self.width = W
+    self.nframes = n
+
   def cleanup(self):
     self.fd.close()
 

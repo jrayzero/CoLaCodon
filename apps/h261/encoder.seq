@@ -121,10 +121,9 @@ class BlockLayer:
       assert False
       # TODO predict and get residual
       Prediction.inter(raw_coeffs, coeffs, ~prev_frame)
-    # dct + quantize + clip
-#    naive_dct(coeffs)
-    dct8x8(coeffs)
-#    dct_clip(coeffs)
+    # dct + quantize    
+    chen_DCT(coeffs)
+  
     if intra_mode:      
       intra_quantize(coeffs, scale) 
       dc = coeffs(0,0)
@@ -135,13 +134,10 @@ class BlockLayer:
       coeffs[0,0] = dc
     else:
       quantize(coeffs, scale)
-    clip(coeffs)
     dc = coeffs(0,0)
-#    for i in range(8):
-#      for j in range(8):
-#        coeffs[i,j] = 1
-    coeffs[0,0] = dc
-    
+    clip(coeffs, -127, 127)
+    coeffs[0,0] = clip1(dc, 1, 254)
+ #   exit(10)
     # get the nonzero coefficients
     nnz = 0
     for c in coeffs:
@@ -152,7 +148,6 @@ class BlockLayer:
     run = 0
     rle = []
     first = True
-    print coeffs.str_like(int)
     for zz in zigzag:
       coeff = coeffs(*zz)
       if intra_mode and first == True:
@@ -179,7 +174,6 @@ class BlockLayer:
         if coeff < 0:
           coeff = -coeff
         codeword,nbits = run_info[coeff]
-        print f'packed vlc {codeword}@{nbits} for {run},{coeff}'        
         bitstream.compressed.pack(codeword,nbits)
         # sign bit 's' 
         if scoeff < 0:
@@ -291,7 +285,6 @@ class MacroblockLayer:
     # now commit it
     addr_to_transmit = 1 if self.addr == 1 else self.addr - last_addr
     code,nbits = MBA_codewords[addr_to_transmit-1], MBA_nbits[addr_to_transmit-1] # -1 b/c it is a 1-based index
-#    print f'addr: {addr_to_transmit}, {code}@{nbits}'
     bitstream.compressed.pack(code, nbits)
     code,nbits = 1, mtype_nbits[self.mtype]
     bitstream.compressed.pack(code, nbits)
