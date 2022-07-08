@@ -22,3 +22,12 @@ INTER_MC2 = 6
 INTER_MC_FIL0 = 7
 INTER_MC_FIL1 = 8
 INTER_MC_FIL2 = 9
+
+def has_mquant(mtype):
+  return mtype == INTRA1 or mtype == INTER1 or mtype == INTER_MC2 or mtype == INTER_MC_FIL2
+
+def has_mvd(mtype):
+  return mtype >= INTER_MC0
+
+def has_cbp(mtype):
+  return mtype == INTER0 or mtype == INTER1 or mtype == INTER_MC1 or mtype == INTER_MC2 or mtype == INTER_MC_FIL1 or mtype == INTER_MC_FIL2

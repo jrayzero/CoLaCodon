@@ -1,7 +1,9 @@
 from ..common.cfg_utils import *
+from h261_bitstream import *
 
+# Gets user input
 @dataclass(init=False)
-class H261Cfg:
+class H261UserCfg:
   # Input
   input_fn: str
   cif: bool
@@ -11,7 +13,10 @@ class H261Cfg:
   # Output
   output_fn: str
   # Quantize
-  scale_init: int
+  qp_init: int
+  # GOP
+  gop: int # bitmask from MSB->LSB, 0 => intra, 1 => inter (P)
+  gop_size: int
 
   def __init__(self):
     self.input_fn = ''
@@ -19,7 +24,9 @@ class H261Cfg:
     self.width = 176
     self.nframes = -1
     self.output_fn = ''
-    self.scale_init = 0
+    self.qp_init = 0
+    self.gop = 0 # only I frames
+    self.gop_size = 1
 
   def __str__(self):
     s = ''
@@ -29,7 +36,12 @@ class H261Cfg:
     s += f'width: {self.width}\n'
     s += f'nframes: {self.nframes}\n'
     s += f'output_fn: {self.output_fn}\n'
-    s += f'scale_init: {self.scale_init}\n'
+    s += f'qp_init: {self.qp_init}\n'
+    gop = ''
+    for i in range(self.gop_size):
+      g = (self.gop >> 64 - i - 1) & 0x1
+      gop += str(g)
+    s += f'GOP: {gop}\n'
     return s
   
 def parse_param(param, value, cfg):
@@ -49,7 +61,25 @@ def parse_param(param, value, cfg):
     cfg.nframes = parse_int(param,value)
   elif param == 'output_fn':
     cfg.output_fn = parse_str(param,value)
-  elif param == 'scale_init':
-    cfg.scale_init = parse_int(param,value)
+  elif param == 'qp_init':
+    cfg.qp_init = parse_int(param,value)
+  elif param == 'gop':
+    gop = parse_str(param,value)
+    if len(gop) > 64:
+      print f'Max GOP size is 64. Got {len(gop)}'
+      exit(-1)
+    idx = 0
+    gop_int = 0
+    for frame in gop:
+      orig_frame = frame
+      frame = frame.lower()
+      if frame != 'i' and frame != 'p':
+        print f'Invalid frame type in GOP: {orig_frame}'
+        exit(-1)
+      if frame == 'p':
+        gop_int |= (1 << (64-1-idx))
+      idx += 1
+    cfg.gop = gop_int
+    cfg.gop_size = idx        
   else:
     print f'Unknown cfg param: {param}'

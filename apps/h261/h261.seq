@@ -7,19 +7,31 @@ from ..common.yuv import *
 def main():
   if len(sys.argv) < 2:
     print 'Usage: h261.seq <cfg>'
-  cfg = parse_config(sys.argv[1], parse_param, H261Cfg)
+  cfg = parse_config(sys.argv[1], parse_param, H261UserCfg)
   yuv420 = YUV420Reader(cfg)
   frame_idx = 0
+  gop_idx = 0
   bitstream = H261Bitstream(cfg.output_fn)
-  # go through frames
+  state = H261State(cfg.qp_init, cfg.cif, bitstream)
+  # go through frames  
   for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
-    print f'Frame: {frame_idx}'
+    # Figure out whether intra or inter
+    frame_type = (cfg.gop >> (64-1-gop_idx)) & 0x1
+    intra = frame_type == 0
+    sintra = 'intra' if intra else 'inter'
+    print f'Frame {frame_idx} is {sintra}'
     # recons versions
     Y_rframe = Block[int,Tup2](Y_raw_frame)
     Cb_rframe = Block[int,Tup2](Cb_raw_frame)
-    Cr_rframe = Block[int,Tup2](Cr_raw_frame)
-    transmitted = PicLayer.process(Y_raw_frame, Cb_raw_frame, Cr_raw_frame, frame_idx, 0b000011 if not cfg.cif else 0b000111, cfg, bitstream, Y_rframe, Cb_rframe, Cr_rframe)
+    Cr_rframe = Block[int,Tup2](Cr_raw_frame)    
+    frames = Pack(View(Y_raw_frame), View(Cb_raw_frame), View(Cr_raw_frame))
+    rframes = Pack(View(Y_rframe), View(Cb_rframe), View(Cr_rframe))
+    state.frame_idx = frame_idx
+    state.is_intra = intra
+    transmitted = PicLayer.process(frames, rframes, 0b000011 if not cfg.cif else 0b000111, state)
     frame_idx += 1
+    gop_idx += 1
+    gop_idx %= cfg.gop_size
   yuv420.cleanup()
   bitstream.cleanup()
 
