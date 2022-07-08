@@ -121,7 +121,7 @@ class H261State:
   # last mtype
   l_mtype: int
   # the prior encoded reconstructed I frames
-  I_frames: Optional[Pack[int]]
+  I_rframes: Optional[Pack[int]]
 
   def __init__(self, qp_init, cif, bitstream):
     self.qp_init = qp_init
@@ -135,11 +135,11 @@ class H261State:
     self.midx = 0
     self.l_midx = 0
     self.l_mtype = 0
-    self.I_frames = None
+    self.I_rframes = None
   
 class BlockLayer:
     
-  def encode(block, rblock, state):
+  def encode(block, rblock, I_block, state):
     coeffs = Block[int,Tup2](block)
     # Do prediction
     if state.is_intra:
@@ -153,9 +153,7 @@ class BlockLayer:
             coeff = 1
           coeffs[i,j] = coeff
     else:
-      assert False
-      #inter(raw_coeffs, coeffs, ~I_rframe)
-      
+      inter(block, coeffs, ~I_block)
     # dct + quantize    
     chen_DCT(coeffs)  
     if state.is_intra:
@@ -168,6 +166,7 @@ class BlockLayer:
       coeffs[0,0] = dc
     else:
       quantize(coeffs, state.qp)
+
     dc = coeffs(0,0)
     clip(coeffs, -127, 127)
     coeffs[0,0] = clip1(dc, 1, 254)
@@ -178,7 +177,15 @@ class BlockLayer:
       iquantize(coeffs, rblock, state.qp)
     chen_IDCT(rblock)
     clip(rblock, 0, 255)
-
+    if state.is_intra:
+      pass
+    else:
+      # need to add back the prediction
+      # TODO this changes depending on the type of pred
+      for i in range(8):
+        for j in range(8):
+          rblock[i,j] = rblock(i,j) + ~I_block(i,j)
+    print coeffs.str_like(int)
     # RLE in zigzag order
     # if intra, include the DC separately
     run = 0
@@ -224,6 +231,9 @@ class BlockLayer:
     bitstream.compressed.pack(coeff, 8)    
 
   def commit(rle, state):
+    if not state.is_intra and len(rle) == 0:
+      # don't need to transmit this block
+      return False
     # for coeff, if it is negative, you use the absolute value to actually look up 
     # in the VLC table.
     # for the FLC, you use the unsigned value
@@ -257,41 +267,40 @@ class BlockLayer:
           BlockLayer.flc(zrun, coeff, state.bitstream)       
       first = False
     state.bitstream.compressed.pack(tcoeff_EOB_codeword, tcoeff_EOB_nbits)
+    return True
 
 class MacroblockLayer:
 
   def process(mblks, rmblks, state):
     # once you determine the macroblock parameters, you can immediately commit it + sub blocks
     rles,mtype = MacroblockLayer.encode(mblks, rmblks, state)
-    MacroblockLayer.commit(mtype,state)
+    MacroblockLayer.commit(mtype,rles,state)
+    transmitted = False
     for rle in rles:
-      BlockLayer.commit(rle, state)
+      transmitted |= BlockLayer.commit(rle, state)
     state.bitstream.compressed.pack(MBA_stuffing_codeword, MBA_stuffing_nbits)
-    return True
+    return transmitted
 
   # TODO rate control
   def encode(mblks, rmblks, state):
     Y_mblk,Cb_mblk,Cr_mblk = mblks
     Y_rmblk,Cb_rmblk,Cr_rmblk = rmblks
-    mtype = INTRA0
     # The selected block parameterizations to encode
     # Y,Y,Y,Y,Cb,Cr
     rles = []     
-    # INTRA MODE
+    for Y_smblk_8x8 in Y_mblk.grid((8,8)):
+      Y_rle = BlockLayer.encode(Y_smblk_8x8, Y_rmblk[Y_smblk_8x8], None if state.is_intra else state.I_rframes.Y, state)
+      rles.append(Y_rle)
+    Cb_rle = BlockLayer.encode(Cb_mblk, Cb_rmblk[Cb_mblk], None if state.is_intra else state.I_rframes.Cb, state)
+    Cr_rle = BlockLayer.encode(Cr_mblk, Cr_rmblk[Cr_mblk], None if state.is_intra else state.I_rframes.Cr, state)
+    rles.append(Cb_rle)
+    rles.append(Cr_rle)
     if state.is_intra:
-      mtype = INTRA0
-      for Y_smblk_8x8 in Y_mblk.grid((8,8)):
-        Y_rle = BlockLayer.encode(Y_smblk_8x8, Y_rmblk[Y_smblk_8x8], state)
-        rles.append(Y_rle)
-      Cb_rle = BlockLayer.encode(Cb_mblk, Cb_rmblk[Cb_mblk], state)
-      Cr_rle = BlockLayer.encode(Cr_mblk, Cr_rmblk[Cr_mblk], state)
-      rles.append(Cb_rle)
-      rles.append(Cr_rle)
+      return rles,INTRA0
     else:
-      assert False
-    return rles,mtype
+      return rles,INTER0
     
-  def commit(mtype, state):
+  def commit(mtype, rles, state):
     # now commit it
     addr_to_transmit = 1 if state.midx == 1 else state.midx - state.l_midx
     code,nbits = MBA_codewords[addr_to_transmit-1], MBA_nbits[addr_to_transmit-1] # -1 b/c it is a 1-based index
@@ -313,9 +322,15 @@ class MacroblockLayer:
 #      code,nbits = mvd_codewords[mvd_V+16],mvd_nbits[mvd_V+16]
 #      bitstream.compressed.pack(code,nbits)      
     if has_cbp(mtype):
-      assert False
-      #code,nbits = CBP_vlc[self.cbp-1]
-      #bitstream.compressed.pack(code,nbits)
+      cbp = 0
+      mult = 32
+      for rle in rles:
+        if len(rle) != 0:
+          # at least one nonzero
+          cbp += mult
+        mult //= 2
+      code,nbits = CBP_vlc[cbp-1]
+      state.bitstream.compressed.pack(code,nbits)
     state.l_mtype = mtype
     
 class GOBLayer:

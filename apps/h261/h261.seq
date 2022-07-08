@@ -32,6 +32,8 @@ def main():
     frame_idx += 1
     gop_idx += 1
     gop_idx %= cfg.gop_size
+    if state.is_intra:
+      state.I_rframes = rframes
   yuv420.cleanup()
   bitstream.cleanup()
 
