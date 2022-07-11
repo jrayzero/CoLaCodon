@@ -1,0 +1,13 @@
+from constants import *
+
+# This just computes the residual between the current block and the block in the colocated region of the construction
+# block: input block
+# out_block: output block that holds the residual
+# I_rframe: last transmitted I frame, but reconstructed
+def inter(block, out_block, I_rframe):
+  for i in range(8):
+    for j in range(8):
+      out_block[i,j] = int(block(i,j)) - I_rframe[block](i,j)
+
+
+      

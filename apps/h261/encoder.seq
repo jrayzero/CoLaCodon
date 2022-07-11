@@ -185,7 +185,6 @@ class BlockLayer:
       for i in range(8):
         for j in range(8):
           rblock[i,j] = rblock(i,j) + ~I_block(i,j)
-    print coeffs.str_like(int)
     # RLE in zigzag order
     # if intra, include the DC separately
     run = 0
@@ -207,6 +206,12 @@ class BlockLayer:
     # don't need the last run because it'll just be EOB
     return rle
 
+  def sign(coeff, bitstream):
+    if coeff < 0:
+      bitstream.compressed.pack(1,1)
+    else:
+      bitstream.compressed.pack(0,1)
+
   def maybe_vlc(run,coeff,bitstream):
     if run in tcoeff_vlc:
       run_info = tcoeff_vlc[run]
@@ -217,11 +222,7 @@ class BlockLayer:
           coeff = -coeff
         codeword,nbits = run_info[coeff]
         bitstream.compressed.pack(codeword,nbits)
-        # sign bit 's' 
-        if scoeff < 0:
-          bitstream.compressed.pack(1,1)
-        else:
-          bitstream.compressed.pack(0,1)
+        BlockLayer.sign(coeff, bitstream)
         return True
     return False
 
@@ -247,8 +248,9 @@ class BlockLayer:
     else:
       # the first transmitted level gets special treatment if run == 0 and coeff == 1
       first_run = rle[0]
-      if first_run[0] == 0 and first_run[1] == 1:
+      if first_run[0] == 0 and (first_run[1] == 1 or first_run[1] == -1):
         state.bitstream.compressed.pack(1,1)
+        BlockLayer.sign(first_run[1], state.bitstream)
       else:
         zrun = first_run[0]
         coeff = first_run[1]
@@ -257,11 +259,7 @@ class BlockLayer:
     for zrun,coeff in rle[1:]:
       if zrun == 0 and (coeff == 1 or coeff == -1):
         state.bitstream.compressed.pack(0b11,2) # not first coeff in block
-        # sign bit 's' 
-        if coeff == 1:
-          state.bitstream.compressed.pack(0,1)
-        else:
-          state.bitstream.compressed.pack(1,1)
+        BlockLayer.sign(coeff, state.bitstream)
       else:
         if not BlockLayer.maybe_vlc(zrun, coeff, state.bitstream):
           BlockLayer.flc(zrun, coeff, state.bitstream)       
@@ -272,7 +270,8 @@ class BlockLayer:
 class MacroblockLayer:
 
   def process(mblks, rmblks, state):
-    # once you determine the macroblock parameters, you can immediately commit it + sub blocks
+    # once you determine the macroblock parameters, 
+    # you can immediately commit it + sub blocks
     rles,mtype = MacroblockLayer.encode(mblks, rmblks, state)
     MacroblockLayer.commit(mtype,rles,state)
     transmitted = False
@@ -385,6 +384,7 @@ class PicLayer:
       transmitted |= GOBLayer.process(gobs, rgobs, gn, state)
       gn += incr
     # if false, the whole picture was skipped
+#    state.bitstream.compressed.align(1)
     return transmitted
       
       
