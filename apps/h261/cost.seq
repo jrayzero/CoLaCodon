@@ -1,0 +1,19 @@
+def sad(A, B):
+  c = 0
+  for a,b in zip(A,B):
+    c += abs(int(a)-int(b))
+  return c
+
+def ssd(A, B):
+  c = 0
+  for a,b in zip(A,B):
+    c += (int(a)-int(b))**2
+  return c
+
+def mse(A, B):
+  c = ssd(A,B)
+  return float(c)/float(len(A))
+
+def mad(A, B):
+  c = sad(A,B)
+  return float(c)/float(len(A))

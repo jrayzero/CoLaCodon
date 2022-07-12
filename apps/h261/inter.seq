@@ -1,14 +1,21 @@
 from constants import *
 from cost import *
 
+def copy(A,B):
+  R,C = A.get_dims()
+  for r in range(R):
+    for c in range(C):
+      A[r,c] = int(B(r,c))
+
 # This just computes the residual between the current block and the block in the colocated region of the construction
 # block: input block
 # out_block: output block that holds the residual
 # I_rframe: last transmitted I frame, but reconstructed
 def residual(block, out_block, I_rblock):
-  for i in range(8):
-    for j in range(8):
-      out_block[i,j] = int(block(i,j)) - I_rblock[block](i,j)
+  R,C = block.get_dims()
+  for r in range(R):
+    for c in range(C):
+      out_block[r,c] = int(block(r,c)) - I_rblock[block](r,c)
 
 def full_search(block, out_block, I_rblock, cost_func):
   # figure out the corner points based on what's in bounds
