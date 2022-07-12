@@ -1,13 +1,20 @@
 from constants import *
+from cost import *
 
 # This just computes the residual between the current block and the block in the colocated region of the construction
 # block: input block
 # out_block: output block that holds the residual
 # I_rframe: last transmitted I frame, but reconstructed
-def inter(block, out_block, I_rframe):
+def residual(block, out_block, I_rblock):
   for i in range(8):
     for j in range(8):
-      out_block[i,j] = int(block(i,j)) - I_rframe[block](i,j)
+      out_block[i,j] = int(block(i,j)) - I_rblock[block](i,j)
 
+def full_search(block, out_block, I_rblock, cost_func):
+  # figure out the corner points based on what's in bounds
+  ul_y,ul_x = block.get_starts()
+
+def diamond_search(block, out_block, I_rblock, cost_func):
+  pass
 
       

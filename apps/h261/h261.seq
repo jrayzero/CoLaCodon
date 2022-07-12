@@ -16,9 +16,10 @@ def main():
   # go through frames  
   for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
     # Figure out whether intra or inter
+    # inter frames can contain intra, but not vice versa
     frame_type = (cfg.gop >> (64-1-gop_idx)) & 0x1
-    intra = frame_type == 0
-    sintra = 'intra' if intra else 'inter'
+    intra_frame = frame_type == 0
+    sintra = 'intra' if intra_frame else 'inter'
     print f'Frame {frame_idx} is {sintra}'
     # recons versions
     Y_rframe = Block[int,Tup2](Y_raw_frame)
@@ -27,12 +28,12 @@ def main():
     frames = Pack(View(Y_raw_frame), View(Cb_raw_frame), View(Cr_raw_frame))
     rframes = Pack(View(Y_rframe), View(Cb_rframe), View(Cr_rframe))
     state.frame_idx = frame_idx
-    state.is_intra = intra
+    state.is_intra_frame = intra_frame
     transmitted = PicLayer.process(frames, rframes, 0b000011 if not cfg.cif else 0b000111, state)
     frame_idx += 1
     gop_idx += 1
     gop_idx %= cfg.gop_size
-    if state.is_intra:
+    if state.is_intra_frame:
       state.I_rframes = rframes
   yuv420.cleanup()
   bitstream.cleanup()

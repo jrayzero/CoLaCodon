@@ -104,8 +104,8 @@ class H261State:
   qp_init: int
   # The current qp value
   qp: int
-  # Whether intra or inter
-  is_intra: bool
+  # Whether intra or inter frame
+  is_intra_frame: bool
   # Current frame index
   frame_idx: int
   # The bitstream
@@ -130,34 +130,105 @@ class H261State:
     self.mquant = qp_init
     self.cif = cif
     self.bitstream = bitstream
-    self.is_intra = False
+    self.is_intra_frame = False
     self.frame_idx = 0
     self.midx = 0
     self.l_midx = 0
     self.l_mtype = 0
     self.I_rframes = None
-  
-class BlockLayer:
-    
-  def encode(block, rblock, I_block, state):
-    coeffs = Block[int,Tup2](block)
-    # Do prediction
-    if state.is_intra:
-      # no actual prediction for intra, just use the raw values
-      for i in range(8):
-        for j in range(8):
-          coeff = int(block(i,j))
-          if coeff > 254:
-            coeff = 254
-          if coeff < 1:
-            coeff = 1
-          coeffs[i,j] = coeff
+
+class PseudoBlockLayer:
+
+  def pseudo_add_sign():
+    return 1
+
+  def pseudo_maybe_vlc(run,coeff):
+    if run in tcoeff_vlc:
+      run_info = tcoeff_vlc[run]
+      if coeff in run_info:
+        # vlc
+        scoeff = coeff
+        if coeff < 0:
+          coeff = -coeff
+        codeword,nbits = run_info[coeff]
+        nbits += PseudoBlockLayer.pseudo_add_sign()
+        return True,nbits
+    return False,0
+
+  def pseudo_flc():
+    return tcoeff_escape_nbits + 14
+
+  # Don't actually write to bitstream--just figure out how many bits are needed
+  def pseudo_commit(rle, is_intra_mblock):
+    cost = 0
+    if not is_intra_mblock and len(rle) == 0:
+      # don't need to transmit this block
+      return cost
+    # for coeff, if it is negative, you use the absolute value to actually look up 
+    # in the VLC table.
+    # for the FLC, you use the unsigned value
+    # when using fixed run/level codes, its just the straightup bit representation
+    if is_intra_mblock:
+      cost += 8
     else:
-      inter(block, coeffs, ~I_block)
-    # dct + quantize    
-    chen_DCT(coeffs)  
-    if state.is_intra:
-      intra_quantize(coeffs, state.qp) 
+      # the first transmitted level gets special treatment if run == 0 and coeff == 1
+      first_run = rle[0]
+      if first_run[0] == 0 and (first_run[1] == 1 or first_run[1] == -1):
+        cost += 1
+        cost += PseudoBlockLayer.pseudo_add_sign()
+      else:
+        zrun = first_run[0]
+        coeff = first_run[1]
+        res = PseudoBlockLayer.pseudo_maybe_vlc(zrun, coeff)
+        if not res[0]:
+          cost += PseudoBlockLayer.pseudo_flc()
+        else:
+          cost += res[1]
+    for zrun,coeff in rle[1:]:
+      if zrun == 0 and (coeff == 1 or coeff == -1):
+        cost += 2
+        cost += PseudoBlockLayer.pseudo_add_sign()
+      else:
+        res = PseudoBlockLayer.pseudo_maybe_vlc(zrun, coeff)
+        if not res[0]:
+          cost += PseudoBlockLayer.pseudo_flc()
+        else:
+          cost += res[1]
+      first = False
+    cost += tcoeff_EOB_nbits
+    return cost
+
+# No prediction actually happens at the block layer. Rather, this is what
+# actually processes each 8x8 block   
+class BlockLayer:
+
+  # if is_intra == True, use special marker for the DC value
+  def rle(coeffs, is_intra_mblk):
+    # RLE in zigzag order
+    # if intra, include the DC separately
+    run = 0
+    runs = []
+    first = True
+    for zz in zigzag:
+      coeff = coeffs(*zz)
+      if is_intra_mblk and first == True:
+        dc = coeff
+        runs.append((0,dc)) # special value
+        first = False
+        continue
+      first = False
+      if coeff == 0:
+        run += 1
+      else:
+        runs.append((run,coeff))
+        run = 0
+    # don't need the last run because it'll just be EOB
+    return runs
+
+  def forward(coeffs, is_intra_mblk, qp):
+    chen_DCT(coeffs)
+    if is_intra_mblk:
+      intra_quantize(coeffs, qp) 
       dc = coeffs(0,0)
       if dc > 254:
         dc = 254
@@ -165,53 +236,41 @@ class BlockLayer:
         dc = 1
       coeffs[0,0] = dc
     else:
-      quantize(coeffs, state.qp)
-
+      quantize(coeffs, qp)
     dc = coeffs(0,0)
     clip(coeffs, -127, 127)
     coeffs[0,0] = clip1(dc, 1, 254)
-    # reconstruct
-    if state.is_intra:
-      intra_iquantize(coeffs, rblock, state.qp)
-    else:
-      iquantize(coeffs, rblock, state.qp)
-    chen_IDCT(rblock)
-    clip(rblock, 0, 255)
-    if state.is_intra:
-      pass
-    else:
-      # need to add back the prediction
-      # TODO this changes depending on the type of pred
-      for i in range(8):
-        for j in range(8):
-          rblock[i,j] = rblock(i,j) + ~I_block(i,j)
-    # RLE in zigzag order
-    # if intra, include the DC separately
-    run = 0
-    rle = []
-    first = True
-    for zz in zigzag:
-      coeff = coeffs(*zz)
-      if state.is_intra and first == True:
-        dc = coeff
-        rle.append((0,dc)) # special value
-        first = False
-        continue
-      first = False
-      if coeff == 0:
-        run += 1
-      else:
-        rle.append((run,coeff))
-        run = 0
-    # don't need the last run because it'll just be EOB
-    return rle
 
-  def sign(coeff, bitstream):
+  def backward(coeffs, out_coeffs, is_intra_mblk, qp):
+    if is_intra_mblk:
+      intra_iquantize(coeffs, out_coeffs, qp)
+    else:
+      iquantize(coeffs, out_coeffs, qp)
+    chen_IDCT(out_coeffs)
+    clip(out_coeffs, 0, 255)
+    
+  # add the prediction back on to the reconstruction
+  def reconstruct(rblock, pred):
+    for i in range(8):
+      for j in range(8):
+        rblock[i,j] = rblock(i,j) + pred(i,j)
+
+  def process(pred, rpred, is_intra_mblk, state):
+    BlockLayer.forward(pred, is_intra_mblk, state.qp)
+    BlockLayer.backward(pred, rpred[pred], is_intra_mblk, state.qp)
+    if not is_intra_mblk:
+      BlockLayer.reconstruct(rpred[pred], pred)
+    rle = BlockLayer.rle(pred, is_intra_mblk)
+    return rle
+    
+  def add_sign(coeff, bitstream):
     if coeff < 0:
       bitstream.compressed.pack(1,1)
     else:
       bitstream.compressed.pack(0,1)
 
+  # see if there is a variable length code in the table, and use that if so
+  # otherwise, returns false and need to use the fixed length code
   def maybe_vlc(run,coeff,bitstream):
     if run in tcoeff_vlc:
       run_info = tcoeff_vlc[run]
@@ -222,7 +281,7 @@ class BlockLayer:
           coeff = -coeff
         codeword,nbits = run_info[coeff]
         bitstream.compressed.pack(codeword,nbits)
-        BlockLayer.sign(coeff, bitstream)
+        BlockLayer.add_sign(coeff, bitstream)
         return True
     return False
 
@@ -231,76 +290,85 @@ class BlockLayer:
     bitstream.compressed.pack(run, 6)
     bitstream.compressed.pack(coeff, 8)    
 
-  def commit(rle, state):
-    if not state.is_intra and len(rle) == 0:
+  def commit(rle, is_intra_mblock, bitstream):
+    if not is_intra_mblock and len(rle) == 0:
       # don't need to transmit this block
       return False
     # for coeff, if it is negative, you use the absolute value to actually look up 
     # in the VLC table.
     # for the FLC, you use the unsigned value
     # when using fixed run/level codes, its just the straightup bit representation
-    if state.is_intra:
+    if is_intra_mblock:
       dc = rle[0][1]
       if dc == 128:
-        state.bitstream.compressed.pack(0xFF,8)
+        bitstream.compressed.pack(0xFF,8)
       else:
-        state.bitstream.compressed.pack(dc,8)
+        bitstream.compressed.pack(dc,8)
     else:
       # the first transmitted level gets special treatment if run == 0 and coeff == 1
       first_run = rle[0]
       if first_run[0] == 0 and (first_run[1] == 1 or first_run[1] == -1):
-        state.bitstream.compressed.pack(1,1)
-        BlockLayer.sign(first_run[1], state.bitstream)
+        bitstream.compressed.pack(1,1)
+        BlockLayer.add_sign(first_run[1], bitstream)
       else:
         zrun = first_run[0]
         coeff = first_run[1]
-        if not BlockLayer.maybe_vlc(zrun, coeff, state.bitstream):
-          BlockLayer.flc(zrun, coeff, state.bitstream)
+        if not BlockLayer.maybe_vlc(zrun, coeff, bitstream):
+          BlockLayer.flc(zrun, coeff, bitstream)
     for zrun,coeff in rle[1:]:
       if zrun == 0 and (coeff == 1 or coeff == -1):
-        state.bitstream.compressed.pack(0b11,2) # not first coeff in block
-        BlockLayer.sign(coeff, state.bitstream)
+        bitstream.compressed.pack(0b11,2) # not first coeff in block
+        BlockLayer.add_sign(coeff, bitstream)
       else:
-        if not BlockLayer.maybe_vlc(zrun, coeff, state.bitstream):
-          BlockLayer.flc(zrun, coeff, state.bitstream)       
+        if not BlockLayer.maybe_vlc(zrun, coeff, bitstream):
+          BlockLayer.flc(zrun, coeff, bitstream)       
       first = False
-    state.bitstream.compressed.pack(tcoeff_EOB_codeword, tcoeff_EOB_nbits)
+    bitstream.compressed.pack(tcoeff_EOB_codeword, tcoeff_EOB_nbits)
     return True
 
 class MacroblockLayer:
 
+  # Run intra prediction and store in temporaries
+  def intra(mblks, state):
+    Y,Cb,Cr = mblks
+    Y_pred, Cb_pred, Cr_pred = Block[int,Tup2](Y),Block[int,Tup2](Cb),Block[int,Tup2](Cr),
+    Y_recons, Cb_recons, Cr_recons = Block[int,Tup2](Y),Block[int,Tup2](Cb),Block[int,Tup2](Cr),
+    for i in range(16):
+      for j in range(16):
+        Y_pred[i,j] = int(Y(i,j))
+    for i in range(8):
+      for j in range(8):
+        Cb_pred[i,j] = int(Cb(i,j))
+        Cr_pred[i,j] = int(Cr(i,j))
+    intra_pack = Pack(View(Y_pred),View(Cb_pred),View(Cr_pred))
+    intra_rpack = Pack(View(Y_recons),View(Cb_recons),View(Cr_recons))
+    rle = []
+    for Y in Y_pred.grid((8,8)):
+      rle.append(BlockLayer.process(Y, Y_recons, False, state))
+    rle.append(BlockLayer.process(Cb_pred, Cb_recons, False, state))    
+    rle.append(BlockLayer.process(Cr_pred, Cr_recons, False, state))
+    return intra_pack,intra_rpack,rle
+
+  # Run the various prediction modes and pick the best one
+  def predict(mblks, rmblks, state):
+    # start with intra mode, which is always safe to run
+    intra_pack,intra_rpack,intra_rle = MacroblockLayer.intra(mblks, state)
+    # Left off here--count the number of bits, do the tradeoff, then pick the best
+    # start with just intra and get that whole process working again. Basically,
+    # be exhaustive
+    return INTRA0,intra_rle
+
   def process(mblks, rmblks, state):
-    # once you determine the macroblock parameters, 
-    # you can immediately commit it + sub blocks
-    rles,mtype = MacroblockLayer.encode(mblks, rmblks, state)
-    MacroblockLayer.commit(mtype,rles,state)
+    mtype,rle = MacroblockLayer.predict(mblks, rmblks, state)
+    MacroblockLayer.commit_header(mtype,rle, state)
     transmitted = False
-    for rle in rles:
-      transmitted |= BlockLayer.commit(rle, state)
+    for r in rle:
+      transmitted |= BlockLayer.commit(r, True, state.bitstream)
     state.bitstream.compressed.pack(MBA_stuffing_codeword, MBA_stuffing_nbits)
     return transmitted
-
-  # TODO rate control
-  def encode(mblks, rmblks, state):
-    Y_mblk,Cb_mblk,Cr_mblk = mblks
-    Y_rmblk,Cb_rmblk,Cr_rmblk = rmblks
-    # The selected block parameterizations to encode
-    # Y,Y,Y,Y,Cb,Cr
-    rles = []     
-    for Y_smblk_8x8 in Y_mblk.grid((8,8)):
-      Y_rle = BlockLayer.encode(Y_smblk_8x8, Y_rmblk[Y_smblk_8x8], None if state.is_intra else state.I_rframes.Y, state)
-      rles.append(Y_rle)
-    Cb_rle = BlockLayer.encode(Cb_mblk, Cb_rmblk[Cb_mblk], None if state.is_intra else state.I_rframes.Cb, state)
-    Cr_rle = BlockLayer.encode(Cr_mblk, Cr_rmblk[Cr_mblk], None if state.is_intra else state.I_rframes.Cr, state)
-    rles.append(Cb_rle)
-    rles.append(Cr_rle)
-    if state.is_intra:
-      return rles,INTRA0
-    else:
-      return rles,INTER0
     
-  def commit(mtype, rles, state):
-    # now commit it
+  # Write macroblock header to the bitstream
+  def commit_header(mtype, rles, state):
     addr_to_transmit = 1 if state.midx == 1 else state.midx - state.l_midx
     code,nbits = MBA_codewords[addr_to_transmit-1], MBA_nbits[addr_to_transmit-1] # -1 b/c it is a 1-based index
     state.bitstream.compressed.pack(code, nbits)

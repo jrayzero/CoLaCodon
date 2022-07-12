@@ -22,6 +22,20 @@ INTER_MC2 = 6
 INTER_MC_FIL0 = 7
 INTER_MC_FIL1 = 8
 INTER_MC_FIL2 = 9
+# operates as INTER0, but allows for the loop filter
+INTER0_FIL = 10
+
+def is_intra(t):
+  return t == INTRA0 or t == INTRA1
+
+def is_inter_only(t):
+  return t == INTER0 or t == INTER1 or t == INTER0_FIL
+
+def is_inter_mc(t):
+  return t == INTER_MC0 or t == INTER_MC1 or t == INTER_MC2
+
+def is_inter_mc_lf(t):
+  return t == INTER_MC_FIL0 or t == INTER_MC_FIL1 or t == INTER_MC_FIL2
 
 def has_mquant(mtype):
   return mtype == INTRA1 or mtype == INTER1 or mtype == INTER_MC2 or mtype == INTER_MC_FIL2
