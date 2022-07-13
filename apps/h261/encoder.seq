@@ -177,7 +177,8 @@ class BlockLayer:
     else:
       iquantize(coeffs, out_coeffs, qp)
     chen_IDCT(out_coeffs)
-    clip(out_coeffs, 0, 255)
+#    print out_coeffs.str_like(int)
+#    exit(48)
     
   # add the prediction back on to the reconstruction
   def reconstruct(rblock, pred):
@@ -198,6 +199,7 @@ class BlockLayer:
     BlockLayer.backward(error, rblock[error], is_intra_mblk, state.qp)
     if not is_intra_mblk:
       BlockLayer.reconstruct(rblock[error], pred)
+    clip(rblock[error], 0, 255)  
     return rle
     
   def add_sign(coeff, bitstream):
@@ -364,29 +366,34 @@ class MacroblockLayer:
     rpack,rle = MacroblockLayer.intra(mblks, state)
     nbits = MacroblockLayer.get_bit_count(rle, True)
     rdo_J = J(mblks.Y, rpack.Y, nbits, state.qp_init)
-    print f'intra {rdo_J}'
+#    print f'intra {rdo_J}'
     mtype = INTRA0    
     mvd_y,mvd_x = 0,0
     if not state.is_intra_frame:
       rpack2,rle2 = MacroblockLayer.inter(mblks, state)
+#      print mblks.Y.str_like(int)
+#      print rpack.Y.str_like(int)
+#      print rpack2.Y.str_like(int)
+#      exit(48)
       nbits2 = MacroblockLayer.get_bit_count(rle2, False)
       rdo_J2 = J(mblks.Y, rpack2.Y, nbits2, state.qp_init)
       mtype2 = INTER0
       #if nbits2 < nbits:
       if rdo_J2 < rdo_J:
-        print f'{rdo_J2}<{rdo_J}'
+#        print f'{rdo_J2}<{rdo_J}'
         rdo_J = rdo_J2        
         nbits = nbits2
         mtype = mtype2
         rle = rle2
         rpack = rpack2
+      #assert False
       # TODO add a configuration flag to turn this off
       rpack2,rle2,mvd_y2,mvd_x2 = MacroblockLayer.inter_me(mblks, state)
       nbits2 = MacroblockLayer.get_bit_count(rle2, False)
       mtype2 = INTER_MC1
       rdo_J2 = J(mblks.Y, rpack2.Y, nbits2, state.qp_init)
       if rdo_J2 < rdo_J:
-        print f'{rdo_J2}<{rdo_J}'
+#        print f'{rdo_J2}<{rdo_J}'
         rdo_J = rdo_J2
         nbits = nbits2
         mtype = mtype2
@@ -394,6 +401,7 @@ class MacroblockLayer:
         rpack = rpack2
         mvd_y = mvd_y2
         mvd_x = mvd_x2
+        assert False
     # Copy over reconstruction
     for i in range(16):
       for j in range(16):
