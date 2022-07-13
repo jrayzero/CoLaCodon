@@ -200,10 +200,19 @@ class View[E,T]:
     return self.block
 
   @cola
+  def max_str_len(self, X: type):
+    m = 0
+    for s in self:
+      l = len(str(X(s)))
+      if l > m:
+        m = l
+    return m
+
+  @cola
   def str_like(self, X: type):
     if staticlen(self.get_dims()) > 3:
       compile_error('Can only string print for 1D, 2D, and 3D blocks')
-    m = self.get_block().max_str_len(X)
+    m = self.max_str_len(X)
     s = ''
     if staticlen(self.get_dims()) == 1:
       for i in range(len(self)):
@@ -385,8 +394,7 @@ class Block:
   @cola
   def max_str_len(self, X: type):
     m = 0
-    for i in range(len(self)):
-      s = self.data[i]
+    for s in self:
       l = len(str(X(s)))
       if l > m:
         m = l
