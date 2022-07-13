@@ -6,6 +6,7 @@ from constants import *
 from inter import *
 from h261_bitstream import *
 from tables import *
+from cost import *
 
 Q = 0
 
@@ -41,6 +42,10 @@ class H261State:
   l_midx: int
   # last mtype
   l_mtype: int
+  # last y motion vector
+  l_mvd_y: int
+  # last x motion vector
+  l_mvd_x: int
   # the prior encoded reconstructed I frames
   I_rframes: Optional[Pack[int]]
 
@@ -148,7 +153,9 @@ class BlockLayer:
     return runs
 
   def forward(coeffs, is_intra_mblk, qp):
+#    print f'ERROR\n{coeffs.str_like(int)}'
     chen_DCT(coeffs)
+#    print f'DCT\n{coeffs.str_like(int)}'
     if is_intra_mblk:
       intra_quantize(coeffs, qp) 
       dc = coeffs(0,0)
@@ -159,6 +166,7 @@ class BlockLayer:
       coeffs[0,0] = dc
     else:
       quantize(coeffs, qp)
+#    print f'Quantized\n{coeffs.str_like(int)}'
     dc = coeffs(0,0)
     clip(coeffs, -127, 127)
     coeffs[0,0] = clip1(dc, 1, 254)
@@ -177,19 +185,19 @@ class BlockLayer:
       for j in range(8):
         rblock[i,j] = rblock(i,j) + pred(i,j)
 
-  def process(pred, rpred, is_intra_mblk, state):
-    # save the prediction because it gets added back in for the inter prediction reconstruction
-    saved_pred = None
+  def process(error, pred, rblock, is_intra_mblk, state):
+    # save the prediction because it gets added back in for the inter prediction reconstruction    
+#    saved_pred = None
+#    if not is_intra_mblk:
+#      saved_pred = Block[int,Tup2](pred)
+#      for i in range(8):
+#        for j in range(8):
+#          saved_pred[i,j] = pred(i,j)
+    BlockLayer.forward(error, is_intra_mblk, state.qp)
+    rle = BlockLayer.rle(error, is_intra_mblk)
+    BlockLayer.backward(error, rblock[error], is_intra_mblk, state.qp)
     if not is_intra_mblk:
-      saved_pred = Block[int,Tup2](pred)
-      for i in range(8):
-        for j in range(8):
-          saved_pred[i,j] = pred(i,j)
-    BlockLayer.forward(pred, is_intra_mblk, state.qp)
-    BlockLayer.backward(pred, rpred[pred], is_intra_mblk, state.qp)
-    if not is_intra_mblk:
-      BlockLayer.reconstruct(rpred[pred], ~saved_pred)
-    rle = BlockLayer.rle(pred, is_intra_mblk)
+      BlockLayer.reconstruct(rblock[error], pred)
     return rle
     
   def add_sign(coeff, bitstream):
@@ -257,17 +265,18 @@ class BlockLayer:
 
 class MacroblockLayer:
 
-  def process_blocks(pred_pack, is_intra_mblk, state):
+  def process_blocks(error_pack, pred_pack, is_intra_mblk, state):
     Y_pred,Cb_pred,Cr_pred = pred_pack
+    Y_error,Cb_error,Cr_error = error_pack
     Y_recons = Block[int,Tup2](Y_pred)
     Cb_recons = Block[int,Tup2](Cb_pred)
     Cr_recons = Block[int,Tup2](Cr_pred)
     rpack = Pack(View(Y_recons),View(Cb_recons),View(Cr_recons))
     rle = []
     for Y in Y_pred.grid((8,8)):
-      rle.append(BlockLayer.process(Y, Y_recons, is_intra_mblk, state))
-    rle.append(BlockLayer.process(Cb_pred, Cb_recons, is_intra_mblk, state))    
-    rle.append(BlockLayer.process(Cr_pred, Cr_recons, is_intra_mblk, state))
+      rle.append(BlockLayer.process(Y_error[Y], Y, Y_recons, is_intra_mblk, state))
+    rle.append(BlockLayer.process(Cb_error, Cb_pred, Cb_recons, is_intra_mblk, state))    
+    rle.append(BlockLayer.process(Cr_error, Cr_pred, Cr_recons, is_intra_mblk, state))
     return rpack,rle
 
   # Run intra prediction and store in temporaries
@@ -280,25 +289,67 @@ class MacroblockLayer:
     copy(Cb_pred, Cb)
     copy(Cr_pred, Cr)
     pred_pack = Pack(View(Y_pred),View(Cb_pred),View(Cr_pred))
-    a,b = MacroblockLayer.process_blocks(pred_pack, True, state)
-    return pred_pack,a,b
+#    print 'INTRA'
+    a,b = MacroblockLayer.process_blocks(pred_pack, pred_pack, True, state)
+    return a,b
 
   # inter-prediction without motion estimation
   # I_frame = the last I_frame sent which is used as reference
   def inter(mblks, state):
     Y,Cb,Cr = mblks
+    # the predictions
     Y_pred = Block[int,Tup2](Y)
     Cb_pred = Block[int,Tup2](Cb)
     Cr_pred = Block[int,Tup2](Cr)
+    # the residuals
+    Y_error = Block[int,Tup2](Y)
+    Cb_error = Block[int,Tup2](Cb)
+    Cr_error = Block[int,Tup2](Cr)
     ref_Y_I_frame = state.I_rframes.Y
     ref_Cb_I_frame = state.I_rframes.Cb
     ref_Cr_I_frame = state.I_rframes.Cr
-    residual(Y, Y_pred, ref_Y_I_frame)
-    residual(Cb, Cb_pred, ref_Cb_I_frame)
-    residual(Cr, Cr_pred, ref_Cr_I_frame)
+    copy(Y_pred, ref_Y_I_frame[Y])
+    copy(Cb_pred, ref_Cb_I_frame[Cb])
+    copy(Cr_pred, ref_Cr_I_frame[Cr])
+    error(Y, Y_pred, Y_error)
+    error(Cb, Cb_pred, Cb_error)
+    error(Cr, Cr_pred, Cr_error)
+    error_pack = Pack(View(Y_error),View(Cb_error),View(Cr_error))
     pred_pack = Pack(View(Y_pred),View(Cb_pred),View(Cr_pred))
-    a,b = MacroblockLayer.process_blocks(pred_pack, False, state)
-    return pred_pack,a,b
+#    print 'INTER'
+    a,b = MacroblockLayer.process_blocks(error_pack, pred_pack, False, state)
+    return a,b
+
+  def inter_me(mblks, state):
+    Y,Cb,Cr = mblks
+    # the predictions
+    Y_pred = Block[int,Tup2](Y)
+    Cb_pred = Block[int,Tup2](Cb)
+    Cr_pred = Block[int,Tup2](Cr)
+    # the residuals
+    Y_error = Block[int,Tup2](Y)
+    Cb_error = Block[int,Tup2](Cb)
+    Cr_error = Block[int,Tup2](Cr)
+    ref_Y_I_frame = state.I_rframes.Y
+    ref_Cb_I_frame = state.I_rframes.Cb
+    ref_Cr_I_frame = state.I_rframes.Cr
+    mvd_y,mvd_x = full_luma_search(Y, ref_Y_I_frame, state)
+    # make sure to use the correct reference region for the residuals!
+    mvd_y_chroma = mvd_y//2
+    mvd_x_chroma = mvd_x//2
+    ref_Y_I = ref_Y_I_frame[Y][mvd_y:mvd_y+16,mvd_x:mvd_x+16]
+    ref_Cb_I = ref_Cb_I_frame[Cb][mvd_y_chroma:mvd_y_chroma+8,mvd_x_chroma:mvd_x_chroma+8]
+    ref_Cr_I = ref_Cr_I_frame[Cr][mvd_y_chroma:mvd_y_chroma+8,mvd_x_chroma:mvd_x_chroma+8]
+    copy(Y_pred, ref_Y_I)
+    copy(Cb_pred, ref_Cb_I)
+    copy(Cr_pred, ref_Cr_I)
+    error(Y, Y_pred, Y_error)
+    error(Cb, Cb_pred, Cb_error)
+    error(Cr, Cr_pred, Cr_error)
+    error_pack = Pack(View(Y_error),View(Cb_error),View(Cr_error))
+    pred_pack = Pack(View(Y_pred),View(Cb_pred),View(Cr_pred))
+    a,b = MacroblockLayer.process_blocks(error_pack, pred_pack, False, state)
+    return a,b,mvd_y,mvd_x
 
   def get_bit_count(rles, is_intra_mblk):
     count = 0
@@ -310,18 +361,39 @@ class MacroblockLayer:
   def predict(mblks, rmblks, state):
     Y_rmblk,Cb_rmblk,Cr_rmblk = rmblks
     # start with intra mode, which is always safe to run
-    pack,rpack,rle = MacroblockLayer.intra(mblks, state)
+    rpack,rle = MacroblockLayer.intra(mblks, state)
     nbits = MacroblockLayer.get_bit_count(rle, True)
+    rdo_J = J(mblks.Y, rpack.Y, nbits, state.qp_init)
+    print f'intra {rdo_J}'
     mtype = INTRA0    
+    mvd_y,mvd_x = 0,0
     if not state.is_intra_frame:
-      pack2,rpack2,rle2 = MacroblockLayer.inter(mblks, state)
+      rpack2,rle2 = MacroblockLayer.inter(mblks, state)
       nbits2 = MacroblockLayer.get_bit_count(rle2, False)
+      rdo_J2 = J(mblks.Y, rpack2.Y, nbits2, state.qp_init)
       mtype2 = INTER0
-      if nbits2 < nbits:
+      #if nbits2 < nbits:
+      if rdo_J2 < rdo_J:
+        print f'{rdo_J2}<{rdo_J}'
+        rdo_J = rdo_J2        
         nbits = nbits2
         mtype = mtype2
         rle = rle2
         rpack = rpack2
+      # TODO add a configuration flag to turn this off
+      rpack2,rle2,mvd_y2,mvd_x2 = MacroblockLayer.inter_me(mblks, state)
+      nbits2 = MacroblockLayer.get_bit_count(rle2, False)
+      mtype2 = INTER_MC1
+      rdo_J2 = J(mblks.Y, rpack2.Y, nbits2, state.qp_init)
+      if rdo_J2 < rdo_J:
+        print f'{rdo_J2}<{rdo_J}'
+        rdo_J = rdo_J2
+        nbits = nbits2
+        mtype = mtype2
+        rle = rle2
+        rpack = rpack2
+        mvd_y = mvd_y2
+        mvd_x = mvd_x2
     # Copy over reconstruction
     for i in range(16):
       for j in range(16):
@@ -330,11 +402,11 @@ class MacroblockLayer:
       for j in range(8):
         Cb_rmblk[i,j] = rpack.Cb(i,j)
         Cr_rmblk[i,j] = rpack.Cr(i,j)
-    return mtype,rle
+    return mtype,rle,mvd_y,mvd_x
 
   def process(mblks, rmblks, state):
-    mtype,rles = MacroblockLayer.predict(mblks, rmblks, state)
-    MacroblockLayer.commit_header(mtype, rles, state)
+    mtype,rles,mvd_y,mvd_x = MacroblockLayer.predict(mblks, rmblks, state)
+    MacroblockLayer.commit_header(mtype, rles, mvd_y, mvd_x, state)
     transmitted = False
     for rle in rles:
       transmitted |= BlockLayer.commit(rle, is_intra(mtype), state.bitstream)
@@ -342,7 +414,7 @@ class MacroblockLayer:
     return transmitted
     
   # Write macroblock header to the bitstream
-  def commit_header(mtype, rles, state):
+  def commit_header(mtype, rles, mvd_y, mvd_x, state):
     addr_to_transmit = 1 if state.midx == 1 else state.midx - state.l_midx
     code,nbits = MBA_codewords[addr_to_transmit-1], MBA_nbits[addr_to_transmit-1] # -1 b/c it is a 1-based index
     state.bitstream.compressed.pack(code, nbits)
@@ -352,16 +424,26 @@ class MacroblockLayer:
       assert False
       state.bitstream.compressed.pack(state.mquant, 5)
     if has_mvd(mtype):
-      assert False # Need to figure out the mvd codewords
-#      if self.addr == 1 or self.addr == 12 or self.addr == 23 or addr_to_transmit != 1 or not has_mvd(state.last_mtype)
-#        last_mvd_H = 0
-#        last_mvd_V = 0
-#      mvd_H = self.mvd_H - last_mvd_H
-#      mvd_V = self.mvd_V - last_mvd_V
-#      code,nbits = mvd_codewords[mvd_h+16],mvd_nbits[mvd_h+16]
-#      bitstream.compressed.pack(code,nbits)
-#      code,nbits = mvd_codewords[mvd_V+16],mvd_nbits[mvd_V+16]
-#      bitstream.compressed.pack(code,nbits)      
+      last_mvd_y = state.l_mvd_y
+      last_mvd_x = state.l_mvd_x
+      if state.midx == 1 or state.midx == 12 or state.midx == 23 or addr_to_transmit != 1 or not has_mvd(state.l_mtype):
+        last_mvd_y = 0
+        last_mvd_x = 0
+      #print f'ly {last_mvd_y}, lx {last_mvd_x}, y: {mvd_y}, x: {mvd_x}'
+      mvd_y -= last_mvd_y
+      mvd_x -= last_mvd_x
+      #### DEBUG
+      #mvd_y=0
+      #mvd_x=0
+      #### DEBUG
+      code,nbits = mvd_vlc[mvd_y]
+      #print f'Y mvd diff {mvd_y}, {code}@{nbits}'
+      state.bitstream.compressed.pack(code,nbits)
+      code,nbits = mvd_vlc[mvd_x]
+      #print f'X mvd diff {mvd_x}, {code}@{nbits}'
+      state.bitstream.compressed.pack(code,nbits)
+      state.l_mvd_y = mvd_y
+      state.l_mvd_x = mvd_x
     if has_cbp(mtype):
       cbp = 0
       mult = 32

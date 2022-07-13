@@ -17,3 +17,8 @@ def mse(A, B):
 def mad(A, B):
   c = sad(A,B)
   return float(c)/float(len(A))
+
+def J(orig, recons, R, qp):
+  lda = 0.852**(qp-12)/3
+  D = float(ssd(orig,recons))
+  return D + lda * float(R)

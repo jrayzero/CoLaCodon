@@ -25,6 +25,32 @@ INTER_MC_FIL2 = 9
 # operates as INTER0, but allows for the loop filter
 INTER0_FIL = 10
 
+def mtype_to_str(mtype):
+  if mtype == INTRA0:
+    return 'INTRA0'
+  elif mtype == INTRA1:
+    return 'INTRA1'
+  elif mtype == INTER0:
+    return 'INTER0'
+  elif mtype == INTER1:
+    return 'INTER1'
+  elif mtype == INTER_MC0:
+    return 'INTER_MC0'
+  elif mtype == INTER_MC1:
+    return 'INTER_MC1'
+  elif mtype == INTER_MC2:
+    return 'INTER_MC2'
+  elif mtype == INTER_MC_FIL0:
+    return 'INTER_MC_FIL0'
+  elif mtype == INTER_MC_FIL1:
+    return 'INTER_MC_FIL1'
+  elif mtype == INTER_MC_FIL2:
+    return 'INTER_MC_FIL2'
+  elif mtype == INTER0_FIL:
+    return 'INTER0_FIL'
+  else:
+    assert False  
+
 def is_intra(t):
   return t == INTRA0 or t == INTRA1
 

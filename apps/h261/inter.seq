@@ -1,3 +1,4 @@
+from cola.cola_utils import *
 from constants import *
 from cost import *
 
@@ -15,11 +16,57 @@ def residual(block, out_block, I_rblock):
   R,C = block.get_dims()
   for r in range(R):
     for c in range(C):
-      out_block[r,c] = int(block(r,c)) - I_rblock[block](r,c)
+      out_block[r,c] = int(block(r,c)) - I_rblock(r,c)
 
-def full_search(block, out_block, I_rblock, cost_func):
+# block = true values
+def error(block, pred, error):
+  R,C = block.get_dims()
+  for r in range(R):
+    for c in range(C):
+      error[r,c] = int(pred(r,c)) - int(block(r,c))
+
+def full_luma_search(block, I_rblock, state):
   # figure out the corner points based on what's in bounds
-  ul_y,ul_x = block.get_starts()
+  # we can search up to +/- 15 pixels in each direction
+  H,W = (288,352) if state.cif else (144,176)
+  originy,originx = block.get_starts()
+  # inclusive
+  min_x = max(0,originx-15)
+  min_y = max(0,originy-15)
+  # no need to bound this since you'll always have at least a 16x16 block
+  # for the luma macroblock
+  max_y,max_x = originy+16,originx+16
+  # exclusive
+  #max_x = #min(W,anti_origin_x)
+  #max_y = #min(H,anti_origin_y)
+  #print f'Absolute search range: ({min_x},{min_y}) -> ({max_x},{max_y})'
+  # We have an absolute search range, but now need it relative to our block
+  min_y -= originy
+  min_x -= originx
+  max_y -= originy
+  max_x -= originx
+  #print f'Relative search range: ({min_x},{min_y}) -> ({max_x},{max_y})'
+  ref_region = I_rblock[block]
+  best_cost = 2**32
+#  mvd_y,mvd_x = 0,0
+  # block remains stationary, and you move the reference region (stencil) around
+  best_origin = (0,0)
+  for y in range(min_y, max_y):
+    for x in range(min_x, max_x):
+      stencil = ref_region[y:y+16,x:x+16]
+      cost = 0
+      for i in range(16):
+        for j in range(16):
+          cost += abs(stencil(i,j)-int(block(i,j)))
+      if cost < best_cost:
+#        mvd_y = originy-y
+#        mvd_x = originx-x
+        best_origin = tup_sub(stencil.get_starts(), (originy,originx))
+#        print f'{cost} < {best_cost} @ ({mvd_y},{mvd_x})'
+        best_cost = cost
+  #print f'{best_cost} @ ({best_origin[0]-originy}, {best_origin[1]-originx})'
+  #return best_origin
+  return 0,0
 
 def diamond_search(block, out_block, I_rblock, cost_func):
   pass
