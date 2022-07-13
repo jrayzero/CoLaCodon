@@ -42,9 +42,9 @@ def iquantize(coeffs, out_coeffs, step):
   for i in range(8):
     for j in range(8):
       coeff = coeffs(i,j)
-      if even:
+      if coeff != 0 and even:
         out_coeffs[i,j] = step * (2 * coeff + 1) - 1 if coeff > 0 else step * (2 * coeff - 1) + 1 
-      else:
+      elif coeff != 0:
         out_coeffs[i,j] = step * (2 * coeff + 1) if coeff > 0 else step * (2 * coeff - 1)
 
 def intra_iquantize(coeffs, out_coeffs, step):
