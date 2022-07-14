@@ -154,7 +154,9 @@ class BlockLayer:
 
   def forward(coeffs, is_intra_mblk, qp):
 #    print f'ERROR\n{coeffs.str_like(int)}'
+    clip(coeffs, -256, 255)
     chen_DCT(coeffs)
+    clip(coeffs, -2048, 2047)
 #    print f'DCT\n{coeffs.str_like(int)}'
     if is_intra_mblk:
       intra_quantize(coeffs, qp) 
@@ -188,18 +190,12 @@ class BlockLayer:
 
   def process(error, pred, rblock, is_intra_mblk, state):
     # save the prediction because it gets added back in for the inter prediction reconstruction    
-#    saved_pred = None
-#    if not is_intra_mblk:
-#      saved_pred = Block[int,Tup2](pred)
-#      for i in range(8):
-#        for j in range(8):
-#          saved_pred[i,j] = pred(i,j)
     BlockLayer.forward(error, is_intra_mblk, state.qp)
     rle = BlockLayer.rle(error, is_intra_mblk)
     BlockLayer.backward(error, rblock[error], is_intra_mblk, state.qp)
     if not is_intra_mblk:
       BlockLayer.reconstruct(rblock[error], pred)
-    clip(rblock[error], 0, 255)  
+    clip(rblock[error], 1, 254)  
     return rle
     
   def add_sign(coeff, bitstream):
@@ -365,43 +361,39 @@ class MacroblockLayer:
     # start with intra mode, which is always safe to run
     rpack,rle = MacroblockLayer.intra(mblks, state)
     nbits = MacroblockLayer.get_bit_count(rle, True)
-    rdo_J = J(mblks.Y, rpack.Y, nbits, state.qp_init)
+    rdo_J = sad(mblks.Y, rpack.Y) #J(mblks.Y, rpack.Y, nbits, state.qp_init)
 #    print f'intra {rdo_J}'
     mtype = INTRA0    
     mvd_y,mvd_x = 0,0
     if not state.is_intra_frame:
-      rpack2,rle2 = MacroblockLayer.inter(mblks, state)
-#      print mblks.Y.str_like(int)
-#      print rpack.Y.str_like(int)
-#      print rpack2.Y.str_like(int)
-#      exit(48)
-      nbits2 = MacroblockLayer.get_bit_count(rle2, False)
-      rdo_J2 = J(mblks.Y, rpack2.Y, nbits2, state.qp_init)
-      mtype2 = INTER0
-      #if nbits2 < nbits:
-      if rdo_J2 < rdo_J:
-#        print f'{rdo_J2}<{rdo_J}'
-        rdo_J = rdo_J2        
-        nbits = nbits2
-        mtype = mtype2
-        rle = rle2
-        rpack = rpack2
-      #assert False
+#      rpack2,rle2 = MacroblockLayer.inter(mblks, state)
+#      nbits2 = MacroblockLayer.get_bit_count(rle2, False)
+#      rdo_J2 = sad(mblks.Y, rpack2.Y) #J(mblks.Y, rpack2.Y, nbits2, state.qp_init)
+#      mtype2 = INTER0
+##      if rdo_J2 < rdo_J:
+#      rdo_J = rdo_J2        
+#      nbits = nbits2
+#      mtype = mtype2
+#      rle = rle2
+#      rpack = rpack2
+#      print '===='
+#      print mblks.Cr.str_like(int)
+#      print rpack.Cr.str_like(int)
       # TODO add a configuration flag to turn this off
       rpack2,rle2,mvd_y2,mvd_x2 = MacroblockLayer.inter_me(mblks, state)
+      print mvd_y2,mvd_x2
+#      exit(48)
       nbits2 = MacroblockLayer.get_bit_count(rle2, False)
       mtype2 = INTER_MC1
-      rdo_J2 = J(mblks.Y, rpack2.Y, nbits2, state.qp_init)
-      if rdo_J2 < rdo_J:
-#        print f'{rdo_J2}<{rdo_J}'
-        rdo_J = rdo_J2
-        nbits = nbits2
-        mtype = mtype2
-        rle = rle2
-        rpack = rpack2
-        mvd_y = mvd_y2
-        mvd_x = mvd_x2
-        assert False
+      rdo_J2 = sad(mblks.Y, rpack2.Y)#J(mblks.Y, rpack2.Y, nbits2, state.qp_init)
+#      if rdo_J2 < rdo_J:
+      rdo_J = rdo_J2
+      nbits = nbits2
+      mtype = mtype2
+      rle = rle2
+      rpack = rpack2
+      mvd_y = mvd_y2
+      mvd_x = mvd_x2
     # Copy over reconstruction
     for i in range(16):
       for j in range(16):
@@ -416,8 +408,11 @@ class MacroblockLayer:
     mtype,rles,mvd_y,mvd_x = MacroblockLayer.predict(mblks, rmblks, state)
     MacroblockLayer.commit_header(mtype, rles, mvd_y, mvd_x, state)
     transmitted = False
-    for rle in rles:
-      transmitted |= BlockLayer.commit(rle, is_intra(mtype), state.bitstream)
+    if has_tcoeff(mtype):
+      for rle in rles:
+        transmitted |= BlockLayer.commit(rle, is_intra(mtype), state.bitstream)
+    else:
+      transmitted = True
     state.bitstream.compressed.pack(MBA_stuffing_codeword, MBA_stuffing_nbits)
     return transmitted
     
@@ -437,18 +432,11 @@ class MacroblockLayer:
       if state.midx == 1 or state.midx == 12 or state.midx == 23 or addr_to_transmit != 1 or not has_mvd(state.l_mtype):
         last_mvd_y = 0
         last_mvd_x = 0
-      #print f'ly {last_mvd_y}, lx {last_mvd_x}, y: {mvd_y}, x: {mvd_x}'
-      mvd_y -= last_mvd_y
-      mvd_x -= last_mvd_x
-      #### DEBUG
-      #mvd_y=0
-      #mvd_x=0
-      #### DEBUG
-      code,nbits = mvd_vlc[mvd_y]
-      #print f'Y mvd diff {mvd_y}, {code}@{nbits}'
+      diff_mvd_y = mvd_y - last_mvd_y
+      diff_mvd_x = mvd_x - last_mvd_x
+      code,nbits = mvd_vlc[diff_mvd_y]
       state.bitstream.compressed.pack(code,nbits)
-      code,nbits = mvd_vlc[mvd_x]
-      #print f'X mvd diff {mvd_x}, {code}@{nbits}'
+      code,nbits = mvd_vlc[diff_mvd_x]
       state.bitstream.compressed.pack(code,nbits)
       state.l_mvd_y = mvd_y
       state.l_mvd_x = mvd_x
