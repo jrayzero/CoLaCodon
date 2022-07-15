@@ -22,3 +22,13 @@ def J(orig, recons, R, qp):
   lda = 0.852**(qp-12)/3
   D = float(ssd(orig,recons))
   return D + lda * float(R)
+
+def intra_sad(A):
+  avg = 0
+  for a in A:
+    avg += a
+  avg //= len(A)
+  cost = 0
+  for a in A:
+    cost += abs(a-avg)
+  return cost

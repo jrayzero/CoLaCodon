@@ -25,20 +25,23 @@ def error(block, pred, error):
     for c in range(C):
       error[r,c] = int(pred(r,c)) - int(block(r,c))
 
-def full_luma_search(block, I_rblock, state):
+def full_luma_search2(block, I_rblock, state):
   # figure out the corner points based on what's in bounds
   # we can search up to +/- 15 pixels in each direction
   H,W = (288,352) if state.cif else (144,176)
   originy,originx = block.get_starts()
+  # determine the max range we can move the stencil and 
+  # still have it give full 16x16 macroblocks
   # inclusive
   min_x = max(0,originx-15)
   min_y = max(0,originy-15)
   # no need to bound this since you'll always have at least a 16x16 block
   # for the luma macroblock
-  max_y,max_x = originy+16,originx+16
+  max_y,max_x = originy+31,originx+31 # 31 because you can go 15 out, and then need 16 beyond that
+  
   # exclusive
-  #max_x = #min(W,anti_origin_x)
-  #max_y = #min(H,anti_origin_y)
+  max_x = min(W-16,max_x)
+  max_y = min(H-16,max_y)
   #print f'Absolute search range: ({min_x},{min_y}) -> ({max_x},{max_y})'
   # We have an absolute search range, but now need it relative to our block
   min_y -= originy
@@ -57,6 +60,11 @@ def full_luma_search(block, I_rblock, state):
       cost = 0
       for i in range(16):
         for j in range(16):
+          if stencil[i,j].get_starts()[0] == 288:
+            print min_y, max_y
+            print min_x, max_x
+            print originy, originx
+            print 'FOUND IT'
           cost += abs(stencil(i,j)-int(block(i,j)))
       if cost < best_cost:
 #        mvd_y = originy-y
@@ -65,10 +73,46 @@ def full_luma_search(block, I_rblock, state):
 #        print f'{cost} < {best_cost} @ ({mvd_y},{mvd_x})'
         best_cost = cost
   #print f'{best_cost} @ ({best_origin[0]-originy}, {best_origin[1]-originx})'
-  #return best_origin
-  return 0,0
+  return best_origin
 
 def diamond_search(block, out_block, I_rblock, cost_func):
   pass
 
       
+
+
+def full_luma_search(block, I_rblock, state):
+  # figure out the corner points based on what's in bounds
+  # we can search up to +/- 15 pixels in each direction
+  H,W = (288,352) if state.cif else (144,176)
+  originy,originx = block.get_starts()
+  # set full range of stencil
+  stencil_min_x = originx - 15
+  stencil_min_y = originy - 15
+  stencil_max_x = originx + 15
+  stencil_max_y = originy + 15
+  # now bound it so we only use stencils that have space for a full 16x16 macroblock
+  stencil_min_x = max(0, stencil_min_x)
+  stencil_min_y = max(0, stencil_min_y)
+  stencil_max_x = min(W-16, stencil_max_x)
+  stencil_max_y = min(H-16, stencil_max_y)
+  # now make these stencil parameters relative to the block itself
+  stencil_min_x -= originx
+  stencil_min_y -= originy
+  stencil_max_x -= originx
+  stencil_max_y -= originy
+  ref_region = I_rblock[block]
+  best_cost = 2**32
+  # block remains stationary, and you move the reference region (stencil) around
+  best_origin = (0,0)
+  for y in range(stencil_min_y, stencil_max_y):
+    for x in range(stencil_min_x, stencil_max_x):
+      stencil = ref_region[y:y+16,x:x+16]
+      cost = 0
+      for i in range(16):
+        for j in range(16):
+          cost += abs(stencil(i,j)-int(block(i,j)))
+      if cost < best_cost:
+        best_origin = tup_sub(stencil.get_starts(), (originy,originx))
+        best_cost = cost
+  return best_origin

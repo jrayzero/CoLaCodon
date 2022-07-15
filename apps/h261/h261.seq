@@ -25,6 +25,10 @@ def main():
     Y_rframe = Block[int,Tup2](Y_raw_frame)
     Cb_rframe = Block[int,Tup2](Cb_raw_frame)
     Cr_rframe = Block[int,Tup2](Cr_raw_frame)    
+#    for i in range(Cb_raw_frame.get_dims()[0]):
+#      for j in range(Cb_raw_frame.get_dims()[1]):
+#        Cb_raw_frame[i,j] = byte(0)
+#        Cr_raw_frame[i,j] = byte(0)
     frames = Pack(View(Y_raw_frame), View(Cb_raw_frame), View(Cr_raw_frame))
     rframes = Pack(View(Y_rframe), View(Cb_rframe), View(Cr_rframe))
     state.frame_idx = frame_idx
@@ -33,8 +37,8 @@ def main():
     frame_idx += 1
     gop_idx += 1
     gop_idx %= cfg.gop_size
-    if state.is_intra_frame:
-      state.I_rframes = rframes
+#    if state.is_intra_frame:
+    state.I_rframes = rframes
   yuv420.cleanup()
   bitstream.cleanup()
 

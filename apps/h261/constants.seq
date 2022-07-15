@@ -71,3 +71,6 @@ def has_mvd(mtype):
 
 def has_cbp(mtype):
   return mtype == INTER0 or mtype == INTER1 or mtype == INTER_MC1 or mtype == INTER_MC2 or mtype == INTER_MC_FIL1 or mtype == INTER_MC_FIL2
+
+def has_tcoeff(mtype):
+  return mtype == INTRA0 or mtype == INTRA1 or mtype == INTER0 or mtype == INTER1 or mtype == INTER_MC1 or mtype == INTER_MC2 or mtype == INTER_MC_FIL1 or mtype == INTER_MC_FIL2
