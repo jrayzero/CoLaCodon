@@ -14,13 +14,26 @@ def main():
   bitstream = H261Bitstream(cfg.output_fn)
   state = H261State(cfg.qp_init, cfg.cif, bitstream)
   # go through frames  
+  intra_frame = True
   for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
     # Figure out whether intra or inter
     # inter frames can contain intra, but not vice versa
-    frame_type = (cfg.gop >> (64-1-gop_idx)) & 0x1
-    intra_frame = frame_type == 0
-    sintra = 'intra' if intra_frame else 'inter'
-    print f'Frame {frame_idx} is {sintra}'
+    if cfg.frame_structure:
+      # gop      
+      frame_type = (cfg.gop >> (64-1-gop_idx)) & 0x1
+      intra_frame = frame_type == 0
+      sintra = 'intra' if intra_frame else 'inter'
+      print f'Frame {frame_idx} is {sintra}'
+    else:
+      # period 
+      frame_type = 0 if frame_idx % cfg.I_frame_period == 0 else 1
+      intra_frame = frame_type == 0
+      sintra = 'intra' if intra_frame else 'inter'
+      print f'Frame {frame_idx} is {sintra}'
+#    for i in range(Cb_raw_frame.get_dims()[0]):
+#      for j in range(Cb_raw_frame.get_dims()[1]):
+#        Cb_raw_frame[i,j] = byte(0)
+#        Cr_raw_frame[i,j] = byte(0)
     # recons versions
     Y_rframe = Block[int,Tup2](Y_raw_frame)
     Cb_rframe = Block[int,Tup2](Cb_raw_frame)

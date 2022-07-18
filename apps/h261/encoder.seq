@@ -63,70 +63,6 @@ class H261State:
     self.l_mtype = 0
     self.I_rframes = None
 
-class PseudoBlockLayer:
-
-  def _pseudo_add_sign():
-    return 1
-
-  def _pseudo_maybe_vlc(run,coeff):
-    if run in tcoeff_vlc:
-      run_info = tcoeff_vlc[run]
-      if coeff in run_info:
-        # vlc
-        scoeff = coeff
-        if coeff < 0:
-          coeff = -coeff
-        codeword,nbits = run_info[coeff]
-        nbits += PseudoBlockLayer._pseudo_add_sign()
-        return True,nbits
-    return False,0
-
-  def _pseudo_flc():
-    return tcoeff_escape_nbits + 14
-
-  # Don't actually write to bitstream--just figure out how many bits are needed
-  # Entry point
-  def pseudo_commit(rle, is_intra_mblk):
-    cost = 0
-    if not is_intra_mblk and len(rle) == 0:
-      # don't need to transmit this block
-      return cost
-    # for coeff, if it is negative, you use the absolute value to actually look up 
-    # in the VLC table.
-    # for the FLC, you use the unsigned value
-    # when using fixed run/level codes, its just the straightup bit representation
-    if is_intra_mblk:
-      cost += 8
-    else:
-      # the first transmitted level gets special treatment if run == 0 and coeff == 1
-      first_run = rle[0]
-      if first_run[0] == 0 and (first_run[1] == 1 or first_run[1] == -1):
-        cost += 1
-        cost += PseudoBlockLayer._pseudo_add_sign()
-      else:
-        zrun = first_run[0]
-        coeff = first_run[1]
-        res = PseudoBlockLayer._pseudo_maybe_vlc(zrun, coeff)
-        if not res[0]:
-          cost += PseudoBlockLayer._pseudo_flc()
-        else:
-          cost += res[1]
-
-    assert len(rle) > 0
-    for zrun,coeff in rle[1:]:
-      if zrun == 0 and (coeff == 1 or coeff == -1):
-        cost += 2
-        cost += PseudoBlockLayer._pseudo_add_sign()
-      else:
-        res = PseudoBlockLayer._pseudo_maybe_vlc(zrun, coeff)
-        if not res[0]:
-          cost += PseudoBlockLayer._pseudo_flc()
-        else:
-          cost += res[1]
-      first = False
-    cost += tcoeff_EOB_nbits
-    return cost
-
 # No prediction actually happens at the block layer. Rather, this is what
 # actually processes each 8x8 block   
 class BlockLayer:
@@ -138,8 +74,6 @@ class BlockLayer:
     run = 0
     runs = []
     first = True
-#    if not is_intra_mblk:
-#      print coeffs.str_like(int)
     for zz in zigzag:
       coeff = coeffs(*zz)
       if is_intra_mblk and first == True:
@@ -175,6 +109,7 @@ class BlockLayer:
     coeffs[0,0] = clip1(dc, 1, 254)
 
   def backward(coeffs, out_coeffs, is_intra_mblk, qp):
+    clip(coeffs, -256, 255)
     if is_intra_mblk:
       intra_iquantize(coeffs, out_coeffs, qp)
     else:
@@ -215,7 +150,7 @@ class BlockLayer:
           coeff = -coeff
         codeword,nbits = run_info[coeff]
         bitstream.compressed.pack(codeword,nbits)
-        BlockLayer.add_sign(coeff, bitstream)
+        BlockLayer.add_sign(scoeff, bitstream)
         return True
     return False
 
@@ -228,17 +163,12 @@ class BlockLayer:
     if not is_intra_mblock and len(rle) == 0:
       # don't need to transmit this block
       return False
-#    if is_intra_mblock:
-#      print 'Intra mblk'
-#    else:
-#      print 'Inter mblk'
     # for coeff, if it is negative, you use the absolute value to actually look up 
     # in the VLC table.
     # for the FLC, you use the unsigned value
     # when using fixed run/level codes, its just the straightup bit representation
     if is_intra_mblock:
       dc = rle[0][1]
-#      print f'Got intra DC {dc}'
       if dc == 128:
         bitstream.compressed.pack(0xFF,8)
       else:
@@ -248,16 +178,13 @@ class BlockLayer:
       first_run = rle[0]
       if first_run[0] == 0 and (first_run[1] == 1 or first_run[1] == -1):
         bitstream.compressed.pack(1,1)
-#        print f'Got run {first_run[0]}, level {first_run[1]}'
         BlockLayer.add_sign(first_run[1], bitstream)
       else:
         zrun = first_run[0]
         coeff = first_run[1]
-#        print f'Got run {first_run[0]}, level {first_run[1]}'
         if not BlockLayer.maybe_vlc(zrun, coeff, bitstream):
           BlockLayer.flc(zrun, coeff, bitstream)
     for zrun,coeff in rle[1:]:
-#      print f'Got run {zrun}, level {coeff}'
       if zrun == 0 and (coeff == 1 or coeff == -1):
         bitstream.compressed.pack(0b11,2) # not first coeff in block
         BlockLayer.add_sign(coeff, bitstream)
@@ -295,12 +222,10 @@ class MacroblockLayer:
     copy(Cb_pred, Cb)
     copy(Cr_pred, Cr)
     pred_pack = Pack(View(Y_pred),View(Cb_pred),View(Cr_pred))
-#    print 'INTRA'
     a,b = MacroblockLayer.process_blocks(pred_pack, pred_pack, True, state, True)
     return a,b
 
   # inter-prediction without motion estimation
-  # I_frame = the last I_frame sent which is used as reference
   def inter(mblks, state):
     Y,Cb,Cr = mblks
     # the predictions
@@ -383,12 +308,6 @@ class MacroblockLayer:
     a,b = MacroblockLayer.process_blocks(pred_pack, pred_pack, False, state, True)
     return a,b,mvd_y,mvd_x
 
-  def get_bit_count(rles, is_intra_mblk):
-    count = 0
-    for rle in rles:
-      count += PseudoBlockLayer.pseudo_commit(rle, is_intra_mblk)
-    return count
-      
   # Run the various prediction modes and pick the best one
   def predict(mblks, rmblks, state):
     Y_rmblk,Cb_rmblk,Cr_rmblk = rmblks    
@@ -396,27 +315,24 @@ class MacroblockLayer:
       mvd_y,mvd_x = 0,0
       # Inter
       # TODO inter 0,0 is redundant at the inter_me layer
-      rpack,rle = MacroblockLayer.inter(mblks, state)
-      cost = sad(mblks.Y, rpack.Y)
-      s = f'Inter {cost}'
-      mtype = INTER0
+#      rpack,rle = MacroblockLayer.inter(mblks, state)
+#      cost = sad(mblks.Y, rpack.Y)
+#      mtype = INTER0
       # Inter + MC + tcoeff
-      rpack2,rle2,mvd_y2,mvd_x2 = MacroblockLayer.inter_me_tcoeff(mblks, state)
-      mtype2 = INTER_MC1
-      cost2 = sad(mblks.Y, rpack2.Y)
-      s += f', InterMCTcoeff {cost2}'
-      if cost2 < cost:
-        cost = cost2
-        mtype = mtype2
-        rle = rle2
-        rpack = rpack2
-        mvd_y = mvd_y2
-        mvd_x = mvd_x2
+      rpack,rle,mvd_y,mvd_x = MacroblockLayer.inter_me_tcoeff(mblks, state)
+      mtype = INTER_MC1
+      cost = sad(mblks.Y, rpack.Y)
+      #if cost2 < cost:
+      #  cost = cost2
+      #  mtype = mtype2
+      #  rle = rle2
+      #  rpack = rpack2
+      #  mvd_y = mvd_y2
+      #  mvd_x = mvd_x2
       # Intra + MC
       rpack2,rle2,mvd_y2,mvd_x2 = MacroblockLayer.inter_me(mblks, state)
       mtype2 = INTER_MC0
       cost2 = sad(mblks.Y, rpack2.Y)
-      s += f', InterMC {cost2}'
       if cost2 < cost:
         cost = cost2
         mtype = mtype2
@@ -427,7 +343,6 @@ class MacroblockLayer:
       # Intra
       rpack2,rle2 = MacroblockLayer.intra(mblks, state)
       cost2 = sad(mblks.Y, rpack2.Y)
-      s += f', Intra {cost2}'
       if (cost2+500) < cost:
         cost = cost2
         mtype = INTRA0
@@ -435,9 +350,7 @@ class MacroblockLayer:
         rpack = rpack2
         mvd_y = 0
         mvd_x = 0
-      s2 = "intra" if mtype == INTRA0 else ("inter" if mtype == INTER0 else ("interMCTcoeff" if mtype == INTER_MC1 else "interMC"))
-      s += f', Picked {s2} with mv {mvd_y},{mvd_x}'
-#      print s
+      print mtype_to_str(mtype)
       # Copy over reconstruction
       for i in range(16):
         for j in range(16):
@@ -458,7 +371,7 @@ class MacroblockLayer:
         for j in range(8):
           Cb_rmblk[i,j] = rpack.Cb(i,j)
           Cr_rmblk[i,j] = rpack.Cr(i,j)
-      return mtype,rle,0,0 # y,x
+      return mtype,rle,0,0
 
   def predict_TI(mblks, rmblks, state):
     Y_rmblk,Cb_rmblk,Cr_rmblk = rmblks    
@@ -467,7 +380,6 @@ class MacroblockLayer:
       INTER_SAD = 0
       rpack,rle = MacroblockLayer.inter(mblks, state)
       SAD00 = sad(mblks.Y, rpack.Y)
-      s = f'SAD00 {SAD00}'
       mtype = INTER0
       if SAD00 < 100:
         INTER_SAD = SAD00
@@ -476,7 +388,6 @@ class MacroblockLayer:
         rpack2,rle2,mvd_y2,mvd_x2 = MacroblockLayer.inter_me_tcoeff(mblks, state)
         mtype2 = INTER_MC1
         SATMC = sad(mblks.Y, rpack2.Y)
-        s += f', SATMC {SATMC}'
         if SATMC + 100 < SAD00:
           INTER_SAD = SATMC
           mtype = mtype2
@@ -486,15 +397,12 @@ class MacroblockLayer:
           mvd_x = mvd_x2
       rpack2,rle2 = MacroblockLayer.intra(mblks, state)
       INTRA_SAD = sad(mblks.Y, rpack.Y)
-      s += f', INTRA_SAD {INTRA_SAD}'
       if INTRA_SAD + 500 < INTER_SAD:        
         mtype = INTRA0
         rle = rle2
         rpack = rpack2
         mvd_y = 0
         mvd_x = 0
-      s2 = "intra" if mtype == INTRA0 else ("inter" if mtype == INTER0 else "interMC")
-      s += f', Picked {s2} with mv {mvd_y},{mvd_x}'
       # Copy over reconstruction
       for i in range(16):
         for j in range(16):
@@ -549,9 +457,9 @@ class MacroblockLayer:
       diff_mvd_x = mvd_x - last_mvd_x
       assert diff_mvd_y >= -30 and diff_mvd_y <= 30
       assert diff_mvd_x >= -30 and diff_mvd_x <= 30
-      code,nbits = mvd_vlc[diff_mvd_y]
-      state.bitstream.compressed.pack(code,nbits)
       code,nbits = mvd_vlc[diff_mvd_x]
+      state.bitstream.compressed.pack(code,nbits)
+      code,nbits = mvd_vlc[diff_mvd_y]
       state.bitstream.compressed.pack(code,nbits)
       state.l_mvd_y = mvd_y
       state.l_mvd_x = mvd_x

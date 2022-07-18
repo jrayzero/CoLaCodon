@@ -105,7 +105,6 @@ def full_luma_search(block, I_rblock, state):
   best_cost = 2**32
   # block remains stationary, and you move the reference region (stencil) around
   best_origin = (0,0)
-
   for y in range(stencil_min_y, stencil_max_y):
     for x in range(stencil_min_x, stencil_max_x):
       stencil = ref_region[y:y+16,x:x+16]
