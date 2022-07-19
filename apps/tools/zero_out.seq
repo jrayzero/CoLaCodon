@@ -1,0 +1,49 @@
+# zero out different components of an input yuv file
+import sys
+from ..common.yuv import *
+
+if len(sys.argv) != 3:
+  print 'Usage: colac run zero_out.seq <inp_yuv> <nframes>'
+  exit(-1)
+
+inp = sys.argv[1]
+nframes = int(sys.argv[2])
+
+yuv = YUV420Reader(inp, 288, 352, nframes)
+
+y = open(f'{inp}.{nframes}.y00', 'wb')
+uv = open(f'{inp}.{nframes}.0uv', 'wb')
+yuv_out = open(f'{inp}.{nframes}.yuv', 'wb')
+
+idx = 0
+zero = Ptr[byte](1)
+zero[0] = byte(0)
+for Y,U,V in yuv:
+  # only U and V
+  for i in range(288):
+    for j in range(352):
+      uv.write(zero, 1) # Y is zero
+  uv.write(U.data, len(U))
+  uv.write(V.data, len(V))
+  # y only
+  y.write(Y.data, len(Y))
+  for i in range(144):
+    for j in range(176):
+      y.write(zero, 1)
+  for i in range(144):
+    for j in range(176):
+      y.write(zero, 1)
+  # yuv
+  yuv_out.write(Y.data, len(Y))
+  yuv_out.write(U.data, len(U))
+  yuv_out.write(V.data, len(V))
+  idx += 1
+
+y.flush()
+uv.flush()
+yuv_out.flush()
+y.close()
+uv.close()
+yuv_out.close()
+
+
