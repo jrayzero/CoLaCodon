@@ -12,8 +12,8 @@ def init_SPS(cfg):
   sps = SPS()
   sps.profile_idc = cfg.profile
   sps.level_idc = cfg.level
-#  if cfg.profile == 66:
-#    sps.constraint_set1_flag = True
+  if cfg.profile == 66:
+    sps.constraint_set1_flag = True
   if not cfg.disable_motion_estimation:
     assert False
   else:

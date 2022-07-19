@@ -120,23 +120,30 @@ def C_forward_inverse_4x4(C_raw_mblk_8x8, C_pred_mblk_8x8, C_pre_code_mblk_8x8, 
     C_pre_code_smblk_4x4 = C_pre_code_mblk_8x8[C_raw_smblk_4x4]
     residual4x4(C_raw_smblk_4x4, C_pred_smblk_4x4, C_pre_code_smblk_4x4)
     dct4x4(C_pre_code_smblk_4x4, C_pre_code_smblk_4x4)
+#  print C_raw_mblk_8x8.str_like(int)
+#  print C_pred_mblk_8x8.str_like(int)
+#  print C_pre_code_mblk_8x8.str_like(int)
   # now the hadamard across the DCs only
   dcs_2x2 = C_pre_code_mblk_8x8[::4,::4]
   hadamard2x2(dcs_2x2, dcs_2x2)
   # now back to the individual 4x4 blocks
   for C_pre_code_smblk_4x4 in C_pre_code_mblk_8x8.grid((4,4)):
     basic_quantization(C_pre_code_smblk_4x4, C_pre_code_smblk_4x4, qp, quant_tables)
-  if video.cfg.greyscale:
-    for i in range(8):
-      for j in range(8):
-        C_pre_code_mblk_8x8[i,j] = 0
+  C_pre_code_mblk_8x8[0,0] = C_pre_code_mblk_8x8(0,0)//2
+  C_pre_code_mblk_8x8[0,4] = C_pre_code_mblk_8x8(0,4)//2
+  C_pre_code_mblk_8x8[4,0] = C_pre_code_mblk_8x8(4,0)//2
+  C_pre_code_mblk_8x8[4,4] = C_pre_code_mblk_8x8(4,4)//2
+#  print C_recons_mblk_8x8.str_like(int)
+#  print 'for the entropy coder'
+#  print C_pre_code_mblk_8x8.str_like(int)
+#  exit(48)
   ### inverse
   idcs_2x2 = C_recons_mblk_8x8[::4,::4]
   ihadamard2x2(dcs_2x2, idcs_2x2)
   post_hadamard_chroma_DC_scale(idcs_2x2, idcs_2x2, qp, quant_tables)
   for C_recons_smblk_4x4 in C_recons_mblk_8x8.grid((4,4)):
     dc00 = C_recons_smblk_4x4(0,0)
-    pre_idct_scale(C_recons_smblk_4x4, C_recons_smblk_4x4, qp, quant_tables)
+    pre_idct_scale(C_pre_code_mblk_8x8[C_recons_smblk_4x4], C_recons_smblk_4x4, qp, quant_tables)
     C_recons_smblk_4x4[0,0] = dc00 # not scaled, see 8.5.12.1 in spec
     idct4x4(C_recons_smblk_4x4, C_recons_smblk_4x4)
     post_idct_scale(C_recons_smblk_4x4, C_recons_smblk_4x4)
@@ -160,6 +167,7 @@ def chroma_commit_recons_4x4(mblk, Cb_pred_mblk_8x8, Cr_pred_mblk_8x8, encoder_f
   C_commit_recons_4x4(Cb_recons_mblk_8x8, Cb_pred_mblk_8x8)
   C_commit_recons_4x4(Cr_recons_mblk_8x8, Cr_pred_mblk_8x8)
 
+# write the pred mode for later use
 def chroma_commit_pred_mode(mode, mblk, encoder_frame):
   # just one for both Cb and Cr
   set_all_2D(encoder_frame.C_pred_modes_frame[mblk.Cb_raw_mblk_8x8], mode)

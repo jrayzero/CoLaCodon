@@ -20,8 +20,6 @@ class EncoderCfg:
   disable_motion_estimation: bool
   # Quantization
   qp_init: int
-  # Forceable
-  greyscale: bool
 
   def __init__(self):
     self.input_fn = ''
@@ -38,7 +36,6 @@ class EncoderCfg:
     self.disable_16x16 = False
     self.disable_motion_estimation = False
     self.qp_init = 26
-    self.greyscale = False
 
   def __str__(self):
     s = ''
@@ -56,7 +53,6 @@ class EncoderCfg:
     s += f'disable_16x16 = : {self.disable_16x16}\n'
     s += f'disable_motion_estimation = : {self.disable_motion_estimation}\n'
     s += f'qp_init: {self.qp_init}\n'
-    s += f'greyscale: {self.greyscale}\n'
     return s
 
 def parse_str(param,value):    
@@ -109,8 +105,6 @@ def parse_param(param, value, cfg):
     cfg.disable_motion_estimation = parse_bool(param,value)
   elif param == 'qp_init':
     cfg.qp_init = parse_int(param,value)
-  elif param == 'greyscale':
-    cfg.greyscale = parse_bool(param,value)
   else:
     print f'Unknown cfg param: {param}'
   
