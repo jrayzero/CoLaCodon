@@ -1,3 +1,5 @@
+import math
+
 def sad(A, B):
   c = 0
   for a,b in zip(A,B):
@@ -32,3 +34,11 @@ def intra_sad(A):
   for a in A:
     cost += abs(a-avg)
   return cost
+
+# gt = ground truth
+# cmp = compare with gt
+def psnr(gt, cmp):
+  mse = float(mse(gt, cmp))
+  psnr = 10 * math.log10(((2**8 - 1) ** 2) / mse)
+  return psnr
+    
