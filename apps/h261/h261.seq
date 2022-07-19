@@ -30,10 +30,6 @@ def main():
       intra_frame = frame_type == 0
       sintra = 'intra' if intra_frame else 'inter'
       print f'Frame {frame_idx} is {sintra}'
-#    for i in range(Cb_raw_frame.get_dims()[0]):
-#      for j in range(Cb_raw_frame.get_dims()[1]):
-#        Cb_raw_frame[i,j] = byte(0)
-#        Cr_raw_frame[i,j] = byte(0)
     # recons versions
     Y_rframe = Block[int,Tup2](Y_raw_frame)
     Cb_rframe = Block[int,Tup2](Cb_raw_frame)
@@ -46,7 +42,7 @@ def main():
     frame_idx += 1
     gop_idx += 1
     gop_idx %= cfg.gop_size
-    state.I_rframes = rframes
+    state.rframes = rframes
   yuv420.cleanup()
   bitstream.cleanup()
 

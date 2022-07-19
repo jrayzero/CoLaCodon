@@ -1,0 +1,42 @@
+from cola.cola_utils import *
+from constants import *
+from cost import *
+
+def diamond_search(block, out_block, I_rblock, cost_func):
+  pass
+      
+def full_search(block, I_rblock, state):
+  # figure out the corner points based on what's in bounds
+  # we can search up to +/- 15 pixels in each direction
+  H,W = (288,352) if state.cif else (144,176)
+  originy,originx = block.get_starts()
+  # set full range of stencil
+  stencil_min_x = originx - 15
+  stencil_min_y = originy - 15
+  stencil_max_x = originx + 15
+  stencil_max_y = originy + 15
+  # now bound it so we only use stencils that have space for a full 16x16 macroblock
+  stencil_min_x = max(0, stencil_min_x)
+  stencil_min_y = max(0, stencil_min_y)
+  stencil_max_x = min(W-16, stencil_max_x)
+  stencil_max_y = min(H-16, stencil_max_y)
+  # now make these stencil parameters relative to the block itself
+  stencil_min_x -= originx
+  stencil_min_y -= originy
+  stencil_max_x -= originx
+  stencil_max_y -= originy
+  ref_region = I_rblock[block]
+  best_cost = 2**32
+  # block remains stationary, and you move the reference region (stencil) around
+  best_origin = (0,0)
+  for y in range(stencil_min_y, stencil_max_y):
+    for x in range(stencil_min_x, stencil_max_x):
+      stencil = ref_region[y:y+16,x:x+16]
+      cost = 0
+      for i in range(16):
+        for j in range(16):
+          cost += abs(stencil(i,j)-int(block(i,j)))
+      if cost < best_cost:
+        best_origin = tup_sub(stencil.get_starts(), (originy,originx))
+        best_cost = cost
+  return best_origin
