@@ -6,10 +6,8 @@ from constants import *
 from me_search import *
 from h261_bitstream import *
 from tables import *
-from cost import *
+from ..common.cost import *
 from h261_common import *
-
-Q = 0
 
 # A collection of Y, Cb, and Cr components
 @tuple
