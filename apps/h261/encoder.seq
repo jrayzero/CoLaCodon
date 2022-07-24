@@ -264,6 +264,17 @@ class MacroblockLayer:
       a,b = MacroblockLayer.process_blocks(pred_pack, pred_pack, False, state, mtype)
       return a,b,mvd_y,mvd_x
 
+  def copy_recons(rmblks,rpack,rle,mtype,mvd_y,mvd_x):
+    # Copy over reconstruction
+    for i in range(16):
+      for j in range(16):
+        rmblks.Y[i,j] = rpack.Y(i,j)
+    for i in range(8):
+      for j in range(8):
+        rmblks.Cb[i,j] = rpack.Cb(i,j)
+        rmblks.Cr[i,j] = rpack.Cr(i,j)
+    return mtype,rle,mvd_y,mvd_x    
+
   # Run the various prediction modes and pick the best one
   def predict(mblks, rmblks, state):
     Y_rmblk,Cb_rmblk,Cr_rmblk = rmblks    
@@ -282,7 +293,7 @@ class MacroblockLayer:
         rpack = rpack2
         mvd_y = mvd_y2
         mvd_x = mvd_x2
-      # Intra + MC
+      # Inter + MC
       rpack2,rle2,mvd_y2,mvd_x2 = MacroblockLayer.inter(mblks, state, INTER_MC0)
       cost2 = sad(mblks.Y, rpack2.Y)
       if cost2 < cost:
@@ -295,7 +306,7 @@ class MacroblockLayer:
       # Intra
       rpack2,rle2 = MacroblockLayer.intra(mblks, state, INTRA0)
       cost2 = sad(mblks.Y, rpack2.Y)
-      if (cost2+500) < cost:
+      if (cost2+1000) < cost:
         cost = cost2
         mtype = INTRA0
         rle = rle2
@@ -303,26 +314,11 @@ class MacroblockLayer:
         mvd_y = 0
         mvd_x = 0
       # Copy over reconstruction
-      for i in range(16):
-        for j in range(16):
-          Y_rmblk[i,j] = rpack.Y(i,j)
-      for i in range(8):
-        for j in range(8):
-          Cb_rmblk[i,j] = rpack.Cb(i,j)
-          Cr_rmblk[i,j] = rpack.Cr(i,j)
-      return mtype,rle,mvd_y,mvd_x
+      return MacroblockLayer.copy_recons(rmblks, rpack, rle, mtype, mvd_y, mvd_x)
     else:
       rpack,rle = MacroblockLayer.intra(mblks, state, INTRA0)
       mtype = INTRA0      
-      # Copy over reconstruction
-      for i in range(16):
-        for j in range(16):
-          Y_rmblk[i,j] = rpack.Y(i,j)
-      for i in range(8):
-        for j in range(8):
-          Cb_rmblk[i,j] = rpack.Cb(i,j)
-          Cr_rmblk[i,j] = rpack.Cr(i,j)
-      return mtype,rle,0,0
+      return MacroblockLayer.copy_recons(rmblks, rpack, rle, mtype, 0, 0)
 
   def process(mblks, rmblks, state):
     mtype,rles,mvd_y,mvd_x = MacroblockLayer.predict(mblks, rmblks, state)
@@ -377,13 +373,16 @@ class MacroblockLayer:
     
 class GOBLayer:
 
-  def process(gobs, rgobs, gn, state):
-    # can immediately commit the header
+  def commit_header(gn, state):
     state.bitstream.compressed.pack(GBSC, 16)
     state.bitstream.compressed.pack(gn, 4)
     state.bitstream.compressed.pack(state.gquant, 5)
     state.bitstream.compressed.pack(0, 1) # GEI
     state.bitstream.compressed.pack(MBA_stuffing_codeword, MBA_stuffing_nbits)
+
+  def process(gobs, rgobs, gn, state):
+    # can immediately commit the header
+    GOBLayer.commit_header(gn, state)
     # now do macroblock things
     return GOBLayer.encode(gobs, rgobs, state)
 

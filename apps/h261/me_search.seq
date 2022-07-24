@@ -1,8 +1,8 @@
 from cola.cola_utils import *
 from constants import *
-from cost import *
+from ..common.cost import *
 
-def diamond_search(block, out_block, I_rblock, cost_func):
+def diamond_search(block, I_rblock, state):
   pass
       
 def full_search(block, I_rblock, state):
