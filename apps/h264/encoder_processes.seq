@@ -188,6 +188,7 @@ class MacroblockLayer:
         B = encoder_frame.Y_pred_modes_frame[Y_pre_code_smblk_4x4][-1,0]
         DC_pred_mode_predicted = False
         # TODO would need to check blk type here for availability, not just existance
+        # (important for 16x16 mode)
         if not A.exists() or not B.exists() or is_first_mblk:
           DC_pred_mode_predicted = True
         intra_A_mode = 0
@@ -239,7 +240,8 @@ class MacroblockLayer:
         video.bitstream.nal_payload.pack(int(cr), 8)
 
   def predict(self, encoder_frame, video, quant_tables):
-    luma_intra_4x4_and_reconstruct(self, encoder_frame, video, quant_tables)
+#    luma_intra_4x4_and_reconstruct(self, encoder_frame, video, quant_tables)
+    full_complexity_intra(self, encoder_frame, video, quant_tables)
     chroma_intra_4x4_and_reconstruct(self, encoder_frame, video, quant_tables)
 
   # This is the main encoding loop
