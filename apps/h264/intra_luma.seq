@@ -4,18 +4,6 @@ from funcs import *
 from transform import *
 from quant import *
 
-def intra_4x4_vertical(pred, ref):
-  p = ref[pred]
-  for y in range(4):
-    for x in range(4):
-      pred[y,x] = p(-1,x)
-
-def intra_4x4_horizontal(pred, ref):
-  p = ref[pred]
-  for y in range(4):
-    for x in range(4):
-      pred[y,x] = p(y,-1)
-
 def intra_4x4_DC_1(pred, ref):
   p = ref
   s = 4
@@ -82,6 +70,19 @@ def luma_commit_pred_mode(Y_pred_modes_smblk_4x4, mode):
     for j in range(4):
       Y_pred_modes_smblk_4x4[i,j] = mode
 
+def luma_DC_modes(Y_smblk_4x4, Y_recons_frame):
+  Y_pred_smblk_4x4 = Block[int,Tup2](Y_smblk_4x4)
+  if Y_smblk_4x4[-1,-1].exists():
+    intra_4x4_DC_1(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4])
+  elif Y_smblk_4x4[0,-1].exists():
+    intra_4x4_DC_2(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4])
+  elif Y_smblk_4x4[-1,0].exists():
+    intra_4x4_DC_3(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4]) 
+  else:
+    intra_4x4_DC_4(Y_pred_smblk_4x4, 8)
+  return Y_pred_smblk_4x4
+
+
 # TODO TODO If either A or B is 16x16 (and you are 4x4), you HAVE to use the DC mode
 # Main intra prediction loop
 def luma_intra_4x4_and_reconstruct(mblk: MacroblockLayer, encoder_frame: EncoderFrame, video: Video, quant_tables):
@@ -91,25 +92,25 @@ def luma_intra_4x4_and_reconstruct(mblk: MacroblockLayer, encoder_frame: Encoder
   mblk.Y_pre_code_mblk_16x16 = Block[int,Tup2](Y_raw_mblk_16x16)
   for Y_smblk_8x8 in Y_raw_mblk_16x16.grid((8,8)):
     for Y_smblk_4x4 in Y_smblk_8x8.grid((4,4)):
-      Y_pred_smblk_4x4 = Block[int,Tup2](Y_smblk_4x4)
-      if Y_smblk_4x4[-1,-1].exists():
-        intra_4x4_DC_1(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4])
-      elif Y_smblk_4x4[0,-1].exists():
-        intra_4x4_DC_2(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4])
-      elif Y_smblk_4x4[-1,0].exists():
-        intra_4x4_DC_3(Y_pred_smblk_4x4, Y_recons_frame[Y_pred_smblk_4x4]) 
-      else:
-        intra_4x4_DC_4(Y_pred_smblk_4x4, 8)
+      Y_pred_DC_smblk_4x4 = luma_DC_modes(Y_smblk_4x4, Y_recons_frame)
       # forward      
-      Y_pre_code_smblk_4x4 = mblk.Y_pre_code_mblk_16x16[Y_pred_smblk_4x4]
-      Y_recons_4x4 = Y_recons_frame[Y_pred_smblk_4x4]
-      luma_forward_4x4(Y_smblk_4x4, Y_pred_smblk_4x4, Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables)
+      Y_pre_code_smblk_4x4 = mblk.Y_pre_code_mblk_16x16[Y_pred_DC_smblk_4x4]
+      Y_recons_4x4 = Y_recons_frame[Y_pred_DC_smblk_4x4]
+      luma_forward_4x4(Y_smblk_4x4, Y_pred_DC_smblk_4x4, Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables)
       # reconstruct
-      luma_inverse_4x4(Y_pred_smblk_4x4, Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables)
+      luma_inverse_4x4(Y_pred_DC_smblk_4x4, Y_pre_code_smblk_4x4, Y_recons_4x4, qp, quant_tables)
       # record how this block was predicted
-      luma_commit_recons_4x4(Y_recons_4x4, Y_pred_smblk_4x4)
+      luma_commit_recons_4x4(Y_recons_4x4, Y_pred_DC_smblk_4x4)
       # TODO this assumes just this 4x4 mode
-      Y_pred_modes_smblk_4x4 = encoder_frame.Y_pred_modes_frame[Y_pred_smblk_4x4]      
+      Y_pred_modes_smblk_4x4 = encoder_frame.Y_pred_modes_frame[Y_pred_DC_smblk_4x4]      
       luma_commit_pred_mode(Y_pred_modes_smblk_4x4, intra_luma_4x4_DC)
-      Y_nz_smblk_4x4 = encoder_frame.Y_nz_coeffs_frame[Y_pred_smblk_4x4]
+      Y_nz_smblk_4x4 = encoder_frame.Y_nz_coeffs_frame[Y_pred_DC_smblk_4x4]
       luma_commit_nnz_coeffs(Y_pre_code_smblk_4x4, Y_nz_smblk_4x4)
+
+# this uses maximum complexity to pick the best intra prediction mode for luma
+# howeer
+def full_complexity_intra(mblk: MacroblockLayer, encoder_frame: EncoderFrame, video: Video, quant_tables):
+  Y_raw_mblk_16x16 = mblk.Y_raw_mblk_16x16
+  Y_recons_frame = encoder_frame.Y_recons_frame
+  qp = video.cfg.qp_init
+  mblk.Y_pre_code_mblk_16x16 = Block[int,Tup2](Y_raw_mblk_16x16)

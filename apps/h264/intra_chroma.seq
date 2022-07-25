@@ -3,8 +3,9 @@ from video import *
 from funcs import *
 from transform import *
 from quant import *
+from intra_common import *
 
-def intra_chroma_4x4_DC_1(pred, ref_left, ref_up):
+def intra_chroma_DC_1(pred, ref_left, ref_up):
   s = 4
   for v in ref_left[:,-1]:
     s += v
@@ -15,7 +16,7 @@ def intra_chroma_4x4_DC_1(pred, ref_left, ref_up):
     for x in range(4):
       pred[y,x] = s  
 
-def intra_chroma_4x4_DC_2(pred, ref_left):
+def intra_chroma_DC_2(pred, ref_left):
   s = 2
   for v in ref_left[:,-1]:
     s += v
@@ -24,7 +25,7 @@ def intra_chroma_4x4_DC_2(pred, ref_left):
     for x in range(4):
       pred[y,x] = s
 
-def intra_chroma_4x4_DC_3(pred, ref_up):
+def intra_chroma_DC_3(pred, ref_up):
   s = 2
   for v in ref_up[-1,:]:
     s += v
@@ -33,14 +34,31 @@ def intra_chroma_4x4_DC_3(pred, ref_up):
     for x in range(4):
       pred[y,x] = s
 
-def intra_chroma_4x4_DC_4(pred, bit_depth):
+def intra_chroma_DC_4(pred, bit_depth):
   s = (1<<(bit_depth-1))
   for y in range(4):
     for x in range(4):
       pred[y,x] = s
 
-def C_intra_predict_4x4(C_raw_mblk_8x8, C_pred_mblk_8x8, C_recons_frame, video):
-  qp = video.cfg.qp_init
+def intra_chroma_planar(pred, ref):
+  p = ref[pred]
+  xCF = 0
+  yCF = 0
+  H = 0
+  V = 0
+  for x in range(4):
+    H += (x+1)*(p(-1,4+x)-p(-1,2-x))
+  for y in range(4):
+    V += (y+1)*(p(4+y,-1)-p(2-y,-1))
+  a = 16 * (p(7,-1) + p(-1,7))
+  b = (34*H+32) >> 6
+  c = (34*V+32) >> 6
+  for y in range(8):
+    for x in range(8):
+      pred[y,x] = clip1((a+b*(x-3)+c*(y-3)+16)>>5, 8)
+
+def C_intra_predict_DC(C_raw_mblk_8x8, C_recons_frame):
+  C_pred_mblk_8x8 = Block[int,Tup2](C_raw_mblk_8x8)
   C_recons_mblk_8x8 = C_recons_frame[C_raw_mblk_8x8]
   # we need to store all 4x4 sub predictions
   y,x = C_raw_mblk_8x8.get_starts()
@@ -55,48 +73,89 @@ def C_intra_predict_4x4(C_raw_mblk_8x8, C_pred_mblk_8x8, C_recons_frame, video):
   C_br_4x4 = C_pred_mblk_8x8[4:,4:]
   # upper left block
   if y > 0 and x > 0:
-    intra_chroma_4x4_DC_1(C_ul_4x4, C_recons_mblk_8x8[C_ul_4x4], C_recons_mblk_8x8[C_ul_4x4])    
+    intra_chroma_DC_1(C_ul_4x4, C_recons_mblk_8x8[C_ul_4x4], C_recons_mblk_8x8[C_ul_4x4])    
   elif x > 0:
-    intra_chroma_4x4_DC_2(C_ul_4x4, C_recons_mblk_8x8[C_ul_4x4])
+    intra_chroma_DC_2(C_ul_4x4, C_recons_mblk_8x8[C_ul_4x4])
   elif y > 0:
-    intra_chroma_4x4_DC_3(C_ul_4x4, C_recons_mblk_8x8[C_ul_4x4])
+    intra_chroma_DC_3(C_ul_4x4, C_recons_mblk_8x8[C_ul_4x4])
   else:
-    intra_chroma_4x4_DC_4(C_ul_4x4, 8)
+    intra_chroma_DC_4(C_ul_4x4, 8)
   # bottom right block
   if y > 0 and x > 0:
-    intra_chroma_4x4_DC_1(C_br_4x4, C_recons_mblk_8x8[C_bl_4x4], C_recons_mblk_8x8[C_ur_4x4])    
+    intra_chroma_DC_1(C_br_4x4, C_recons_mblk_8x8[C_bl_4x4], C_recons_mblk_8x8[C_ur_4x4])    
   elif x > 0:
-    intra_chroma_4x4_DC_2(C_br_4x4, C_recons_mblk_8x8[C_bl_4x4])
+    intra_chroma_DC_2(C_br_4x4, C_recons_mblk_8x8[C_bl_4x4])
   elif y > 0:
-    intra_chroma_4x4_DC_3(C_br_4x4, C_recons_mblk_8x8[C_ur_4x4])
+    intra_chroma_DC_3(C_br_4x4, C_recons_mblk_8x8[C_ur_4x4])
   else:
-    intra_chroma_4x4_DC_4(C_br_4x4, 8)
+    intra_chroma_DC_4(C_br_4x4, 8)
   # upper right block
   if y > 0:
-    intra_chroma_4x4_DC_3(C_ur_4x4, C_recons_mblk_8x8[C_ur_4x4])
+    intra_chroma_DC_3(C_ur_4x4, C_recons_mblk_8x8[C_ur_4x4])
   elif x > 0:
-    intra_chroma_4x4_DC_2(C_ur_4x4, C_recons_mblk_8x8[C_ul_4x4])
+    intra_chroma_DC_2(C_ur_4x4, C_recons_mblk_8x8[C_ul_4x4])
   else:
-    intra_chroma_4x4_DC_4(C_ur_4x4, 8)
+    intra_chroma_DC_4(C_ur_4x4, 8)
   # bottom left block
   if x > 0:
-    intra_chroma_4x4_DC_2(C_bl_4x4, C_recons_mblk_8x8[C_bl_4x4])
+    intra_chroma_DC_2(C_bl_4x4, C_recons_mblk_8x8[C_bl_4x4])
   elif y > 0:
-    intra_chroma_4x4_DC_3(C_bl_4x4, C_recons_mblk_8x8[C_ul_4x4])
+    intra_chroma_DC_3(C_bl_4x4, C_recons_mblk_8x8[C_ul_4x4])
   else:
-    intra_chroma_4x4_DC_4(C_bl_4x4, 8)
-
+    intra_chroma_DC_4(C_bl_4x4, 8)
+  return C_pred_mblk_8x8
+   
 # do just the prediction part. Unlike luma, this can be done all at once before the forward/inverse
-def chroma_intra_predict_4x4(mblk: MacroblockLayer, Cb_pred_mblk_8x8, Cr_pred_mblk_8x8, encoder_frame: EncoderFrame, video):
+def chroma_intra_predict(mblk: MacroblockLayer, encoder_frame: EncoderFrame, video):
   Cb_raw_mblk_8x8 = mblk.Cb_raw_mblk_8x8
   Cr_raw_mblk_8x8 = mblk.Cr_raw_mblk_8x8
   Cb_recons_frame = encoder_frame.Cb_recons_frame
   Cr_recons_frame = encoder_frame.Cr_recons_frame
   mblk.Cb_pre_code_mblk_8x8 = Block[int,Tup2](Cb_raw_mblk_8x8)
   mblk.Cr_pre_code_mblk_8x8 = Block[int,Tup2](Cr_raw_mblk_8x8)
-  # TODO make sure these use the same mode, both across Cb and Cr, and within each 4x4 block of the macroblock
-  C_intra_predict_4x4(Cb_raw_mblk_8x8, Cb_pred_mblk_8x8, Cb_recons_frame, video)
-  C_intra_predict_4x4(Cr_raw_mblk_8x8, Cr_pred_mblk_8x8, Cr_recons_frame, video)
+  # do all the valid predictions
+  y,x = Cb_raw_mblk_8x8.get_starts()
+  Cb_pred_DC = C_intra_predict_DC(Cb_raw_mblk_8x8, Cb_recons_frame)
+  Cr_pred_DC = C_intra_predict_DC(Cr_raw_mblk_8x8, Cr_recons_frame)  
+  modes = [intra_chroma_DC]
+  Cb_preds = [Cb_pred_DC]
+  Cr_preds = [Cr_pred_DC]
+  do_HV = video.cfg.chroma_all or video.cfg.chroma_HV
+  do_planar = video.cfg.chroma_all or video.cfg.chroma_planar
+  if y > 0 and do_HV:
+    Cb_pred_V,Cr_pred_V = Block[int,Tup2](Cb_raw_mblk_8x8),Block[int,Tup2](Cr_raw_mblk_8x8)
+    intra_vertical(Cb_pred_V, Cb_recons_frame)
+    intra_vertical(Cr_pred_V, Cr_recons_frame)
+    modes.append(intra_chroma_vertical)
+    Cb_preds.append(Cb_pred_V)
+    Cr_preds.append(Cr_pred_V)
+  if x > 0 and do_HV:
+    Cb_pred_H,Cr_pred_H = Block[int,Tup2](Cb_raw_mblk_8x8),Block[int,Tup2](Cr_raw_mblk_8x8)
+    intra_horizontal(Cb_pred_H, Cb_recons_frame)
+    intra_horizontal(Cr_pred_H, Cr_recons_frame)
+    modes.append(intra_chroma_horizontal)
+    Cb_preds.append(Cb_pred_H)
+    Cr_preds.append(Cr_pred_H)
+  if x > 0 and y > 0 and do_planar:
+    Cb_pred_pl,Cr_pred_pl = Block[int,Tup2](Cb_raw_mblk_8x8),Block[int,Tup2](Cr_raw_mblk_8x8)
+    intra_chroma_planar(Cb_pred_pl, Cb_recons_frame)
+    intra_chroma_planar(Cr_pred_pl, Cr_recons_frame)
+    modes.append(intra_chroma_plane)
+    Cb_preds.append(Cb_pred_pl)
+    Cr_preds.append(Cr_pred_pl)
+  Cb_ssds = compute_all_costs(ssd, Cb_raw_mblk_8x8, Cb_preds)
+  Cr_ssds = compute_all_costs(ssd, Cr_raw_mblk_8x8, Cr_preds)
+  # now pick the best one
+  idx = 0
+  best_cost = 99999999
+  best_idx = 0
+  for Cb_cost,Cr_cost in zip(Cb_ssds, Cr_ssds):
+    total = Cb_cost + Cr_cost
+    if total < best_cost:
+      best_cost = total
+      best_idx = idx
+    idx += 1
+  return modes[best_idx],Cb_preds[best_idx],Cr_preds[best_idx]
   
 def C_commit_nnz_coeffs(C_pre_code_mblk_8x8, C_nz_frame):
   for C_pre_code_smblk_4x4 in C_pre_code_mblk_8x8.grid((4,4)):
@@ -120,9 +179,6 @@ def C_forward_inverse_4x4(C_raw_mblk_8x8, C_pred_mblk_8x8, C_pre_code_mblk_8x8, 
     C_pre_code_smblk_4x4 = C_pre_code_mblk_8x8[C_raw_smblk_4x4]
     residual4x4(C_raw_smblk_4x4, C_pred_smblk_4x4, C_pre_code_smblk_4x4)
     dct4x4(C_pre_code_smblk_4x4, C_pre_code_smblk_4x4)
-#  print C_raw_mblk_8x8.str_like(int)
-#  print C_pred_mblk_8x8.str_like(int)
-#  print C_pre_code_mblk_8x8.str_like(int)
   # now the hadamard across the DCs only
   dcs_2x2 = C_pre_code_mblk_8x8[::4,::4]
   hadamard2x2(dcs_2x2, dcs_2x2)
@@ -133,10 +189,6 @@ def C_forward_inverse_4x4(C_raw_mblk_8x8, C_pred_mblk_8x8, C_pre_code_mblk_8x8, 
   C_pre_code_mblk_8x8[0,4] = C_pre_code_mblk_8x8(0,4)//2
   C_pre_code_mblk_8x8[4,0] = C_pre_code_mblk_8x8(4,0)//2
   C_pre_code_mblk_8x8[4,4] = C_pre_code_mblk_8x8(4,4)//2
-#  print C_recons_mblk_8x8.str_like(int)
-#  print 'for the entropy coder'
-#  print C_pre_code_mblk_8x8.str_like(int)
-#  exit(48)
   ### inverse
   idcs_2x2 = C_recons_mblk_8x8[::4,::4]
   ihadamard2x2(dcs_2x2, idcs_2x2)
@@ -178,12 +230,10 @@ def chroma_intra_4x4_and_reconstruct(mblk: MacroblockLayer, encoder_frame: Encod
   # do just the prediction
   Cb_raw_mblk_8x8 = mblk.Cb_raw_mblk_8x8
   Cr_raw_mblk_8x8 = mblk.Cr_raw_mblk_8x8
-  Cb_pred_mblk_8x8 = Block[int,Tup2](Cb_raw_mblk_8x8)
-  Cr_pred_mblk_8x8 = Block[int,Tup2](Cr_raw_mblk_8x8)
-  chroma_intra_predict_4x4(mblk, Cb_pred_mblk_8x8, Cr_pred_mblk_8x8, encoder_frame, video)
+  best_mode,Cb_pred_mblk_8x8,Cr_pred_mblk_8x8 = chroma_intra_predict(mblk, encoder_frame, video)
   # now the forward/inverse processing
   chroma_forward_inverse_4x4(mblk, Cb_pred_mblk_8x8, Cr_pred_mblk_8x8, encoder_frame, video, quant_tables)
   # now commit all the stuff
   chroma_commit_recons_4x4(mblk, Cb_pred_mblk_8x8, Cr_pred_mblk_8x8, encoder_frame)
-  chroma_commit_pred_mode(intra_chroma_4x4_DC, mblk, encoder_frame)
+  chroma_commit_pred_mode(best_mode, mblk, encoder_frame)
   chroma_commit_nnz_coeffs(mblk, encoder_frame)

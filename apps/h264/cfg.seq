@@ -16,6 +16,14 @@ class EncoderCfg:
   # Intra-prediction
   disable_4x4: bool
   disable_16x16: bool
+  # DC + HV + planar
+  chroma_all: bool
+  # just DC
+  chroma_DC_only: bool
+  # DC + HV
+  chroma_HV: bool
+  # DC + planar
+  chroma_planar: bool
   # Motion estimation
   disable_motion_estimation: bool
   # Quantization
@@ -34,6 +42,10 @@ class EncoderCfg:
     self.pcm_mode = False
     self.disable_4x4 = False
     self.disable_16x16 = False
+    self.chroma_all = True
+    self.chroma_DC_only = False
+    self.chroma_HV = False
+    self.chroma_planar = False
     self.disable_motion_estimation = False
     self.qp_init = 26
 
@@ -48,9 +60,13 @@ class EncoderCfg:
     s += f'profile: {self.profile}\n'
     s += f'level: {self.level}\n'
     s += f'target_bitrate: {self.target_bitrate}\n'
-    s += f'pcm_mode = : {self.pcm_mode}\n'
-    s += f'disable_4x4 = : {self.disable_4x4}\n'
-    s += f'disable_16x16 = : {self.disable_16x16}\n'
+    s += f'pcm_mode: {self.pcm_mode}\n'
+    s += f'disable_4x4: {self.disable_4x4}\n'
+    s += f'disable_16x16: {self.disable_16x16}\n'
+    s += f'chroma_all: {self.chroma_all}\n'
+    s += f'chroma_DC_only: {self.chroma_DC_only}\n'
+    s += f'chroma_HV: {self.chroma_HV}\n'
+    s += f'chroma_planar: {self.chroma_planar}\n'
     s += f'disable_motion_estimation = : {self.disable_motion_estimation}\n'
     s += f'qp_init: {self.qp_init}\n'
     return s
@@ -101,6 +117,17 @@ def parse_param(param, value, cfg):
     cfg.disable_4x4 = parse_bool(param,value)
   elif param == 'disable_16x16':
     cfg.disable_16x16 = parse_bool(param,value)
+  elif param == 'chroma_all':
+    cfg.chroma_all = parse_bool(param,value)
+  elif param == 'chroma_dc_only':
+    cfg.chroma_all = False
+    cfg.chroma_DC_only = parse_bool(param,value)
+  elif param == 'chroma_hv':
+    cfg.chroma_all = False
+    cfg.chroma_HV = parse_bool(param,value)
+  elif param == 'chroma_planar':
+    cfg.chroma_all = False
+    cfg.chroma_planar = parse_bool(param,value)
   elif param == 'disable_motion_estimation':
     cfg.disable_motion_estimation = parse_bool(param,value)
   elif param == 'qp_init':
