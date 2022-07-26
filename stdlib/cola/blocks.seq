@@ -274,6 +274,27 @@ class View[E,T]:
   def grid(self, grid_dims: T) -> Generator[View[E,T]]:
     yield from self._grid_inner(0, grid_dims)
 
+  # check if this view is completely within other
+  @cola
+  def within(self, other):
+    y,x = self.get_starts()
+    oy,ox = other.get_starts()
+    if y < oy or x < ox:
+      return False # origin outside
+    dy,dx = self.get_dims()
+    sy,sx = self.get_strides()
+    ody,odx = other.get_dims()
+    osy,osx = other.get_strides()
+    if (dy*sy+y > ody*osy+oy) or (dx*sx+x > odx*osx+ox):
+      return False
+    else:
+      return True
+  
+  # returns with absolute value (so no stride considered)
+  @cola
+  def starts_relative_to(self, other):
+    return tup_sub(self.get_starts(), other.get_starts())
+
   @cola
   def exists(self):
     # need to see if the data in the block exists, which means [start,start+dim) is in bounds
@@ -480,6 +501,27 @@ class Block:
   @cola
   def grid(self, grid_dims: T) -> Generator[View[E,T]]:
     yield from self._grid_inner(0, grid_dims)
+
+  # check if this block is completely within other
+  @cola
+  def within(self, other):
+    y,x = self.get_starts()
+    oy,ox = other.get_starts()
+    if y < oy or x < ox:
+      return False # origin outside
+    dy,dx = self.get_dims()
+    sy,sx = self.get_strides()
+    ody,odx = other.get_dims()
+    osy,osx = other.get_strides()
+    if (dy*sy+y > ody*osy+oy) or (dx*sx+x > odx*osx+ox):
+      return False
+    else:
+      return True
+
+  # returns with absolute value (so no stride considered)
+  @cola
+  def starts_relative_to(self, other):
+    return tup_sub(self.get_starts(), other.get_starts())
 
   @cola
   def exists(self):
