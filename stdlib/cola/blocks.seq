@@ -380,6 +380,10 @@ class Block:
         if not isinstance(i, int):
           compile_error('Must be integer index')
       lidx = linearize(idxs, self.get_dims())
+      if lidx >= len(self):
+        # TODO make into a raise error
+        print f'Bad idxs {idxs}'
+        assert False
       return self.data[lidx]
 
   @cola
