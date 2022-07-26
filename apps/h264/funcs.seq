@@ -44,3 +44,4 @@ def set_all_2D(blk, val):
   for i in range(blk.get_dims()[0]):
     for j in range(blk.get_dims()[1]):
       blk[i,j] = val
+

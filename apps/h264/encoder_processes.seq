@@ -189,26 +189,28 @@ class MacroblockLayer:
         DC_pred_mode_predicted = False
         # TODO would need to check blk type here for availability, not just existance
         # (important for 16x16 mode)
-        if not A.exists() or not B.exists() or is_first_mblk:
+#        y,x = Y_pre_code_smblk_4x4.get_starts()
+        if not A.exists() or not B.exists():
           DC_pred_mode_predicted = True
-        intra_A_mode = 0
-        intra_B_mode = 0
-        if DC_pred_mode_predicted:
-          intra_A_mode = 2
-          intra_B_mode = 2
-        else:
-          # both A and B must be available. grab their actual modes
+        intra_A_mode = 2
+        intra_B_mode = 2
+        if not DC_pred_mode_predicted and A.exists():
           intra_A_mode = A(0,0)
+        if not DC_pred_mode_predicted and B.exists():
           intra_B_mode = B(0,0)
         predicted_pred_mode = min(intra_A_mode, intra_B_mode)
+
         # does this equal the mode we actually used?
         if predicted_pred_mode == actual_mode:
           video.bitstream.nal_payload.pack(1, 1)
         else:
-          video.bitstream.nal_payload.pack(0, 1)
+          # different mode used
           # need to tell the decoder how to compute
+          video.bitstream.nal_payload.pack(0, 1)
+          # 7 possible values for rem_intra
+#          rem_intra_4x4_pred_mode = actual_mode - predicted_pred_mode
           if actual_mode < predicted_pred_mode:
-            video.bitstream.nal_payload.pack(actual_mode, 3)
+            video.bitstream.nal_payload.pack(actual_mode, 3)            
           else:
             video.bitstream.nal_payload.pack(actual_mode-1, 3)
     # chroma just gets the mode directly
