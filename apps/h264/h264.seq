@@ -51,7 +51,7 @@ def main():
     header = make_I_slice_header(frame_idx, frame_idx == 0)
     header.pic_order_cnt_lsb = 2*frame_idx 
     encode_pic_slice_header(header, video.sps, slice_nal)
-    build_slice_payload(encoder_frame, video, quant_tables, slice_nal)
+    encode_slice_payload(encoder_frame, video, quant_tables, slice_nal)
     finalize_nal_unit(video.bitstream, slice_nal, video.fd)
     frame_idx += 1
   yuv420.cleanup()

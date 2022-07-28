@@ -58,7 +58,7 @@ def intra_chroma_planar(pred, ref):
     for x in range(8):
       pred[y,x] = clip1((a+b*(x-3)+c*(y-3)+16)>>5, 8)
 
-def C_intra_predict_DC(C_raw_mblk_8x8, C_recons_frame):
+def intra_predict_one_chroma_DC(C_raw_mblk_8x8, C_recons_frame):
   C_pred_mblk_8x8 = Block[int,Tup2](C_raw_mblk_8x8)
   C_recons_mblk_8x8 = C_recons_frame[C_raw_mblk_8x8]
   # we need to store all 4x4 sub predictions
@@ -106,7 +106,7 @@ def C_intra_predict_DC(C_raw_mblk_8x8, C_recons_frame):
     intra_chroma_DC_4(C_bl_4x4, 8)
   return C_pred_mblk_8x8
    
-# do just the prediction part. Unlike luma, this can be done all at once before the forward/inverse
+# TODO split this into a intra_predict_one_chroma or something like that.
 def chroma_intra_predict(mblk: Macroblock, encoder_frame: EncoderFrame, video):
   Cb_raw_mblk_8x8 = mblk.Cb_raw_mblk_8x8
   Cr_raw_mblk_8x8 = mblk.Cr_raw_mblk_8x8
@@ -116,8 +116,8 @@ def chroma_intra_predict(mblk: Macroblock, encoder_frame: EncoderFrame, video):
   mblk.Cr_pre_code_mblk_8x8 = Block[int,Tup2](Cr_raw_mblk_8x8)
   # do all the valid predictions
   y,x = Cb_raw_mblk_8x8.get_starts()
-  Cb_pred_DC = C_intra_predict_DC(Cb_raw_mblk_8x8, Cb_recons_frame)
-  Cr_pred_DC = C_intra_predict_DC(Cr_raw_mblk_8x8, Cr_recons_frame)  
+  Cb_pred_DC = intra_predict_one_chroma_DC(Cb_raw_mblk_8x8, Cb_recons_frame)
+  Cr_pred_DC = intra_predict_one_chroma_DC(Cr_raw_mblk_8x8, Cr_recons_frame)  
   modes = [intra_chroma_DC]
   Cb_preds = [Cb_pred_DC]
   Cr_preds = [Cr_pred_DC]

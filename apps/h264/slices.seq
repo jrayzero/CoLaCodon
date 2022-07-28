@@ -1,5 +1,6 @@
 from constants import *
 from macroblock import *
+from encoder_processes import *
 
 class PicSliceHeader:
   
@@ -40,7 +41,7 @@ def make_I_slice_header(frame_idx, is_idr):
   header.idr_pic_id = 0
   return header
 
-def build_slice_payload(encoder_frame, video, quant_tables, nal):
+def encode_slice_payload(encoder_frame, video, quant_tables, nal):
   Y_raw_frame = encoder_frame.Y_raw_frame
   Cb_raw_frame = encoder_frame.Cb_raw_frame
   Cr_raw_frame = encoder_frame.Cr_raw_frame
@@ -55,5 +56,5 @@ def build_slice_payload(encoder_frame, video, quant_tables, nal):
       mblk.mb_type = I_PCM
     else:
       mblk.mb_type = I_4x4
-    mblk.encode(first, encoder_frame, video, quant_tables, nal)
+    encode_loop(mblk, first, encoder_frame, video, quant_tables, nal)
     first = False

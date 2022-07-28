@@ -1,8 +1,8 @@
 from cola.blocks import *
+from ..common.typedefs import *
 from video import *
 from parameter_sets import *
 from constants import *
-from ..common.typedefs import *
 from intra_luma import *
 from intra_chroma import *
 from quant import *
@@ -11,70 +11,26 @@ from nal_unit import *
 from macroblock import *
 from cbp import *
 
-@extend 
-class Macroblock:
-        
-  # compute and writeout the correct prediction information to send based on the prior prediction modes
-  # TODO replace is_first_mblk with just checking the coordinate
-  def compute_and_write_mb_pred(self, encoder_frame, video, is_first_mblk, nal: Bitstream):
-    for Y_pre_code_smblk_8x8 in self.Y_pre_code_mblk_16x16.grid((8,8)):
-      for Y_pre_code_smblk_4x4 in Y_pre_code_smblk_8x8.grid((4,4)):
-        actual_mode = encoder_frame.Y_pred_modes_frame[Y_pre_code_smblk_4x4](0,0)
-        # so, if the mode is DC because that was best (and it was not forced b/c of things
-        # not available), DC_pred_mode_predicted will be 0, I think.
-        # basically, we are figuring out how the decoder would predict the mode to
-        # use, and making sure to guide it appropriately
-        A = encoder_frame.Y_pred_modes_frame[Y_pre_code_smblk_4x4][0,-1]
-        B = encoder_frame.Y_pred_modes_frame[Y_pre_code_smblk_4x4][-1,0]
-        DC_pred_mode_predicted = False
-        # TODO would need to check blk type here for availability, not just existance
-        # (important for 16x16 mode)
-        if not A.exists() or not B.exists():
-          DC_pred_mode_predicted = True
-        intra_A_mode = 2
-        intra_B_mode = 2
-        if not DC_pred_mode_predicted and A.exists():
-          intra_A_mode = A(0,0)
-        if not DC_pred_mode_predicted and B.exists():
-          intra_B_mode = B(0,0)
-        predicted_pred_mode = min(intra_A_mode, intra_B_mode)
-
-        # does this equal the mode we actually used?
-        if predicted_pred_mode == actual_mode:
-          nal.pack(1, 1)
-        else:
-          # different mode used
-          # need to tell the decoder how to compute
-          nal.pack(0, 1)
-          # 7 possible values for rem_intra
-          if actual_mode < predicted_pred_mode:
-            nal.pack(actual_mode, 3)            
-          else:
-            nal.pack(actual_mode-1, 3)
-    # chroma just gets the mode directly
-    C_pred_mode = encoder_frame.C_pred_modes_frame[self.Cb_raw_mblk_8x8](0,0)
-    ue(C_pred_mode, nal)
-
-  def predict(self, encoder_frame, video, quant_tables):
+def predict(mblk_like, encoder_frame, video, quant_tables):
 #    luma_intra_4x4_and_reconstruct(self, encoder_frame, video, quant_tables)
-    full_complexity_intra(self, encoder_frame, video, quant_tables)
-    chroma_intra_4x4_and_reconstruct(self, encoder_frame, video, quant_tables)
+  full_complexity_intra(mblk_like, encoder_frame, video, quant_tables)
+  chroma_intra_4x4_and_reconstruct(mblk_like, encoder_frame, video, quant_tables)
 
-  # This is the main encoding loop
-  def encode(self, is_first_mblk, encoder_frame: EncoderFrame, video: Video, quant_tables: QuantTables, nal: Bitstream):
-    if self.mb_type != I_PCM:
-      # need to actually do compression-y things with this macroblock
-      self.predict(encoder_frame, video, quant_tables)
-      encoder_frame.mb_type[self.Y_raw_mblk_16x16][:,:] = self.mb_type
-      ue(self.mb_type, nal)
-      # Based on what happened with prediction, write out some initial info BEFORE writing out the actual prediction result
-      self.compute_and_write_mb_pred(encoder_frame, video, is_first_mblk, nal)
-      # TODO only do if not 16x16
-      cbp,cbp_luma,cbp_chroma = compute_cbp(self, encoder_frame)
-      me(cbp, nal)
-      if cbp_luma > 0 or cbp_chroma > 0: # or is 16x16 pred mode
-        se(0, nal) # mb_qp_delta      
-      # now write out the results on intra prediction
-      encode_cavlc(self, cbp_luma, cbp_chroma, encoder_frame, nal)
-    else:
-      encode_PCM_macroblock(self, video.sps, nal)
+# This is the main encoding loop
+def encode_loop(mblk_like, is_first_mblk, encoder_frame: EncoderFrame, video: Video, quant_tables: QuantTables, nal: Bitstream):
+  if mblk_like.mb_type != I_PCM:
+    # need to actually do compression-y things with this macroblock
+    predict(mblk_like, encoder_frame, video, quant_tables)
+    encoder_frame.mb_type[mblk_like.Y_raw_mblk_16x16][:,:] = mblk_like.mb_type
+    ue(mblk_like.mb_type, nal)
+    # Based on what happened with prediction, write out some initial info BEFORE writing out the actual prediction result
+    encode_intra_prediction_mode(mblk_like, encoder_frame, video, nal)
+    # TODO only do if not 16x16
+    cbp,cbp_luma,cbp_chroma = compute_cbp(mblk_like, encoder_frame)
+    me(cbp, nal)
+    if cbp_luma > 0 or cbp_chroma > 0: # or is 16x16 pred mode
+      se(0, nal) # mb_qp_delta      
+    # now write out the results on intra prediction
+    encode_cavlc(mblk_like, cbp_luma, cbp_chroma, encoder_frame, nal)
+  else:
+    encode_PCM_macroblock(mblk_like, video.sps, nal)

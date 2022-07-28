@@ -1,3 +1,5 @@
+# TODO move to stdlib
+
 @dataclass(init=False)
 class Bitstream:
 
