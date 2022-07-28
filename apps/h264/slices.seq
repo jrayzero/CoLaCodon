@@ -48,10 +48,10 @@ def encode_slice_payload(encoder_frame, video, quant_tables, nal):
   mblk = Macroblock()
   # go through and create macroblocks
   first = True
-  for Y_mblk_16x16,Cb_mblk_8x8,Cr_mblk_8x8 in zip(Y_raw_frame.grid((16,16)), Cb_raw_frame.grid((8,8)), Cr_raw_frame.grid((8,8))):
-    mblk.Y_raw_mblk_16x16 = Y_mblk_16x16
-    mblk.Cb_raw_mblk_8x8 = Cb_mblk_8x8
-    mblk.Cr_raw_mblk_8x8 = Cr_mblk_8x8
+  for Y_16x16,Cb_8x8,Cr_8x8 in zip(Y_raw_frame.grid((16,16)), Cb_raw_frame.grid((8,8)), Cr_raw_frame.grid((8,8))):
+    mblk.Y_raw_16x16 = Y_16x16
+    mblk.Cb_raw_8x8 = Cb_8x8
+    mblk.Cr_raw_8x8 = Cr_8x8
     if video.cfg.pcm_mode:
       mblk.mb_type = I_PCM
     else:

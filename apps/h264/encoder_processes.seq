@@ -12,16 +12,15 @@ from macroblock import *
 from cbp import *
 
 def predict(mblk_like, encoder_frame, video, quant_tables):
-#    luma_intra_4x4_and_reconstruct(self, encoder_frame, video, quant_tables)
-  full_complexity_intra(mblk_like, encoder_frame, video, quant_tables)
-  chroma_intra_4x4_and_reconstruct(mblk_like, encoder_frame, video, quant_tables)
+  luma_intra_predict(mblk_like, encoder_frame, video, quant_tables)
+  chroma_intra_predict(mblk_like, encoder_frame, video, quant_tables)
 
 # This is the main encoding loop
 def encode_loop(mblk_like, is_first_mblk, encoder_frame: EncoderFrame, video: Video, quant_tables: QuantTables, nal: Bitstream):
   if mblk_like.mb_type != I_PCM:
     # need to actually do compression-y things with this macroblock
     predict(mblk_like, encoder_frame, video, quant_tables)
-    encoder_frame.mb_type[mblk_like.Y_raw_mblk_16x16][:,:] = mblk_like.mb_type
+    encoder_frame.mb_type[mblk_like.Y_raw_16x16][:,:] = mblk_like.mb_type
     ue(mblk_like.mb_type, nal)
     # Based on what happened with prediction, write out some initial info BEFORE writing out the actual prediction result
     encode_intra_prediction_mode(mblk_like, encoder_frame, video, nal)

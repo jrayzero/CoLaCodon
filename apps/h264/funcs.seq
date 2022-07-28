@@ -28,9 +28,10 @@ def psnr(orig,recons):
   psnr = 10 * math.log10(((2**8 - 1) ** 2) / mse)
   return psnr
 
-def residual4x4(A,B,out):
-  for y in range(4):
-    for x in range(4):
+def residual(A,B,out):
+  dims = A.get_dims()
+  for y in range(dims[0]):
+    for x in range(dims[1]):
       out[y,x] = int(A(y,x))-int(B(y,x))
 
 def compute_nnz_coeffs(blk):
@@ -40,8 +41,8 @@ def compute_nnz_coeffs(blk):
       nnz_coeffs += 1
   return nnz_coeffs
 
-def set_all_2D(blk, val):
-  for i in range(blk.get_dims()[0]):
-    for j in range(blk.get_dims()[1]):
-      blk[i,j] = val
-
+def reconstruct(recons, pred):
+  y,x = pred.get_dims()
+  for i in range(y):
+    for j in range(x):
+      recons[i,j] = recons(i,j) + pred(i,j)

@@ -31,7 +31,7 @@ class EncoderFrame:
   mb_type: Block[int,Tup2] # same for Y, Cb, and Cr
   # how each pixel was predicted
   Y_pred_modes_frame: Block[int,Tup2]
-  C_pred_modes_frame: Block[int,Tup2] # same for Cb and Cr
+  one_chroma_pred_modes_frame: Block[int,Tup2] # same for Cb and Cr
 
   def __init__(self, frame_idx, Y_raw_frame, Cb_raw_frame, Cr_raw_frame, pps):
     self.frame_idx = frame_idx
@@ -47,7 +47,7 @@ class EncoderFrame:
     self.Cr_nz_coeffs_frame = Block[int,Tup2](Cr_raw_frame)
     self.mb_type = Block[int,Tup2](Y_raw_frame) 
     self.Y_pred_modes_frame = Block[int,Tup2](Y_raw_frame)
-    self.C_pred_modes_frame = Block[int,Tup2](Cb_raw_frame)
+    self.one_chroma_pred_modes_frame = Block[int,Tup2](Cb_raw_frame)
 
 class Video:
     

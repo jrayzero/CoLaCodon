@@ -1,6 +1,9 @@
 from ..common.generic_bitstream import *
 from ..common.typedefs import *
 from nal_unit import *
+from funcs import *
+from transform import *
+from quant import *
 
 # a single macroblock for all components
 class Macroblock:
@@ -8,14 +11,14 @@ class Macroblock:
   mb_type: int
 
   # a reference to the raw frame data
-  Y_raw_mblk_16x16: View[byte,Tup2]
-  Cb_raw_mblk_8x8: View[byte,Tup2]
-  Cr_raw_mblk_8x8: View[byte,Tup2]
+  Y_raw_16x16: View[byte,Tup2]
+  Cb_raw_8x8: View[byte,Tup2]
+  Cr_raw_8x8: View[byte,Tup2]
 
   # data-to-be entropy coded
-  Y_pre_code_mblk_16x16: Block[int,Tup2]
-  Cb_pre_code_mblk_8x8: Block[int,Tup2]
-  Cr_pre_code_mblk_8x8: Block[int,Tup2]
+  Y_entropy_16x16: Block[int,Tup2]
+  Cb_entropy_8x8: Block[int,Tup2]
+  Cr_entropy_8x8: Block[int,Tup2]
 
   def __init__(self):
     self.mb_type = 0
@@ -25,20 +28,82 @@ def encode_PCM_macroblock(mblk_like, sps_like, nal: Bitstream):
   align(0, nal)
   # write the raw data
   if sps_like.profile_idc == 66 or sps_like.profile_idc == 77:
-    for y in mblk_like.Y_raw_mblk_16x16:
+    for y in mblk_like.Y_raw_16x16:
       yi = int(y) if int(y) != 0 else 1
       nal.pack(yi, 8)
-    for cb in mblk_like.Cb_raw_mblk_8x8:
+    for cb in mblk_like.Cb_raw_8x8:
       cbi = int(cb) if int(cb) != 0 else 1
       nal.pack(cbi, 8)
-    for cr in mblk_like.Cr_raw_mblk_8x8:
+    for cr in mblk_like.Cr_raw_8x8:
       cri = int(cr) if int(cr) != 0 else 1
       nal.pack(cri, 8)
   else:
-    for y in mblk_like.Y_raw_mblk_16x16:
+    for y in mblk_like.Y_raw_16x16:
       nal.pack(int(y), 8)
-    for cb in mblk_like.Cb_raw_mblk_8x8:
+    for cb in mblk_like.Cb_raw_8x8:
       nal.pack(int(cb), 8)
-    for cr in mblk_like.Cr_raw_mblk_8x8:
+    for cr in mblk_like.Cr_raw_8x8:
       nal.pack(int(cr), 8)
+
+def luma_forward_4x4(raw_4x4, pred_4x4, entropy_4x4, recons_4x4, qp, quant_tables):
+  residual(raw_4x4, pred_4x4, entropy_4x4)
+  dct4x4(entropy_4x4, entropy_4x4)
+  basic_quantization(entropy_4x4, entropy_4x4, qp, quant_tables)
+
+def luma_inverse_4x4(pred_4x4, entropy_4x4, recons_4x4, qp, quant_tables):
+  # quantization kind of happens in two phases as a scaling
+  pre_idct_scale(entropy_4x4, recons_4x4, qp, quant_tables)
+  idct4x4(recons_4x4, recons_4x4)
+  post_idct_scale(recons_4x4, recons_4x4)
+
+def chroma_recons_4x4(mblk, Cb_pred_8x8, Cr_pred_8x8, encoder_frame):
+  Cb_raw_8x8 = mblk.Cb_raw_8x8
+  Cr_raw_8x8 = mblk.Cr_raw_8x8
+  Cb_recons_8x8 = encoder_frame.Cb_recons_frame[Cb_raw_8x8]
+  Cr_recons_8x8 = encoder_frame.Cr_recons_frame[Cr_raw_8x8]
+  reconstruct(Cb_recons_8x8, Cb_pred_8x8)
+  reconstruct(Cr_recons_8x8, Cr_pred_8x8)
+
+def one_chroma_forward_4x4(C_raw_8x8, C_pred_8x8, C_entropy_8x8, C_recons_8x8, qp, quant_tables):
+  # first, do the parts on the individual 4x4 blocks
+  for C_raw_4x4 in C_raw_8x8.grid((4,4)):
+    C_pred_4x4 = C_pred_8x8[C_raw_4x4]
+    C_recons_4x4 = C_recons_8x8[C_raw_4x4]
+    C_entropy_4x4 = C_entropy_8x8[C_raw_4x4]
+    residual(C_raw_4x4, C_pred_4x4, C_entropy_4x4)
+    dct4x4(C_entropy_4x4, C_entropy_4x4)
+  # now the hadamard across the DCs only
+  dcs_2x2 = C_entropy_8x8[::4,::4]
+  hadamard2x2(dcs_2x2, dcs_2x2)
+  # now back to the individual 4x4 blocks
+  for C_entropy_4x4 in C_entropy_8x8.grid((4,4)):
+    basic_quantization(C_entropy_4x4, C_entropy_4x4, qp, quant_tables)
+  C_entropy_8x8[0,0] = C_entropy_8x8(0,0)//2
+  C_entropy_8x8[0,4] = C_entropy_8x8(0,4)//2
+  C_entropy_8x8[4,0] = C_entropy_8x8(4,0)//2
+  C_entropy_8x8[4,4] = C_entropy_8x8(4,4)//2
+
+def one_chroma_inverse_4x4(C_raw_8x8, C_pred_8x8, C_entropy_8x8, C_recons_8x8, qp, quant_tables):
+  dcs_2x2 = C_entropy_8x8[::4,::4]
+  idcs_2x2 = C_recons_8x8[::4,::4]
+  ihadamard2x2(dcs_2x2, idcs_2x2)
+  post_hadamard_chroma_DC_scale(idcs_2x2, idcs_2x2, qp, quant_tables)
+  for C_recons_4x4 in C_recons_8x8.grid((4,4)):
+    dc00 = C_recons_4x4(0,0)
+    pre_idct_scale(C_entropy_8x8[C_recons_4x4], C_recons_4x4, qp, quant_tables)
+    C_recons_4x4[0,0] = dc00 # not scaled, see 8.5.12.1 in spec
+    idct4x4(C_recons_4x4, C_recons_4x4)
+    post_idct_scale(C_recons_4x4, C_recons_4x4)
+
+def chroma_forward_4x4(mblk, Cb_pred_8x8, Cr_pred_8x8, encoder_frame, qp, quant_tables):
+  Cb_recons_8x8 = encoder_frame.Cb_recons_frame[mblk.Cb_raw_8x8]
+  Cr_recons_8x8 = encoder_frame.Cr_recons_frame[mblk.Cb_raw_8x8]
+  one_chroma_forward_4x4(mblk.Cb_raw_8x8, Cb_pred_8x8, mblk.Cb_entropy_8x8, Cb_recons_8x8, qp, quant_tables)
+  one_chroma_forward_4x4(mblk.Cr_raw_8x8, Cr_pred_8x8, mblk.Cr_entropy_8x8, Cr_recons_8x8, qp, quant_tables)
+
+def chroma_inverse_4x4(mblk, Cb_pred_8x8, Cr_pred_8x8, encoder_frame, qp, quant_tables):
+  Cb_recons_8x8 = encoder_frame.Cb_recons_frame[mblk.Cb_raw_8x8]
+  Cr_recons_8x8 = encoder_frame.Cr_recons_frame[mblk.Cb_raw_8x8]
+  one_chroma_inverse_4x4(mblk.Cb_raw_8x8, Cb_pred_8x8, mblk.Cb_entropy_8x8, Cb_recons_8x8, qp, quant_tables)
+  one_chroma_inverse_4x4(mblk.Cr_raw_8x8, Cr_pred_8x8, mblk.Cr_entropy_8x8, Cr_recons_8x8, qp, quant_tables)
 
