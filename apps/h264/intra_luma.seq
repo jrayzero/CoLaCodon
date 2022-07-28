@@ -4,6 +4,7 @@ from funcs import *
 from transform import *
 from quant import *
 from intra_common import *
+from macroblock import *
 
 def intra_4x4_DC_1(pred, ref):
   p = ref[pred]
@@ -158,7 +159,7 @@ def luma_DC_modes(Y_smblk_4x4, Y_recons_frame):
 
 # TODO TODO If either A or B is 16x16 (and you are 4x4), you HAVE to use the DC mode
 # Main intra prediction loop
-def luma_intra_4x4_and_reconstruct(mblk: MacroblockLayer, encoder_frame: EncoderFrame, video: Video, quant_tables):
+def luma_intra_4x4_and_reconstruct(mblk: Macroblock, encoder_frame: EncoderFrame, video: Video, quant_tables):
   Y_raw_mblk_16x16 = mblk.Y_raw_mblk_16x16
   Y_recons_frame = encoder_frame.Y_recons_frame
   qp = video.cfg.qp_init
@@ -187,7 +188,7 @@ def try_mode(Y_smblk_4x4, Y_recons_frame, mode, mode_id, modes, preds):
   preds.append(pred)
 
 # this tries all the prediction modes
-def full_complexity_intra(mblk: MacroblockLayer, encoder_frame: EncoderFrame, video: Video, quant_tables):
+def full_complexity_intra(mblk: Macroblock, encoder_frame: EncoderFrame, video: Video, quant_tables):
   Y_raw_mblk_16x16 = mblk.Y_raw_mblk_16x16
   Y_recons_frame = encoder_frame.Y_recons_frame
   mblk.Y_pre_code_mblk_16x16 = Block[int,Tup2](Y_raw_mblk_16x16)

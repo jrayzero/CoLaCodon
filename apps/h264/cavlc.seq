@@ -255,7 +255,8 @@ def encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, bitstream):
     bitstream.pack(level_suffix, level_suffix_size)
     i += 1    
 
-def encode_CAVLC(coeffs, is_chroma_DC, skip_DC, nz_coeffs_frame, nal: Bitstream):
+# for one component
+def encode_component_CAVLC(coeffs, is_chroma_DC, skip_DC, nz_coeffs_frame, nal: Bitstream):
   nC = -1 if is_chroma_DC else compute_nC(coeffs, nz_coeffs_frame)
   trailing_zeros,total_zeros,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones = gather_cavlc_stats_zigzag(coeffs, skip_DC) if not is_chroma_DC else gather_cavlc_stats_raster(coeffs)
   encode_coeff_token(nC, ntrailing_ones, total_nz_coeffs, nal)
@@ -264,3 +265,39 @@ def encode_CAVLC(coeffs, is_chroma_DC, skip_DC, nz_coeffs_frame, nal: Bitstream)
     encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, nal)
     encode_total_zeros(total_nz_coeffs, total_zeros, len(coeffs) if not skip_DC else len(coeffs)-1, nal)
     encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, len(coeffs) if not skip_DC else len(coeffs)-1, nal)
+
+def encode_luma_cavlc(mblk_like, cbp_luma, encoder_frame, nal: Bitstream):
+  if cbp_luma > 0:
+    i8x8 = 0
+    # TODO this is different for 16x16
+    for Y_pre_code_smblk_8x8 in mblk_like.Y_pre_code_mblk_16x16.grid((8,8)):
+      for Y_pre_code_smblk_4x4 in Y_pre_code_smblk_8x8.grid((4,4)):
+        # basically, only write out non zero things by checking CBP
+        if (cbp_luma & (1<<i8x8)) > 0:
+          # okay, there are nonzeros
+          encode_component_CAVLC(Y_pre_code_smblk_4x4, False, False, encoder_frame.Y_nz_coeffs_frame, nal)
+      i8x8 += 1     
+
+def encode_one_chroma_DC_cavlc(C_pre_code_mblk_8x8, C_nz_coeffs_frame, nal: Bitstream):
+  C_DCs_2x2 = C_pre_code_mblk_8x8[::4,::4]
+  encode_component_CAVLC(C_DCs_2x2, True, False, C_nz_coeffs_frame, nal)
+
+def encode_one_chroma_AC_cavlc(C_pre_code_mblk_8x8, C_nz_coeffs_frame, nal: Bitstream):
+  for C_pre_code_smblk_4x4 in C_pre_code_mblk_8x8.grid((4,4)):
+    encode_component_CAVLC(C_pre_code_smblk_4x4, False, True, C_nz_coeffs_frame, nal)
+
+def encode_chroma_cavlc(mblk_like, cbp_chroma, encoder_frame, nal: Bitstream):
+  # DC
+  if (cbp_chroma & 3) > 0:
+    # some DC is nonzero
+    encode_one_chroma_DC_cavlc(mblk_like.Cb_pre_code_mblk_8x8, encoder_frame.Cb_nz_coeffs_frame, nal)
+    encode_one_chroma_DC_cavlc(mblk_like.Cr_pre_code_mblk_8x8, encoder_frame.Cr_nz_coeffs_frame, nal)
+  # AC
+  if (cbp_chroma & 2) > 0:
+    # some AC is nonzero
+    encode_one_chroma_AC_cavlc(mblk_like.Cb_pre_code_mblk_8x8, encoder_frame.Cb_nz_coeffs_frame, nal)
+    encode_one_chroma_AC_cavlc(mblk_like.Cr_pre_code_mblk_8x8, encoder_frame.Cr_nz_coeffs_frame, nal)
+
+def encode_cavlc(mblk_like, cbp_luma, cbp_chroma, encoder_frame, nal: Bitstream):
+  encode_luma_cavlc(mblk_like, cbp_luma, encoder_frame, nal)
+  encode_chroma_cavlc(mblk_like, cbp_chroma, encoder_frame, nal)

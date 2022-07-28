@@ -1,5 +1,34 @@
 from constants import *
-from video import *
+from macroblock import *
+
+class PicSliceHeader:
+  
+  nal_ref_idc: int
+  nal_unit_type: int
+  is_idr_slice: bool
+  first_mb_in_slice: int
+  slice_type: int
+  pps_id: int
+  frame_num: int
+  idr_pic_id: int
+  pic_order_cnt_lsb: int
+  slice_qp_delta: int
+  no_output_of_prior_pics_flag: bool
+  long_term_reference_flag: bool  
+
+  def __init__(self):
+    self.is_idr_slice = False
+    self.nal_ref_idc = 0
+    self.nal_unit_type = 0
+    self.first_mb_in_slice = 0
+    self.slice_type = I_SLICE
+    self.pps_id = 0
+    self.frame_num = 0
+    self.idr_pic_id = 0
+    self.pic_order_cnt_lsb = 0
+    self.slice_qp_delta = 0
+    self.no_output_of_prior_pics_flag = False
+    self.long_term_reference_flag = False
 
 def make_I_slice_header(frame_idx, is_idr):
   header = PicSliceHeader()
@@ -15,12 +44,16 @@ def build_slice_payload(encoder_frame, video, quant_tables, nal):
   Y_raw_frame = encoder_frame.Y_raw_frame
   Cb_raw_frame = encoder_frame.Cb_raw_frame
   Cr_raw_frame = encoder_frame.Cr_raw_frame
-  mblk = MacroblockLayer()    
+  mblk = Macroblock()
   # go through and create macroblocks
   first = True
   for Y_mblk_16x16,Cb_mblk_8x8,Cr_mblk_8x8 in zip(Y_raw_frame.grid((16,16)), Cb_raw_frame.grid((8,8)), Cr_raw_frame.grid((8,8))):
     mblk.Y_raw_mblk_16x16 = Y_mblk_16x16
     mblk.Cb_raw_mblk_8x8 = Cb_mblk_8x8
     mblk.Cr_raw_mblk_8x8 = Cr_mblk_8x8
-    mblk.encode(first, video.cfg.pcm_mode, encoder_frame, video, quant_tables, nal)
+    if video.cfg.pcm_mode:
+      mblk.mb_type = I_PCM
+    else:
+      mblk.mb_type = I_4x4
+    mblk.encode(first, encoder_frame, video, quant_tables, nal)
     first = False

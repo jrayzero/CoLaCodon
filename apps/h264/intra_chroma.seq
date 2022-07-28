@@ -4,6 +4,7 @@ from funcs import *
 from transform import *
 from quant import *
 from intra_common import *
+from macroblock import *
 
 def intra_chroma_DC_1(pred, ref_left, ref_up):
   s = 4
@@ -106,7 +107,7 @@ def C_intra_predict_DC(C_raw_mblk_8x8, C_recons_frame):
   return C_pred_mblk_8x8
    
 # do just the prediction part. Unlike luma, this can be done all at once before the forward/inverse
-def chroma_intra_predict(mblk: MacroblockLayer, encoder_frame: EncoderFrame, video):
+def chroma_intra_predict(mblk: Macroblock, encoder_frame: EncoderFrame, video):
   Cb_raw_mblk_8x8 = mblk.Cb_raw_mblk_8x8
   Cr_raw_mblk_8x8 = mblk.Cr_raw_mblk_8x8
   Cb_recons_frame = encoder_frame.Cb_recons_frame
@@ -226,7 +227,7 @@ def chroma_commit_pred_mode(mode, mblk, encoder_frame):
 
 # TODO all the 4x4 blocks get the same mode, so can't switch within the macroblock like you
 # can with luma
-def chroma_intra_4x4_and_reconstruct(mblk: MacroblockLayer, encoder_frame: EncoderFrame, video: Video, quant_tables):
+def chroma_intra_4x4_and_reconstruct(mblk: Macroblock, encoder_frame: EncoderFrame, video: Video, quant_tables):
   # do just the prediction
   Cb_raw_mblk_8x8 = mblk.Cb_raw_mblk_8x8
   Cr_raw_mblk_8x8 = mblk.Cr_raw_mblk_8x8

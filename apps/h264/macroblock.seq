@@ -1,0 +1,44 @@
+from ..common.generic_bitstream import *
+from ..common.typedefs import *
+from nal_unit import *
+
+# a single macroblock for all components
+class Macroblock:
+
+  mb_type: int
+
+  # a reference to the raw frame data
+  Y_raw_mblk_16x16: View[byte,Tup2]
+  Cb_raw_mblk_8x8: View[byte,Tup2]
+  Cr_raw_mblk_8x8: View[byte,Tup2]
+
+  # data-to-be entropy coded
+  Y_pre_code_mblk_16x16: Block[int,Tup2]
+  Cb_pre_code_mblk_8x8: Block[int,Tup2]
+  Cr_pre_code_mblk_8x8: Block[int,Tup2]
+
+  def __init__(self):
+    self.mb_type = 0
+
+def encode_PCM_macroblock(mblk_like, sps_like, nal: Bitstream):
+  ue(mblk_like.mb_type, nal)
+  align(0, nal)
+  # write the raw data
+  if sps_like.profile_idc == 66 or sps_like.profile_idc == 77:
+    for y in mblk_like.Y_raw_mblk_16x16:
+      yi = int(y) if int(y) != 0 else 1
+      nal.pack(yi, 8)
+    for cb in mblk_like.Cb_raw_mblk_8x8:
+      cbi = int(cb) if int(cb) != 0 else 1
+      nal.pack(cbi, 8)
+    for cr in mblk_like.Cr_raw_mblk_8x8:
+      cri = int(cr) if int(cr) != 0 else 1
+      nal.pack(cri, 8)
+  else:
+    for y in mblk_like.Y_raw_mblk_16x16:
+      nal.pack(int(y), 8)
+    for cb in mblk_like.Cb_raw_mblk_8x8:
+      nal.pack(int(cb), 8)
+    for cr in mblk_like.Cr_raw_mblk_8x8:
+      nal.pack(int(cr), 8)
+

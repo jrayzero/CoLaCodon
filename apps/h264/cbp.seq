@@ -1,0 +1,46 @@
+def compute_luma_cbp(mblk_like, encoder_frame):
+  cbp_idx = 0
+  cbp_luma = 0
+  for Y_nz_smblk_8x8 in encoder_frame.Y_nz_coeffs_frame[mblk_like.Y_pre_code_mblk_16x16].grid((8,8)):
+    has_non_zero = False
+    for Y_nz_smblk_4x4 in Y_nz_smblk_8x8.grid((4,4)):
+      # same for all elements in the 4x4 block
+      if Y_nz_smblk_4x4(0,0) > 0:
+        has_non_zero = True
+        break
+    if has_non_zero:
+      cbp_luma |= (1<<cbp_idx)
+    cbp_idx += 1
+  return cbp_luma
+
+def compute_one_chroma_cbp(C_pre_code, C_nz):
+  has_DC = False
+  has_at_least_one_nz_AC = False
+  for c4x4 in C_pre_code.grid((4,4)):
+    nz = 0
+    for coeff in c4x4:
+      if coeff != 0:
+        nz += 1
+    dc = c4x4(0,0)
+    if dc != 0:
+      has_DC = True
+      nz -= 1 # don't count towards the non-zeros 
+    if nz > 0:
+      has_at_least_one_nz_AC = True
+  return has_DC,has_at_least_one_nz_AC
+
+def compute_chroma_cbp(mblk_like, encoder_frame):
+  has_nz_DC_Cb,has_nz_AC_Cb = compute_one_chroma_cbp(mblk_like.Cb_pre_code_mblk_8x8, encoder_frame.Cb_nz_coeffs_frame)
+  has_nz_DC_Cr,has_nz_AC_Cr = compute_one_chroma_cbp(mblk_like.Cr_pre_code_mblk_8x8, encoder_frame.Cr_nz_coeffs_frame)    
+  cbp_chroma = 0
+  if has_nz_AC_Cb or has_nz_AC_Cr:
+    cbp_chroma = 2
+  elif has_nz_DC_Cb or has_nz_DC_Cr:
+    cbp_chroma = 1
+  return cbp_chroma
+
+def compute_cbp(mblk_like, encoder_frame):
+  cbp_luma = compute_luma_cbp(mblk_like, encoder_frame)
+  cbp_chroma = compute_chroma_cbp(mblk_like, encoder_frame)
+  cbp = (cbp_chroma << 4) | cbp_luma
+  return cbp,cbp_luma,cbp_chroma

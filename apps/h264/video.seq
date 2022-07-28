@@ -4,48 +4,12 @@ from ..common.generic_bitstream import *
 from constants import *
 from parameter_sets import *
 from cfg import *
-
-### Declarations
-
-# a single macroblock for all components
-class MacroblockLayer:
-
-  mb_type: int
-
-  # a reference to the location of the current macroblocks
-  # being processed. This is based on the raw input, so
-  # PCM encoding can read from this
-  Y_raw_mblk_16x16: View[byte,Tup2]
-  Cb_raw_mblk_8x8: View[byte,Tup2]
-  Cr_raw_mblk_8x8: View[byte,Tup2]
-
-  # If predicting, this holds the data that needs to be entropy coded
-  Y_pre_code_mblk_16x16: Block[int,Tup2]
-  Cb_pre_code_mblk_8x8: Block[int,Tup2]
-  Cr_pre_code_mblk_8x8: Block[int,Tup2]
   
-class PicSliceHeader:
-  
-  nal_ref_idc: int
-  nal_unit_type: int
-  is_idr_slice: bool
-  first_mb_in_slice: int
-  slice_type: int
-  pps_id: int
-  frame_num: int
-  idr_pic_id: int
-  pic_order_cnt_lsb: int
-  slice_qp_delta: int
-  no_output_of_prior_pics_flag: bool
-  long_term_reference_flag: bool  
-
-# minimal unit to kick off encoding
+# holds frame-level values like the raw frame, reconstructions, etcx
 class EncoderFrame:
   
   frame_idx: int
   pps: PPS
-  # whether this pps needs to be encoded in a nal unit
-  encode_pps: bool
   
   # the raw input data
   Y_raw_frame: Block[byte,Tup2]
@@ -56,10 +20,8 @@ class EncoderFrame:
   Y_recons_frame: Block[int,Tup2]
   Cb_recons_frame: Block[int,Tup2]
   Cr_recons_frame: Block[int,Tup2]
-  
-  # slices of the frame (just one for now)
-  pic_slice: PicSlice
 
+  # TODO something with this
   # the number of non-zero coefficients within each 4x4 block
   # (but currently stored per-pixel)
   Y_nz_coeffs_frame: Block[int,Tup2]
@@ -70,6 +32,22 @@ class EncoderFrame:
   # how each pixel was predicted
   Y_pred_modes_frame: Block[int,Tup2]
   C_pred_modes_frame: Block[int,Tup2] # same for Cb and Cr
+
+  def __init__(self, frame_idx, Y_raw_frame, Cb_raw_frame, Cr_raw_frame, pps):
+    self.frame_idx = frame_idx
+    self.Y_raw_frame = Y_raw_frame
+    self.Cb_raw_frame = Cb_raw_frame
+    self.Cr_raw_frame = Cr_raw_frame
+    self.pps = pps
+    self.Y_recons_frame = Block[int,Tup2](Y_raw_frame)
+    self.Cb_recons_frame = Block[int,Tup2](Cb_raw_frame)
+    self.Cr_recons_frame = Block[int,Tup2](Cr_raw_frame)
+    self.Y_nz_coeffs_frame = Block[int,Tup2](Y_raw_frame)
+    self.Cb_nz_coeffs_frame = Block[int,Tup2](Cb_raw_frame)
+    self.Cr_nz_coeffs_frame = Block[int,Tup2](Cr_raw_frame)
+    self.mb_type = Block[int,Tup2](Y_raw_frame) 
+    self.Y_pred_modes_frame = Block[int,Tup2](Y_raw_frame)
+    self.C_pred_modes_frame = Block[int,Tup2](Cb_raw_frame)
 
 class Video:
     
@@ -87,57 +65,9 @@ class Video:
 
   # put reference picture lists here
 
-### Definitions
-  
-@extend
-class Video:
-
   def __init__(self, sps, cfg, bitstream, fd: File):
     self.sps = sps
     self.cfg = cfg
     self.bitstream = bitstream
     self.fd = fd
-
-@extend
-class PicSliceHeader:
-
-  def __init__(self):
-    self.is_idr_slice = False
-    self.nal_ref_idc = 0
-    self.nal_unit_type = 0
-    self.first_mb_in_slice = 0
-    self.slice_type = I_SLICE
-    self.pps_id = 0
-    self.frame_num = 0
-    self.idr_pic_id = 0
-    self.pic_order_cnt_lsb = 0
-    self.slice_qp_delta = 0
-    self.no_output_of_prior_pics_flag = False
-    self.long_term_reference_flag = False
-
-@extend
-class EncoderFrame:
-
-  def __init__(self, frame_idx, Y_raw_frame, Cb_raw_frame, Cr_raw_frame, pps):
-    self.frame_idx = frame_idx
-    self.Y_raw_frame = Y_raw_frame
-    self.Cb_raw_frame = Cb_raw_frame
-    self.Cr_raw_frame = Cr_raw_frame
-    self.pps = pps
-    self.Y_recons_frame = Block[int,Tup2](Y_raw_frame)
-    self.Cb_recons_frame = Block[int,Tup2](Cb_raw_frame)
-    self.Cr_recons_frame = Block[int,Tup2](Cr_raw_frame)
-    self.Y_nz_coeffs_frame = Block[int,Tup2](Y_raw_frame)
-    self.Cb_nz_coeffs_frame = Block[int,Tup2](Cb_raw_frame)
-    self.Cr_nz_coeffs_frame = Block[int,Tup2](Cr_raw_frame)
-    self.mb_type = Block[int,Tup2](Y_raw_frame) 
-    self.Y_pred_modes_frame = Block[int,Tup2](Y_raw_frame)
-    self.C_pred_modes_frame = Block[int,Tup2](Cb_raw_frame)
-    self.pic_slice = PicSlice()
-
-@extend
-class MacroblockLayer:
-
-  def __init__(self):
-    self.mb_type = 0
     
