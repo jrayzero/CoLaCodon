@@ -9,76 +9,6 @@ from quant import *
 from cavlc import *
 from nal_unit import *
 
-# The basic structure here is that 
-# each class operates on one unit of its data. Containing classes build the unit
-# for the thing they contain. 
-# For example, PicSliceData creates the individual macroblock templates
-# and passes along any necessary information, such as whether its a PCM slice
-# and then macroblock actually processes the macroblock
-
-#@extend
-#class SPS:
-#
-#  def encode(self, video):
-#    video.bitstream.nal_payload.reset()
-#    video.bitstream.generate_nal_header(3, NAL_UNIT_TYPE_SPS)    
-#    video.bitstream.nal_payload.pack(self.profile_idc, 8)    
-#    video.bitstream.nal_payload.pack(int(self.constraint_set0_flag), 1)
-#    video.bitstream.nal_payload.pack(int(self.constraint_set1_flag), 1)
-#    video.bitstream.nal_payload.pack(int(self.constraint_set2_flag), 1)
-#    video.bitstream.nal_payload.pack(int(self.constraint_set3_flag), 1)
-#    video.bitstream.nal_payload.pack(int(self.constraint_set4_flag), 1)
-#    video.bitstream.nal_payload.pack(int(self.constraint_set5_flag), 1)
-#    video.bitstream.nal_payload.pack(0, 2)
-#    video.bitstream.nal_payload.pack(self.level_idc, 8)
-#    video.bitstream.nal_payload.ue(self.sps_id)
-#    video.bitstream.nal_payload.ue(self.log2_max_frame_num_minus4)
-#    video.bitstream.nal_payload.ue(self.pic_order_cnt_type)
-#    if self.pic_order_cnt_type == 0:
-#      video.bitstream.nal_payload.ue(self.log2_max_pic_order_cnt_lsb_minus4)    
-#    else:#if self.pic_order_cnt_type != 2:
-#      assert False
-#    video.bitstream.nal_payload.ue(self.max_num_ref_frames)
-#    video.bitstream.nal_payload.pack(int(self.gaps_in_frame_num_value_allowed_flag), 1)
-#    nmbs_wide = video.cfg.width // 16
-#    if video.cfg.width % 16 != 0:
-#      nmbs_wide += 1
-#    nmbs_wide -= 1
-#    video.bitstream.nal_payload.ue(nmbs_wide)
-#    nmbs_height = video.cfg.height // 16
-#    if video.cfg.height % 16 != 0:
-#      nmbs_height += 1
-#    nmbs_height -= 1
-#    video.bitstream.nal_payload.ue(nmbs_height)
-#    video.bitstream.nal_payload.pack(int(self.frame_mbs_only_flag), 1)
-#    video.bitstream.nal_payload.pack(int(self.direct_8x8_inference_flag), 1)
-#    video.bitstream.nal_payload.pack(int(self.frame_cropping_flag), 1)
-#    video.bitstream.nal_payload.pack(int(self.vui_parameters_present_flag), 1)    
-#    video.bitstream.finalize_nal_unit()
-
-#@extend
-#class PPS:
-#
-#  def encode(self, video):
-#    video.bitstream.nal_payload.reset()
-#    video.bitstream.generate_nal_header(3, NAL_UNIT_TYPE_PPS)    
-#    video.bitstream.nal_payload.ue(self.pps_id)
-#    video.bitstream.nal_payload.ue(self.sps_id)
-#    video.bitstream.nal_payload.pack(self.entropy_coding_mode, 1)
-#    video.bitstream.nal_payload.pack(int(self.bottom_field_pic_order_in_frame_present_flag), 1)
-#    video.bitstream.nal_payload.ue(self.num_slice_groups_minus1)
-#    video.bitstream.nal_payload.ue(self.num_ref_idx_l0_default_active_minus1)
-#    video.bitstream.nal_payload.ue(self.num_ref_idx_l1_default_active_minus1)
-#    video.bitstream.nal_payload.pack(int(self.weighted_pred_flag), 1)
-#    video.bitstream.nal_payload.pack(self.weighted_bipred_idc, 2)
-#    video.bitstream.nal_payload.se(self.pic_init_qp_minus26)
-#    video.bitstream.nal_payload.se(self.pic_init_qs_minus26)
-#    video.bitstream.nal_payload.se(self.chroma_qp_index_offset)
-#    video.bitstream.nal_payload.pack(int(self.deblocking_filter_control_present_flag), 1)
-#    video.bitstream.nal_payload.pack(int(self.constrained_intra_pred_flag), 1)
-#    video.bitstream.nal_payload.pack(int(self.redundant_pic_cnt_present_flag), 1)
-#    video.bitstream.finalize_nal_unit()
-
 @extend 
 class MacroblockLayer:
 
@@ -192,7 +122,6 @@ class MacroblockLayer:
         DC_pred_mode_predicted = False
         # TODO would need to check blk type here for availability, not just existance
         # (important for 16x16 mode)
-#        y,x = Y_pre_code_smblk_4x4.get_starts()
         if not A.exists() or not B.exists():
           DC_pred_mode_predicted = True
         intra_A_mode = 2
@@ -211,7 +140,6 @@ class MacroblockLayer:
           # need to tell the decoder how to compute
           nal.pack(0, 1)
           # 7 possible values for rem_intra
-#          rem_intra_4x4_pred_mode = actual_mode - predicted_pred_mode
           if actual_mode < predicted_pred_mode:
             nal.pack(actual_mode, 3)            
           else:
@@ -268,72 +196,41 @@ class MacroblockLayer:
       self.handle_PCM_macroblock(video, nal)
 
 #@extend
-#class PicSliceHeader:
+#class PicSliceData:
 #
-#  def encode(self, video):
-#    video.bitstream.nal_payload.reset()
-#    video.bitstream.generate_nal_header(self.nal_ref_idc, self.nal_unit_type)
-#    video.bitstream.nal_payload.ue(self.first_mb_in_slice)
-#    video.bitstream.nal_payload.ue(self.slice_type)
-#    video.bitstream.nal_payload.ue(self.pps_id)
-#    nbits = video.sps.log2_max_frame_num_minus4 + 4
-#    video.bitstream.nal_payload.pack(self.frame_num, nbits)
-#    if self.is_idr_slice:
-#      video.bitstream.nal_payload.ue(self.idr_pic_id)
-#    if video.sps.pic_order_cnt_type == 0:
-#      video.bitstream.nal_payload.pack(self.pic_order_cnt_lsb, video.sps.log2_max_pic_order_cnt_lsb_minus4+4)
-#    else:
-#      assert False
-#    if self.nal_ref_idc != 0:
-#      # dec_ref_pic_marking
-#      if self.is_idr_slice:
-#        video.bitstream.nal_payload.pack(int(self.no_output_of_prior_pics_flag), 1)
-#        video.bitstream.nal_payload.pack(int(self.long_term_reference_flag), 1)
-#      else:
-#        # adaptive_ref_pic_marking_mode_flag
-#        video.bitstream.nal_payload.pack(0, 1)
-#    video.bitstream.nal_payload.se(self.slice_qp_delta)    
+#  def encode(self, encoder_frame, video, quant_tables, nal):
+#    Y_raw_frame = encoder_frame.Y_raw_frame
+#    Cb_raw_frame = encoder_frame.Cb_raw_frame
+#    Cr_raw_frame = encoder_frame.Cr_raw_frame
+#    mblk = MacroblockLayer()    
+#    # go through and create macroblocks
+#    first = True
+#    for Y_mblk_16x16,Cb_mblk_8x8,Cr_mblk_8x8 in zip(Y_raw_frame.grid((16,16)), Cb_raw_frame.grid((8,8)), Cr_raw_frame.grid((8,8))):
+#      mblk.Y_raw_mblk_16x16 = Y_mblk_16x16
+#      mblk.Cb_raw_mblk_8x8 = Cb_mblk_8x8
+#      mblk.Cr_raw_mblk_8x8 = Cr_mblk_8x8
+#      mblk.encode(first, video.cfg.pcm_mode, encoder_frame, video, quant_tables, nal)
+#      first = False
 
-@extend
-class PicSliceData:
-
-  def encode(self, encoder_frame, video, quant_tables, nal):
-    Y_raw_frame = encoder_frame.Y_raw_frame
-    Cb_raw_frame = encoder_frame.Cb_raw_frame
-    Cr_raw_frame = encoder_frame.Cr_raw_frame
-    mblk = MacroblockLayer()    
-    # go through and create macroblocks
-    first = True
-    for Y_mblk_16x16,Cb_mblk_8x8,Cr_mblk_8x8 in zip(Y_raw_frame.grid((16,16)), Cb_raw_frame.grid((8,8)), Cr_raw_frame.grid((8,8))):
-      mblk.Y_raw_mblk_16x16 = Y_mblk_16x16
-      mblk.Cb_raw_mblk_8x8 = Cb_mblk_8x8
-      mblk.Cr_raw_mblk_8x8 = Cr_mblk_8x8
-      mblk.encode(first, video.cfg.pcm_mode, encoder_frame, video, quant_tables, nal)
-      first = False
-
-@extend
-class PicSlice:
-
-  def encode(self, encoder_frame, video, quant_tables):
-    nal = Bitstream()
-    # set up the header information in the slice
-    self.header.nal_ref_idc = 3
-    self.header.nal_unit_type = NAL_UNIT_TYPE_IDR if encoder_frame.frame_idx == 0 else NAL_UNIT_TYPE_NON_IDR
-    self.header.is_idr_slice = encoder_frame.frame_idx == 0
-    self.header.slice_type = I_SLICE_TYPE2
-    self.header.frame_num = encoder_frame.frame_idx
-    self.header.idr_pic_id = 0
-    encode_pic_slice_header(self.header, video.sps, nal)
-    #self.header.encode(video)
-    self.data.encode(encoder_frame, video, quant_tables, nal)
-    finalize_nal_unit(video.bitstream, nal, video.fd)
-#    video.bitstream.finalize_nal_unit()
-
-@extend
-class EncoderFrame:
-  
-  def encode(self, video, quant_tables):
-#    if self.encode_pps:
-#      self.pps.encode(video)
-    # create slices
-    self.pic_slice.encode(self, video, quant_tables)    
+#@extend
+#class PicSlice:
+#
+#  def encode(self, encoder_frame, video, quant_tables):
+#    nal = Bitstream()
+#    # set up the header information in the slice
+#    self.header.nal_ref_idc = 3
+#    self.header.nal_unit_type = NAL_UNIT_TYPE_IDR if encoder_frame.frame_idx == 0 else NAL_UNIT_TYPE_NON_IDR
+#    self.header.is_idr_slice = encoder_frame.frame_idx == 0
+#    self.header.slice_type = I_SLICE_TYPE2
+#    self.header.frame_num = encoder_frame.frame_idx
+#    self.header.idr_pic_id = 0
+#    encode_pic_slice_header(self.header, video.sps, nal)
+#    self.data.encode(encoder_frame, video, quant_tables, nal)
+#    finalize_nal_unit(video.bitstream, nal, video.fd)
+#
+#@extend
+#class EncoderFrame:
+#  
+#  def encode(self, video, quant_tables):
+#    # create slices
+#    self.pic_slice.encode(self, video, quant_tables)    

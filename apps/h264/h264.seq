@@ -5,8 +5,8 @@ from parameter_sets import *
 from encoder_processes import *
 from video import *
 from constants import *
-#from annexb import *
 from nal_unit import *
+from slices import *
 from quant import *
 
 def init_SPS(cfg):
@@ -35,20 +35,26 @@ def main():
   video.sps = init_SPS(cfg)
   yuv420 = YUV420Reader(cfg)
   pps = init_PPS(cfg)
+  # TODO add this to video
   quant_tables = QuantTables()
   frame_idx = 0
   encode_SPS(video.sps, video.cfg.height, video.cfg.width, video.bitstream, video.fd)
   # go through frames
   for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
     print f'Frame: {frame_idx}'
+    # build surrounding frame components
     encoder_frame = EncoderFrame(frame_idx, Y_raw_frame, Cb_raw_frame, Cr_raw_frame, pps)
     if frame_idx == 0:
       encode_PPS(pps, video.bitstream, video.fd)
-    encoder_frame.pic_slice.header.pic_order_cnt_lsb = 2*frame_idx
-    encoder_frame.encode(video, quant_tables)
+    encoder_frame.pic_slice.header.pic_order_cnt_lsb = 2*frame_idx    
+    # build slice
+    slice_nal = Bitstream()
+    header = make_I_slice_header(frame_idx, frame_idx == 0)
+    encode_pic_slice_header(header, video.sps, slice_nal)
+    build_slice_payload(encoder_frame, video, quant_tables, slice_nal)
+    finalize_nal_unit(video.bitstream, slice_nal, video.fd)
     frame_idx += 1
   yuv420.cleanup()
-#  video.bitstream.cleanup()
   video.fd.flush()
   video.fd.close()
 

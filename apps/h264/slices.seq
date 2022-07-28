@@ -1,0 +1,26 @@
+from constants import *
+from video import *
+
+def make_I_slice_header(frame_idx, is_idr):
+  header = PicSliceHeader()
+  header.nal_ref_idc = 3
+  header.nal_unit_type = NAL_UNIT_TYPE_IDR if is_idr else NAL_UNIT_TYPE_NON_IDR
+  header.is_idr_slice = is_idr
+  header.slice_type = I_SLICE_TYPE2
+  header.frame_num = frame_idx
+  header.idr_pic_id = 0
+  return header
+
+def build_slice_payload(encoder_frame, video, quant_tables, nal):
+  Y_raw_frame = encoder_frame.Y_raw_frame
+  Cb_raw_frame = encoder_frame.Cb_raw_frame
+  Cr_raw_frame = encoder_frame.Cr_raw_frame
+  mblk = MacroblockLayer()    
+  # go through and create macroblocks
+  first = True
+  for Y_mblk_16x16,Cb_mblk_8x8,Cr_mblk_8x8 in zip(Y_raw_frame.grid((16,16)), Cb_raw_frame.grid((8,8)), Cr_raw_frame.grid((8,8))):
+    mblk.Y_raw_mblk_16x16 = Y_mblk_16x16
+    mblk.Cb_raw_mblk_8x8 = Cb_mblk_8x8
+    mblk.Cr_raw_mblk_8x8 = Cr_mblk_8x8
+    mblk.encode(first, video.cfg.pcm_mode, encoder_frame, video, quant_tables, nal)
+    first = False

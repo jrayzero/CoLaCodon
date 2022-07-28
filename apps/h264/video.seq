@@ -1,8 +1,9 @@
 from cola.blocks import *
 from ..common.typedefs import *
+from ..common.generic_bitstream import *
+from constants import *
 from parameter_sets import *
 from cfg import *
-from annexb import *
 
 ### Declarations
 
@@ -37,18 +38,6 @@ class PicSliceHeader:
   slice_qp_delta: int
   no_output_of_prior_pics_flag: bool
   long_term_reference_flag: bool  
-
-# this basically splits up the slice into macroblocks and processes each of those
-class PicSliceData:
-  pass  
-
-# a single slice of all components
-class PicSlice:
-  
-  header: PicSliceHeader
-  data: PicSliceData
-
-  # TODO if want slices, will need to track the start and end  
 
 # minimal unit to kick off encoding
 class EncoderFrame:
@@ -108,13 +97,6 @@ class Video:
     self.cfg = cfg
     self.bitstream = bitstream
     self.fd = fd
-
-@extend
-class PicSlice:
-  
-  def __init__(self):
-    self.header = PicSliceHeader()
-    self.data = PicSliceData()
 
 @extend
 class PicSliceHeader:
