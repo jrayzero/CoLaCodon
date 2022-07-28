@@ -91,7 +91,10 @@ class Video:
   cfg: EncoderCfg
 
   # overall annex-B formatted bitstream
-  bitstream: AnnexBBitstream
+  bitstream: Bitstream #AnnexBBitstream
+
+  # file to write everything out to
+  fd: File
 
   # put reference picture lists here
 
@@ -100,10 +103,11 @@ class Video:
 @extend
 class Video:
 
-  def __init__(self, sps, cfg, bitstream):
+  def __init__(self, sps, cfg, bitstream, fd: File):
     self.sps = sps
     self.cfg = cfg
     self.bitstream = bitstream
+    self.fd = fd
 
 @extend
 class PicSlice:
@@ -132,13 +136,12 @@ class PicSliceHeader:
 @extend
 class EncoderFrame:
 
-  def __init__(self, frame_idx, Y_raw_frame, Cb_raw_frame, Cr_raw_frame, pps, encode_pps):
+  def __init__(self, frame_idx, Y_raw_frame, Cb_raw_frame, Cr_raw_frame, pps):
     self.frame_idx = frame_idx
     self.Y_raw_frame = Y_raw_frame
     self.Cb_raw_frame = Cb_raw_frame
     self.Cr_raw_frame = Cr_raw_frame
     self.pps = pps
-    self.encode_pps = encode_pps
     self.Y_recons_frame = Block[int,Tup2](Y_raw_frame)
     self.Cb_recons_frame = Block[int,Tup2](Cb_raw_frame)
     self.Cr_recons_frame = Block[int,Tup2](Cr_raw_frame)

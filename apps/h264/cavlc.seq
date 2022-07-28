@@ -255,12 +255,12 @@ def encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, bitstream):
     bitstream.pack(level_suffix, level_suffix_size)
     i += 1    
 
-def encode_CAVLC(coeffs, is_chroma_DC, skip_DC, nz_coeffs_frame, video):
+def encode_CAVLC(coeffs, is_chroma_DC, skip_DC, nz_coeffs_frame, nal: Bitstream):
   nC = -1 if is_chroma_DC else compute_nC(coeffs, nz_coeffs_frame)
   trailing_zeros,total_zeros,total_nz_coeffs,nz_coeffs,zero_runs,zero_runs_idx,trailing_ones_bitmask,ntrailing_ones = gather_cavlc_stats_zigzag(coeffs, skip_DC) if not is_chroma_DC else gather_cavlc_stats_raster(coeffs)
-  encode_coeff_token(nC, ntrailing_ones, total_nz_coeffs, video.bitstream.nal_payload)
+  encode_coeff_token(nC, ntrailing_ones, total_nz_coeffs, nal)
   if total_nz_coeffs > 0:
-    video.bitstream.nal_payload.pack(trailing_ones_bitmask, ntrailing_ones)
-    encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, video.bitstream.nal_payload)
-    encode_total_zeros(total_nz_coeffs, total_zeros, len(coeffs) if not skip_DC else len(coeffs)-1, video.bitstream.nal_payload)
-    encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, len(coeffs) if not skip_DC else len(coeffs)-1, video.bitstream.nal_payload)
+    nal.pack(trailing_ones_bitmask, ntrailing_ones)
+    encode_levels(ntrailing_ones, total_nz_coeffs, nz_coeffs, nal)
+    encode_total_zeros(total_nz_coeffs, total_zeros, len(coeffs) if not skip_DC else len(coeffs)-1, nal)
+    encode_runs(total_nz_coeffs, total_zeros, zero_runs_idx, zero_runs, len(coeffs) if not skip_DC else len(coeffs)-1, nal)

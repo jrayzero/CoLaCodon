@@ -5,7 +5,8 @@ from parameter_sets import *
 from encoder_processes import *
 from video import *
 from constants import *
-from annexb import *
+#from annexb import *
+from nal_unit import *
 from quant import *
 
 def init_SPS(cfg):
@@ -29,22 +30,26 @@ def main():
   if len(sys.argv) < 2:
     print 'Usage: h264.seq <cfg>'
   cfg = parse_config(sys.argv[1])
-  video = Video(init_SPS(cfg), cfg, AnnexBBitstream(cfg.output_fn))
+  video = Video(init_SPS(cfg), cfg, Bitstream(32768), open(cfg.output_fn, 'wb'))
   video.cfg = cfg
   video.sps = init_SPS(cfg)
   yuv420 = YUV420Reader(cfg)
   pps = init_PPS(cfg)
-  quant_tables = Quant()
+  quant_tables = QuantTables()
   frame_idx = 0
-  video.encode()
+  encode_SPS(video.sps, video.cfg.height, video.cfg.width, video.bitstream, video.fd)
   # go through frames
   for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
     print f'Frame: {frame_idx}'
-    encoder_frame = EncoderFrame(frame_idx, Y_raw_frame, Cb_raw_frame, Cr_raw_frame, pps, frame_idx == 0)    
+    encoder_frame = EncoderFrame(frame_idx, Y_raw_frame, Cb_raw_frame, Cr_raw_frame, pps)
+    if frame_idx == 0:
+      encode_PPS(pps, video.bitstream, video.fd)
     encoder_frame.pic_slice.header.pic_order_cnt_lsb = 2*frame_idx
     encoder_frame.encode(video, quant_tables)
     frame_idx += 1
   yuv420.cleanup()
-  video.bitstream.cleanup()
+#  video.bitstream.cleanup()
+  video.fd.flush()
+  video.fd.close()
 
 main()

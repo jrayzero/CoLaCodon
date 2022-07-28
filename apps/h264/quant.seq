@@ -70,7 +70,7 @@ from funcs import *
 # I trust the smart compression people, so I'm going with it
 
 @dataclass(init=False)
-class Quant:
+class QuantTables:
   # for quant
   m_table: Block[int,Tup2]
   # for dequant
@@ -117,7 +117,7 @@ class Quant:
     self.v_table[5,1] = 29
     self.v_table[5,2] = 23
 
-def basic_quantization(coeffs, qcoeffs, qp, quant: Quant):
+def basic_quantization(coeffs, qcoeffs, qp, quant: QuantTables):
   bits = 15 + qp // 6
   for i in range(4):
     i2 = i % 2
@@ -128,7 +128,7 @@ def basic_quantization(coeffs, qcoeffs, qp, quant: Quant):
       qcoeffs[i,j] = (coeff * quant.m_table(qp % 6, n)+174592) >> bits
     
 # for decoding, run this before idct on 4x4 blocks
-def pre_idct_scale(qcoeffs, coeffs, qp, quant: Quant):
+def pre_idct_scale(qcoeffs, coeffs, qp, quant: QuantTables):
   # weight scale defaults to 16 (see page 75 of standard)
   weight_scale = 16
   if qp >= 24:    
@@ -153,7 +153,7 @@ def pre_idct_scale(qcoeffs, coeffs, qp, quant: Quant):
         coeffs[i,j] = clip3(-2**15, 2**15-1, term)
 
 # after the ihadamard, but before the idct. just on the dcs
-def post_hadamard_chroma_DC_scale(qcoeffs, coeffs, qp, quant: Quant):
+def post_hadamard_chroma_DC_scale(qcoeffs, coeffs, qp, quant: QuantTables):
   # weight scale defaults to 16 (see page 75 of standard)
   weight_scale = 16
   for i in range(2):

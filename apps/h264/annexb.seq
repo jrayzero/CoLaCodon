@@ -5,78 +5,78 @@ from ..common.generic_bitstream import *
 @extend
 class Bitstream:
 
-  def ue(self, val):
-    golomb_ue(val, self)
-
-  def se(self, val):
-    golomb_se(val, self)
-
-  def me(self, val):
-    golomb_me(val, me_cat_1_2_intra, self)
+#  def ue(self, val):
+#    golomb_ue(val, self)
+#
+#  def se(self, val):
+#    golomb_se(val, self)#
+#
+#  def me(self, val):
+#    golomb_me(val, me_cat_1_2_intra, self)
 
   # TODO pack 1 and all the 0s at once
-  def rbsp_trailing_bits(self):
-    self.pack(1, 1)
-    while self.bit_idx % 8 != 0:
-      self.pack(0, 1)
+#  def rbsp_trailing_bits(self):
+#    self.pack(1, 1)
+#    while self.bit_idx % 8 != 0:
+#      self.pack(0, 1)
 
   def align(self, bit: Static[int]):
     while self.bit_idx % 8 != 0:
       self.pack(bit, 1)    
 
-@dataclass(init=False)
-class AnnexBBitstream:
-  # the current NAL unit payload under construction
-  nal_payload: Bitstream 
-  # the overall bitstream, which periodically gets written to file
-  compressed: Bitstream
-  fd: File
-
-  def __init__(self, output_fn):
-    self.nal_payload = Bitstream()
-    self.compressed = Bitstream(32768)
-    self.fd = open(output_fn, 'wb')
-
-  def cleanup(self):
-    self.compressed.flush(self.fd)
-    self.fd.flush()
-    self.fd.close()
-    
+#@dataclass(init=False)
+#class AnnexBBitstream:
+#  # the current NAL unit payload under construction
+#  nal_payload: Bitstream 
+#  # the overall bitstream, which periodically gets written to file
+#  compressed: Bitstream
+#  fd: File
+#
+#  def __init__(self, output_fn):
+#    self.nal_payload = Bitstream()
+#    self.compressed = Bitstream(32768)
+#    self.fd = open(output_fn, 'wb')
+#
+#  def cleanup(self):
+#    self.compressed.flush(self.fd)
+#    self.fd.flush()
+#    self.fd.close()
+#    
   # once the nal_payload is complete, go through it byte-by-byte
   # and check for emulation bytes and then write to compressed
-  def wrap_nal(self):
-    # zero-byte, start_code_prefix_one_3bytes
-    self.compressed.pack_with_flush(0x00000001, 32, self.fd)
-    # go through the payload with a 3-width sliding window, replacing
-    # 0x000001 with 0x00000301
-    i = 0
-    while i < (self.nal_payload.byte_idx-2):
-      a = int(self.nal_payload.bits[i])
-      b = int(self.nal_payload.bits[i+1])
-      c = int(self.nal_payload.bits[i+2])
-      window = (a << 18) | (b << 8) | c
-#      print f'Window: 0x{window} ({i})'
-      if window == 0x000000:
-        self.compressed.pack_with_flush(0x00000300, 32, self.fd)
-        i += 3
-      elif window == 0x000001:
-        self.compressed.pack_with_flush(0x00000301, 32, self.fd)
-        i += 3
-      elif window == 0x000002:
-        self.compressed.pack_with_flush(0x00000302, 32, self.fd)
-        i += 3
-      else:
-        self.compressed.pack_with_flush(a, 8, self.fd)
-        i += 1
-    for j in range(i,self.nal_payload.byte_idx):
-      self.compressed.pack_with_flush(int(self.nal_payload.bits[j]), 8, self.fd)
-    self.compressed.flush(self.fd)
+#  def wrap_nal(self):
+#    # zero-byte, start_code_prefix_one_3bytes
+#    self.compressed.pack_with_flush(0x00000001, 32, self.fd)
+#    # go through the payload with a 3-width sliding window, replacing
+#    # 0x000001 with 0x00000301
+#    i = 0
+#    while i < (self.nal_payload.byte_idx-2):
+#      a = int(self.nal_payload.bits[i])
+#      b = int(self.nal_payload.bits[i+1])
+#      c = int(self.nal_payload.bits[i+2])
+#      window = (a << 18) | (b << 8) | c
+##      print f'Window: 0x{window} ({i})'
+#      if window == 0x000000:
+#        self.compressed.pack_with_flush(0x00000300, 32, self.fd)
+#        i += 3
+#      elif window == 0x000001:
+#        self.compressed.pack_with_flush(0x00000301, 32, self.fd)
+#        i += 3
+#      elif window == 0x000002:
+#        self.compressed.pack_with_flush(0x00000302, 32, self.fd)
+#        i += 3
+#      else:
+#        self.compressed.pack_with_flush(a, 8, self.fd)
+#        i += 1
+#    for j in range(i,self.nal_payload.byte_idx):
+#      self.compressed.pack_with_flush(int(self.nal_payload.bits[j]), 8, self.fd)
+#    self.compressed.flush(self.fd)
 
-  def generate_nal_header(self, nal_ref_idc, nal_unit_type):
-    self.nal_payload.pack(0, 1)
-    self.nal_payload.pack(nal_ref_idc, 2)
-    self.nal_payload.pack(nal_unit_type, 5)
+#  def generate_nal_header(self, nal_ref_idc, nal_unit_type):
+#    self.nal_payload.pack(0, 1)
+#    self.nal_payload.pack(nal_ref_idc, 2)
+#    self.nal_payload.pack(nal_unit_type, 5)
 
-  def finalize_nal_unit(self):
-    self.nal_payload.rbsp_trailing_bits()
-    self.wrap_nal()
+#  def finalize_nal_unit(self):
+#    self.nal_payload.rbsp_trailing_bits()
+#    self.wrap_nal()

@@ -1,0 +1,138 @@
+from ..common.generic_bitstream import *
+from constants import *
+from golomb import *
+
+def ue(val, bitstream: Bitstream):
+  golomb_ue(val, bitstream)
+
+def se(val, bitstream: Bitstream):
+  golomb_se(val, bitstream)
+
+def me(val, bitstream: Bitstream):
+  golomb_me(val, me_cat_1_2_intra, bitstream)
+
+def align(bit: Static[int], bitstream: Bitstream):
+  while bitstream.bit_idx % 8 != 0:
+    bitstream.pack(bit, 1)    
+
+def generate_nal_unit_header(nal_ref_idc, nal_unit_type, nal: Bitstream):
+  nal.pack(0, 1)
+  nal.pack(nal_ref_idc, 2)
+  nal.pack(nal_unit_type, 5)
+
+def rbsp_trailing_bits(nal: Bitstream):
+  nal.pack(1, 1)
+  while nal.bit_idx % 8 != 0:
+    nal.pack(0, 1)
+
+# combines nal into bitstream
+def wrap_nal(compressed: Bitstream, nal: Bitstream, fd: File):
+  # zero-byte, start_code_prefix_one_3bytes
+  compressed.pack_with_flush(0x00000001, 32, fd)
+  # go through the payload with a 3-width sliding window, replacing
+  # 0x000001 with 0x00000301
+  i = 0
+  while i < (nal.byte_idx-2):
+    a = int(nal.bits[i])
+    b = int(nal.bits[i+1])
+    c = int(nal.bits[i+2])
+    window = (a << 18) | (b << 8) | c
+    if window == 0x000000:
+      compressed.pack_with_flush(0x00000300, 32, fd)
+      i += 3
+    elif window == 0x000001:
+      compressed.pack_with_flush(0x00000301, 32, fd)
+      i += 3
+    elif window == 0x000002:
+      compressed.pack_with_flush(0x00000302, 32, fd)
+      i += 3
+    else:
+      compressed.pack_with_flush(a, 8, fd)
+      i += 1
+  for j in range(i,nal.byte_idx):
+    compressed.pack_with_flush(int(nal.bits[j]), 8, fd)
+  compressed.flush(fd)
+
+def finalize_nal_unit(compressed: Bitstream, nal: Bitstream, fd: File):
+  rbsp_trailing_bits(nal)
+  wrap_nal(compressed, nal, fd)
+
+def encode_SPS(sps_like, height, width, compressed: Bitstream, fd: File):
+  nal = Bitstream()
+  generate_nal_unit_header(3, NAL_UNIT_TYPE_SPS, nal)    
+  nal.pack(sps_like.profile_idc, 8)    
+  nal.pack(int(sps_like.constraint_set0_flag), 1)
+  nal.pack(int(sps_like.constraint_set1_flag), 1)
+  nal.pack(int(sps_like.constraint_set2_flag), 1)
+  nal.pack(int(sps_like.constraint_set3_flag), 1)
+  nal.pack(int(sps_like.constraint_set4_flag), 1)
+  nal.pack(int(sps_like.constraint_set5_flag), 1)
+  nal.pack(0, 2)
+  nal.pack(sps_like.level_idc, 8)
+  ue(sps_like.sps_id, nal)
+  ue(sps_like.log2_max_frame_num_minus4, nal)
+  ue(sps_like.pic_order_cnt_type, nal)
+  if sps_like.pic_order_cnt_type == 0:
+   ue(sps_like.log2_max_pic_order_cnt_lsb_minus4, nal)
+  else:#if sps_like.pic_order_cnt_type != 2:
+    assert False
+  ue(sps_like.max_num_ref_frames, nal)
+  nal.pack(int(sps_like.gaps_in_frame_num_value_allowed_flag), 1)
+  nmbs_wide = width // 16
+  if width % 16 != 0:
+    nmbs_wide += 1
+  nmbs_wide -= 1
+  ue(nmbs_wide, nal)
+  nmbs_height = height // 16
+  if height % 16 != 0:
+    nmbs_height += 1
+  nmbs_height -= 1
+  ue(nmbs_height, nal)
+  nal.pack(int(sps_like.frame_mbs_only_flag), 1)
+  nal.pack(int(sps_like.direct_8x8_inference_flag), 1)
+  nal.pack(int(sps_like.frame_cropping_flag), 1)
+  nal.pack(int(sps_like.vui_parameters_present_flag), 1)    
+  finalize_nal_unit(compressed, nal, fd)
+
+def encode_PPS(pps_like, compressed: Bitstream, fd: File):
+  nal = Bitstream()
+  generate_nal_unit_header(3, NAL_UNIT_TYPE_PPS, nal)
+  ue(pps_like.pps_id, nal)
+  ue(pps_like.sps_id, nal)
+  nal.pack(pps_like.entropy_coding_mode, 1)
+  nal.pack(int(pps_like.bottom_field_pic_order_in_frame_present_flag), 1)
+  ue(pps_like.num_slice_groups_minus1, nal)
+  ue(pps_like.num_ref_idx_l0_default_active_minus1, nal)
+  ue(pps_like.num_ref_idx_l1_default_active_minus1, nal)
+  nal.pack(int(pps_like.weighted_pred_flag), 1)
+  nal.pack(pps_like.weighted_bipred_idc, 2)
+  se(pps_like.pic_init_qp_minus26, nal)
+  se(pps_like.pic_init_qs_minus26, nal)
+  se(pps_like.chroma_qp_index_offset, nal)
+  nal.pack(int(pps_like.deblocking_filter_control_present_flag), 1)
+  nal.pack(int(pps_like.constrained_intra_pred_flag), 1)
+  nal.pack(int(pps_like.redundant_pic_cnt_present_flag), 1)
+  finalize_nal_unit(compressed, nal, fd)
+
+def encode_pic_slice_header(header_like, sps_like, nal: Bitstream):
+  generate_nal_unit_header(header_like.nal_ref_idc, header_like.nal_unit_type, nal)
+  ue(header_like.first_mb_in_slice, nal)
+  ue(header_like.slice_type, nal)
+  ue(header_like.pps_id, nal)
+  nbits = sps_like.log2_max_frame_num_minus4 + 4
+  nal.pack(header_like.frame_num, nbits)
+  if header_like.is_idr_slice:
+    ue(header_like.idr_pic_id, nal)
+  if sps_like.pic_order_cnt_type == 0:
+    nal.pack(header_like.pic_order_cnt_lsb, sps_like.log2_max_pic_order_cnt_lsb_minus4+4)
+  else:
+    assert False
+  if header_like.nal_ref_idc != 0:
+    # dec_ref_pic_marking
+    if header_like.is_idr_slice:
+      nal.pack(int(header_like.no_output_of_prior_pics_flag), 1)
+      nal.pack(int(header_like.long_term_reference_flag), 1)
+    else:
+      # adaptive_ref_pic_marking_mode_flag
+      nal.pack(0, 1)
+  se(header_like.slice_qp_delta, nal)
