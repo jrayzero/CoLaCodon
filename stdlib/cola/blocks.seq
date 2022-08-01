@@ -134,16 +134,19 @@ class View[E,T]:
     if isinstance(idxs, View) or isinstance(idxs, Block):
       return View(idxs.starts, idxs.strides, idxs.dims, self.get_block())
     elif isinstance(idxs, int) or isinstance(idxs, slice):
-      if staticlen(self.dims()) != 1:
-        compile_error('T > 1')
+      if staticlen(self.get_dims()) > 1:
+        p = pad(self, (idxs,))
+        return self[p]
       else:
         starts = compute_starts(self.get_starts(), self.get_strides(), (idxs,))
         strides = compute_strides(self.get_strides(), (idxs,))
         dims = compute_dims(self.get_dims(), (idxs,))
         return View(starts, strides, dims, self.get_block())
     elif isinstance(idxs, tuple):
-      if staticlen(idxs) != staticlen(self.get_dims()):
-        compile_error('!T')
+      if staticlen(idxs) > staticlen(self.dims):
+        compile_error('Too many indices specified.')
+      elif staticlen(idxs) < staticlen(self.dims):
+        return self[pad(self, idxs)]
       else:
         starts = compute_starts(self.get_starts(), self.get_strides(), idxs)
         strides = compute_strides(self.get_strides(), idxs)
@@ -166,8 +169,11 @@ class View[E,T]:
   def __call__(self, *idxs) -> E:
     if staticlen(idxs) == 0:
       compile_error('idxs is an empty tuple. Did you use * with an integer argument?')
-    if staticlen(idxs) != staticlen(self.dims):
-      compile_error('Invalid number of idxs')
+    elif staticlen(idxs) > staticlen(self.dims):
+      compile_error('Too many indices specified.')
+    elif staticlen(idxs) < staticlen(self.dims):      
+      p = pad_call(self, *idxs) 
+      return self.__call__(*p)
     else:
       for i in idxs:
         if not isinstance(i, int):
@@ -400,8 +406,11 @@ class Block:
   def __call__(self, *idxs) -> E:
     if staticlen(idxs) == 0:
       compile_error('idxs is an empty tuple. Did you use * with an integer argument?')
-    if staticlen(idxs) != staticlen(self.dims):
+    elif staticlen(idxs) != staticlen(self.dims):
       compile_error('Invalid number of idxs')
+    elif staticlen(idxs) < staticlen(self.dims):
+      p = pad_call(self, *idxs) 
+      return self.__call__(*p)
     else:
       for i in idxs:
         if not isinstance(i, int):

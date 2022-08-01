@@ -5,6 +5,6 @@ def RGB2YCbCr_col_to_row_3D(R, G, B, Y, Cb, Cr):
     r = float(R(*coord))
     g = float(G(*coord))
     b = float(B(*coord))
-    Y[0,coord[0],coord[1]] = int(r*0.299+g*0.587+b*0.114)
-    Cb[0,coord[0],coord[1]] = int(r*-0.168736+g*-0.33126+b*0.500002)+128
-    Cr[0,coord[0],coord[1]] = int(r*0.500000+g*-0.418688+b*-0.081312)+128
+    Y[coord[0],coord[1]] = int(r*0.299+g*0.587+b*0.114)
+    Cb[coord[0],coord[1]] = int(r*-0.168736+g*-0.33126+b*0.500002)+128
+    Cr[coord[0],coord[1]] = int(r*0.500000+g*-0.418688+b*-0.081312)+128

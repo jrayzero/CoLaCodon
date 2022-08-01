@@ -35,7 +35,6 @@ def driver():
   last_Y = 0
   last_Cb = 0
   last_Cr = 0
-
   # scale the quant matrices
   scale_quant(luma_quant, quality)
   scale_quant(chroma_quant, quality)

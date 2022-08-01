@@ -78,3 +78,19 @@ def format_str(x, max_len: int):
   l = len(str(x))
   s = ' ' * (max_len - l + 1) + str(x)
   return s
+
+### Padding
+
+def do_pad(amt: Static[int]):
+  if amt == 0:
+    return ()
+  else:
+    return (0,) + do_pad(amt-1)
+
+def pad_call(obj, *idxs):
+  p = do_pad(staticlen(obj.get_dims()) - staticlen(idxs)) + idxs
+  return p
+  
+def pad(obj, idxs):
+  p = do_pad(staticlen(obj.get_dims()) - staticlen(idxs)) + idxs
+  return p
