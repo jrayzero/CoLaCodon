@@ -13,6 +13,7 @@ def main():
   gop_idx = 0
   bitstream = H261Bitstream(cfg.output_fn)
   state = H261State(cfg.qp_init, cfg.cif, bitstream)
+  state.cfg = cfg
   # go through frames  
   intra_frame = True
   for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
