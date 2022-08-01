@@ -1,0 +1,24 @@
+# split interleaved into y, u, v files
+import sys
+from ..common.yuv import *
+
+inp = sys.argv[1]
+
+yuv = YUV420Reader(inp, 288, 352, 10)
+
+idx = 0
+for R,G,B in yuv:
+  Rfd = open(f'{inp}{idx}.Y', 'wb')
+  Cbfd = open(f'{inp}{idx}.U', 'wb')
+  Crfd = open(f'{inp}{idx}.V', 'wb')
+
+  Rfd.write(R.data, len(R))
+  Cbfd.write(G.data, len(G))
+  Crfd.write(B.data, len(B))
+
+  Rfd.close()
+  Cbfd.close()
+  Crfd.close()
+  idx += 1
+
+
