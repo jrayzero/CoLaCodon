@@ -8,6 +8,7 @@ from h261_bitstream import *
 from tables import *
 from ..common.cost import *
 from h261_common import *
+from cfg import *
 
 # A collection of Y, Cb, and Cr components
 @tuple
@@ -47,6 +48,8 @@ class H261State:
   l_mvd_x: int
   # the prior encoded reconstructed I frames
   rframes: Optional[Pack[int]]
+  # input cfg
+  cfg: H261UserCfg
 
   def __init__(self, qp_init, cif, bitstream):
     self.qp_init = qp_init
@@ -283,26 +286,27 @@ class MacroblockLayer:
       rpack,rle,mvd_y,mvd_x = MacroblockLayer.inter(mblks, state, INTER0)
       cost = sad(mblks.Y, rpack.Y)
       mtype = INTER0
-      # Inter + MC + tcoeff
-      rpack2,rle2,mvd_y2,mvd_x2 = MacroblockLayer.inter(mblks, state, INTER_MC1)
-      cost2 = sad(mblks.Y, rpack2.Y)
-      if cost2 < cost:
-        cost = cost2
-        mtype = INTER_MC1
-        rle = rle2
-        rpack = rpack2
-        mvd_y = mvd_y2
-        mvd_x = mvd_x2
-      # Inter + MC
-      rpack2,rle2,mvd_y2,mvd_x2 = MacroblockLayer.inter(mblks, state, INTER_MC0)
-      cost2 = sad(mblks.Y, rpack2.Y)
-      if cost2 < cost:
-        cost = cost2
-        mtype = INTER_MC0
-        rle = rle2
-        rpack = rpack2
-        mvd_y = mvd_y2
-        mvd_x = mvd_x2
+      if not state.cfg.no_me:
+        # Inter + MC + tcoeff
+        rpack2,rle2,mvd_y2,mvd_x2 = MacroblockLayer.inter(mblks, state, INTER_MC1)
+        cost2 = sad(mblks.Y, rpack2.Y)
+        if cost2 < cost:
+          cost = cost2
+          mtype = INTER_MC1
+          rle = rle2
+          rpack = rpack2
+          mvd_y = mvd_y2
+          mvd_x = mvd_x2
+        # Inter + MC
+        rpack2,rle2,mvd_y2,mvd_x2 = MacroblockLayer.inter(mblks, state, INTER_MC0)
+        cost2 = sad(mblks.Y, rpack2.Y)
+        if cost2 < cost:
+          cost = cost2
+          mtype = INTER_MC0
+          rle = rle2
+          rpack = rpack2
+          mvd_y = mvd_y2
+          mvd_x = mvd_x2
       # Intra
       rpack2,rle2 = MacroblockLayer.intra(mblks, state, INTRA0)
       cost2 = sad(mblks.Y, rpack2.Y)

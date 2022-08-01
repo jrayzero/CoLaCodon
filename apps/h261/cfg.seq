@@ -19,6 +19,7 @@ class H261UserCfg:
   gop: int # bitmask from MSB->LSB, 0 => intra, 1 => inter (P)
   gop_size: int
   I_frame_period: int
+  no_me: bool
 
   def __init__(self):
     self.input_fn = ''
@@ -31,6 +32,7 @@ class H261UserCfg:
     self.gop = 0 # only I frames
     self.gop_size = 1
     self.I_frame_period = 1
+    self.no_me = False
 
   def __str__(self):
     s = ''
@@ -51,6 +53,7 @@ class H261UserCfg:
       s += f'GOP: {gop}\n'
     else:
       s += f'I_frame_period: {self.I_frame_period}'
+    s += f'no_me: {self.no_me}\n'
     return s
   
 def parse_param(param, value, cfg):
@@ -101,6 +104,8 @@ def parse_param(param, value, cfg):
       exit(-1)
   elif param == 'i_frame_period':
     cfg.I_frame_period = parse_int(param,value)
+  elif param == 'no_me':
+    cfg.no_me = parse_bool(param,value)
   else:
     print f'Unknown cfg param: {param}'
     exit(-1)
