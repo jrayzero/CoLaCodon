@@ -40,5 +40,4 @@ def intra_sad(A):
 def psnr(gt, cmp):
   mse = float(mse(gt, cmp))
   psnr = 10 * math.log10(((2**8 - 1) ** 2) / mse)
-  return psnr
-    
+  return psnr   

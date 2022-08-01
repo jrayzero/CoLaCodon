@@ -4,7 +4,7 @@ from ..common.yuv import *
 
 inp = sys.argv[1]
 
-yuv = YUV420Reader(inp, 288, 352, 10)
+yuv = YUV420Reader(inp, 144, 176, 10)
 
 idx = 0
 for R,G,B in yuv:

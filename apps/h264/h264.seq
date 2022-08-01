@@ -9,6 +9,7 @@ from nal_unit import *
 from slices import *
 from quant import *
 from ..common.cost import *
+from ..common.cfg_utils import *
 
 class Stats:
   Y_psnr: float
@@ -38,10 +39,7 @@ def init_SPS(cfg):
   sps.level_idc = cfg.level
   if cfg.profile == 66:
     sps.constraint_set1_flag = True
-  if not cfg.disable_motion_estimation:
-    assert False
-  else:
-    sps.pic_order_cnt_type = 0
+  sps.pic_order_cnt_type = 0
   return sps
 
 def init_PPS(cfg):
@@ -52,7 +50,7 @@ def init_PPS(cfg):
 def main():
   if len(sys.argv) < 2:
     print 'Usage: h264.seq <cfg>'
-  cfg = parse_config(sys.argv[1])
+  cfg = parse_config(sys.argv[1], parse_param, EncoderCfg)
   video = Video(init_SPS(cfg), cfg, Bitstream(32768), open(cfg.output_fn, 'wb'))
   video.cfg = cfg
   video.sps = init_SPS(cfg)

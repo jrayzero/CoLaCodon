@@ -6,22 +6,21 @@ from ..common.syntax import *
 from ..common.quant import *
 from ..common.dct import *
 from ..common.color import *
+from ..common.cfg import *
 from ...common.generic_bitstream import *
-from ...common.ppm import *
+from ...common.netbpm import *
+from ...common.cfg_utils import *
 
 # JPEG is a big-endian format, so we can just pack directly into the stream
 
 def driver():
   # args
-  if len(sys.argv) < 3:
-    print f'Usage: jpeg.seq <ppm> <jpg> [<quality>]'
+  if len(sys.argv) < 2:
+    print f'Usage: jpeg.seq <cfg>'
     exit(1)
-  image_ppm = sys.argv[1]
-  image_jpg = sys.argv[2]
-  quality = 75
-  capacity = 1024
-  if len(sys.argv) >= 4:
-    quality = int(sys.argv[3])
+  cfg = parse_config(sys.argv[1], parse_param, JPEGCfg)
+  image_ppm = cfg.input_fn
+  image_jpg = cfg.output_fn
   # setup
   luma_DC_bits,luma_DC_vals = make_luma_DC_huff()
   chroma_DC_bits,chroma_DC_vals = make_chroma_DC_huff() 
@@ -36,17 +35,18 @@ def driver():
   last_Cb = 0
   last_Cr = 0
   # scale the quant matrices
-  scale_quant(luma_quant, quality)
-  scale_quant(chroma_quant, quality)
+  scale_quant(luma_quant, cfg.quality)
+  scale_quant(chroma_quant, cfg.quality)
 
+  start = _C.seq_time_monotonic() 
   # read in data  
-  H,W,max_val,ppm_fd = read_ppm_header(image_ppm)
-  image = Block[byte,Tup3]((H,W,3))
+  H,W,max_val,ppm_fd,is_greyscale = read_binary_netbpm_header(image_ppm)
+  image = Block[byte,Tup3]((H,W,3 if not is_greyscale else 1))
   ppm_fd.read(image)
   jpg = open(image_jpg, 'wb')
-
+  do_greyscale = cfg.force_greyscale or is_greyscale
   # make bits
-  bits_MCU = Bitstream(capacity)
+  bits_MCU = Bitstream(cfg.capacity)
   bits_MCU.fd = jpg
   
   # write initial header info
@@ -54,15 +54,15 @@ def driver():
   JPEGSyntax.pack_JFIF(bits_MCU)
   JPEGSyntax.pack_quant_table(bits_MCU, luma_quant, zigzag, True)
   JPEGSyntax.pack_quant_table(bits_MCU, chroma_quant, zigzag, False)
-  JPEGSyntax.pack_frame_header(bits_MCU, H, W)
+  JPEGSyntax.pack_frame_header(bits_MCU, H, W, do_greyscale)
   JPEGSyntax.pack_huffman_table(bits_MCU, luma_DC_bits, luma_DC_vals, True, 0)
   JPEGSyntax.pack_huffman_table(bits_MCU, luma_AC_bits, luma_AC_vals, False, 0)
   JPEGSyntax.pack_huffman_table(bits_MCU, chroma_DC_bits, chroma_DC_vals, True, 1)
   JPEGSyntax.pack_huffman_table(bits_MCU, chroma_AC_bits, chroma_AC_vals, False, 1)
-  JPEGSyntax.pack_scan_header(bits_MCU)
+  JPEGSyntax.pack_scan_header(bits_MCU, do_greyscale)
   # main processing loop
   # don't care about the location of this. It's basically scratch space
-  YCbCr = Block[int,Tup3]((3,8,8))
+  YCbCr = Block[int,Tup3]((3 if not do_greyscale else 1,8,8))
   for r in range(0,H,8):
     for c in range(0,W,8):
       RGB = image[r:r+8,c:c+8,:]
@@ -93,30 +93,36 @@ def driver():
           for j in range(q.get_dims()[1]):
             for k in range(q.get_dims()[2]):
               q[i,j,k] = padded_RGB(i,last_valid_col-1,k)
-        RGB2YCbCr_col_to_row_3D(padded_RGB[:,:,0], padded_RGB[:,:,1], padded_RGB[:,:,2], YCbCr[0,:,:], YCbCr[1,:,:], YCbCr[2,:,:])
+        RGB2YCbCr_col_to_row_3D(padded_RGB[:,:,0], padded_RGB[:,:,1], padded_RGB[:,:,2], YCbCr[0,:,:], YCbCr[1,:,:], YCbCr[2,:,:], do_greyscale) # if greyscale, can still pass in the YCbCr slices since it won't actually be read
       else:
-        RGB2YCbCr_col_to_row_3D(RGB[:,:,0], RGB[:,:,1], RGB[:,:,2], YCbCr[0,:,:], YCbCr[1,:,:], YCbCr[2,:,:])
+        RGB2YCbCr_col_to_row_3D(RGB[:,:,0], RGB[:,:,1], RGB[:,:,2], YCbCr[0,:,:], YCbCr[1,:,:], YCbCr[2,:,:], do_greyscale)
       for coord in YCbCr.citer():
         YCbCr[coord] = YCbCr(*coord) - 128
       # lossy part
       dct(YCbCr[0,:,:])
-      dct(YCbCr[1,:,:])
-      dct(YCbCr[2,:,:])
+      if not do_greyscale:
+        dct(YCbCr[1,:,:])
+        dct(YCbCr[2,:,:])
       quant(YCbCr[0,:,:], luma_quant)
-      quant(YCbCr[1,:,:], chroma_quant)
-      quant(YCbCr[2,:,:], chroma_quant)
+      if not do_greyscale:
+        quant(YCbCr[1,:,:], chroma_quant)
+        quant(YCbCr[2,:,:], chroma_quant)
       # compress
       huffman_encode_block(YCbCr[0,:,:], last_Y, bits_MCU, zigzag, luma_codes)
-      huffman_encode_block(YCbCr[1,:,:], last_Cb, bits_MCU, zigzag, chroma_codes)
-      huffman_encode_block(YCbCr[2,:,:], last_Cr, bits_MCU, zigzag, chroma_codes)
+      if not do_greyscale:
+        huffman_encode_block(YCbCr[1,:,:], last_Cb, bits_MCU, zigzag, chroma_codes)
+        huffman_encode_block(YCbCr[2,:,:], last_Cr, bits_MCU, zigzag, chroma_codes)
       last_Y = YCbCr(0,0,0)
-      last_Cb = YCbCr(1,0,0)
-      last_Cr = YCbCr(2,0,0)
+      if not do_greyscale:
+        last_Cb = YCbCr(1,0,0)
+        last_Cr = YCbCr(2,0,0)
   # finish off bitstream
   bits_MCU.complete_byte_and_stuff(byte(0xFF), byte(0))
   JPEGSyntax.pack_EOI(bits_MCU)
   bits_MCU.flush()
   jpg.close()
   jpg.flush()
+  stop = _C.seq_time_monotonic()
+  print f'Time: {float(stop-start)/1e9}'
   
 driver()
