@@ -1,0 +1,95 @@
+FIX_0_298631336 = 2446
+FIX_0_390180644 = 3196
+FIX_0_541196100 = 4433
+FIX_0_765366865 = 6270
+FIX_0_899976223 = 7373
+FIX_1_175875602 = 9633
+FIX_1_501321110 = 12299
+FIX_1_847759065 = 15137
+FIX_1_961570560 = 16069
+FIX_2_053119869 = 16819
+FIX_2_562915447 = 20995
+FIX_3_072711026 = 25172
+
+def descale(x,n):
+  return (x + (1 << (n-1))) >> n
+
+# From jfdctint.c in jpeg-6b
+# I think these constants might be based on byte values
+def dct(obj):
+  for r in range(8):
+    row = obj[0,r,:]
+    tmp0 = int(row(0,0,0) + row(0,0,7))
+    tmp7 = int(row(0,0,0) - row(0,0,7))
+    tmp1 = int(row(0,0,1) + row(0,0,6))
+    tmp6 = int(row(0,0,1) - row(0,0,6))
+    tmp2 = int(row(0,0,2) + row(0,0,5))
+    tmp5 = int(row(0,0,2) - row(0,0,5))
+    tmp3 = int(row(0,0,3) + row(0,0,4))
+    tmp4 = int(row(0,0,3) - row(0,0,4))
+    tmp10 = tmp0 + tmp3
+    tmp13 = tmp0 - tmp3
+    tmp11 = tmp1 + tmp2
+    tmp12 = tmp1 - tmp2
+    row[0,0,0] = (tmp10 + tmp11) << 2
+    row[0,0,4] = (tmp10 - tmp11) << 2
+    z1 = (tmp12 + tmp13) * FIX_0_541196100
+    row[0,0,2] = descale(z1 + tmp13 * FIX_0_765366865, 11)
+    row[0,0,6] = descale(z1 + tmp12 * -FIX_1_847759065, 11)
+    z1 = tmp4 + tmp7
+    z2 = tmp5 + tmp6
+    z3 = tmp4 + tmp6
+    z4 = tmp5 + tmp7
+    z5 = (z3 + z4) * FIX_1_175875602
+    tmp4 = tmp4 * FIX_0_298631336
+    tmp5 = tmp5 * FIX_2_053119869
+    tmp6 = tmp6 * FIX_3_072711026
+    tmp7 = tmp7 * FIX_1_501321110
+    z1 = z1 * -FIX_0_899976223
+    z2 = z2 * -FIX_2_562915447
+    z3 = z3 * -FIX_1_961570560
+    z4 = z4 * -FIX_0_390180644
+    z3 += z5
+    z4 += z5
+    row[0,0,7] = descale(tmp4 + z1 + z3, 11)
+    row[0,0,5] = descale(tmp5 + z2 + z4, 11)
+    row[0,0,3] = descale(tmp6 + z2 + z3, 11)
+    row[0,0,1] = descale(tmp7 + z1 + z4, 11)
+  for c in range(8):
+    col = obj[0,:,c]
+    tmp0 = int(col(0,0,0) + col(0,7,0))
+    tmp7 = int(col(0,0,0) - col(0,7,0))
+    tmp1 = int(col(0,1,0) + col(0,6,0))
+    tmp6 = int(col(0,1,0) - col(0,6,0))
+    tmp2 = int(col(0,2,0) + col(0,5,0))
+    tmp5 = int(col(0,2,0) - col(0,5,0))
+    tmp3 = int(col(0,3,0) + col(0,4,0))
+    tmp4 = int(col(0,3,0) - col(0,4,0))
+    tmp10 = tmp0 + tmp3
+    tmp13 = tmp0 - tmp3
+    tmp11 = tmp1 + tmp2
+    tmp12 = tmp1 - tmp2      
+    col[0,0,0] = descale(tmp10 + tmp11, 2)
+    col[0,4,0] = descale(tmp10 - tmp11, 2)
+    z1 = (tmp12 + tmp13) * FIX_0_541196100
+    col[0,2,0] = descale(z1 + tmp13 * FIX_0_765366865, 15)
+    col[0,6,0] = descale(z1 + tmp12 * -FIX_1_847759065, 15)
+    z1 = tmp4 + tmp7
+    z2 = tmp5 + tmp6
+    z3 = tmp4 + tmp6
+    z4 = tmp5 + tmp7
+    z5 = (z3 + z4) * FIX_1_175875602
+    tmp4 = tmp4 * FIX_0_298631336
+    tmp5 = tmp5 * FIX_2_053119869
+    tmp6 = tmp6 * FIX_3_072711026
+    tmp7 = tmp7 * FIX_1_501321110
+    z1 = z1 * -FIX_0_899976223
+    z2 = z2 * -FIX_2_562915447
+    z3 = z3 * -FIX_1_961570560
+    z4 = z4 * -FIX_0_390180644
+    z3 += z5
+    z4 += z5
+    col[0,7,0] = descale(tmp4 + z1 + z3, 15)
+    col[0,5,0] = descale(tmp5 + z2 + z4, 15)
+    col[0,3,0] = descale(tmp6 + z2 + z3, 15)
+    col[0,1,0] = descale(tmp7 + z1 + z4, 15) 

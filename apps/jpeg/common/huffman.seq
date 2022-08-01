@@ -1,0 +1,133 @@
+# I don't totally understand the huffman encoding part (mainly the differences that you append on),
+# so the actual part where you get the code is mostly copied from jpeg-9b
+
+@extend
+class Array:
+
+  def __str__(self):
+    s = '['
+    first = True
+    for i in range(len(self)):
+      if not first:
+        s += ', '
+      first = False
+      s += str(self[i])
+    s += ']'
+    return s
+
+class HuffmanCodes:
+  dc_ehufco: Array[int]
+  dc_ehufsz: Array[int]
+  ac_ehufco: Array[int]
+  ac_ehufsz: Array[int]
+
+  def __init__(self, dc_ehufco, dc_ehufsz, ac_ehufco, ac_ehufsz):
+    self.dc_ehufco = dc_ehufco
+    self.dc_ehufsz = dc_ehufsz
+    self.ac_ehufco = ac_ehufco
+    self.ac_ehufsz = ac_ehufsz
+
+  def __str__(self):
+    s = 'DC ehufsz\n'
+    s += str(self.dc_ehufco) + '\nDC ehufsz\n'
+    s += str(self.dc_ehufsz) + '\nAC ehufco\n'
+    s += str(self.ac_ehufco) + '\nAC ehufsz\n'
+    s += str(self.ac_ehufsz) + '\n'
+    return s
+
+def pack_and_stuff(bits, code: int, nbits: int):
+  bits.pack_stuff_flush(code, nbits, byte(0xFF), byte(0))
+
+# Figure C.1 -- jpeg_make_c_derived_table
+def generate_huffsize(huff_bits):
+  huffsize = Array[int](257)
+  p = 0
+  for l in range(1,17):
+    i = huff_bits[l]
+    i -= 1
+    while i >= 0:
+      huffsize[p] = l
+      p += 1
+      i -= 1
+  huffsize[p] = 0
+  return huffsize,p
+
+# Figure C.2 -- jpeg_make_c_derived_table
+def generate_huffcode(huffsize):
+  huffcode = Array[int](257)
+  code = 0
+  si = huffsize[0]
+  p = 0
+  while huffsize[p] != 0:
+    while huffsize[p] == si:
+      huffcode[p] = code
+      p += 1
+      code += 1
+    code <<= 1
+    si += 1
+  return huffcode
+
+# Figure C.3 -- jpeg_make_c_derived_table
+def generate_ehufco(huffval, huffcode, huffsize, lastp):
+  ehufco = Array[int](256)
+  ehufsz = Array[int](256)
+  for p in range(lastp):
+    i = huffval[p]
+    ehufco[i] = huffcode[p]
+    ehufsz[i] = huffsize[p]
+  return ehufco,ehufsz
+
+def generate_DC_AC(DC_bits, DC_vals, AC_bits, AC_vals):
+  huffsize_DC,lastp_DC = generate_huffsize(DC_bits)
+  huffsize_AC,lastp_AC = generate_huffsize(AC_bits)
+  huffcode_DC = generate_huffcode(huffsize_DC)
+  huffcode_AC = generate_huffcode(huffsize_AC)
+  ehufco_DC,ehufsz_DC = generate_ehufco(DC_vals, huffcode_DC, huffsize_DC, lastp_DC)
+  ehufco_AC,ehufsz_AC = generate_ehufco(AC_vals, huffcode_AC, huffsize_AC, lastp_AC)
+  codes = HuffmanCodes(ehufco_DC,ehufsz_DC,ehufco_AC,ehufsz_AC)
+  return codes
+
+# see function encode_one_block in jchuff.c
+def huffman_encode_block(blk, last, bits, zigzag, huff_codes: HuffmanCodes):
+  # DC
+  dc = blk(0,0,0)
+  temp = dc - last
+  temp2 = temp
+  if temp < 0:
+    temp = -temp
+    temp2 -= 1
+  nbits = 0
+  while temp > 0:
+    nbits += 1
+    temp >>= 1
+  pack_and_stuff(bits, huff_codes.dc_ehufco[nbits], huff_codes.dc_ehufsz[nbits])
+  if nbits != 0:
+    pack_and_stuff(bits, temp2, nbits)
+  # AC
+  run = 0
+  ziter = iter(zigzag)
+  next(ziter) # skip the DC
+  for zcoord in ziter:
+    temp = blk(0,*zcoord)
+    if temp == 0:
+      run += 1
+    else:
+      while run > 15:
+        pack_and_stuff(bits, huff_codes.ac_ehufco[0xF0], huff_codes.ac_ehufsz[0xF0])
+        run -= 16
+      temp2 = temp
+      if temp < 0:
+        temp = -temp
+        temp2 -= 1
+      nbits = 1
+      temp >>= 1
+      while temp > 0:
+        nbits += 1
+        temp >>= 1
+      i = (run << 4) + nbits
+      pack_and_stuff(bits, huff_codes.ac_ehufco[i], huff_codes.ac_ehufsz[i])
+      pack_and_stuff(bits, temp2, nbits)
+      run = 0
+  if run > 0:
+    pack_and_stuff(bits, huff_codes.ac_ehufco[0], huff_codes.ac_ehufsz[0])
+

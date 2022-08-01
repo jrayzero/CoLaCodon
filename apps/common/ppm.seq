@@ -1,0 +1,20 @@
+from cola.blocks import *
+
+# reads binary ppm format (magic number P6)
+# get the necessary info out of the header
+# requires strict format
+# P6
+# height width
+# max val
+# R G B R G B ...
+# no comments or blank lines
+def read_ppm_header(fn: str):
+  fd = open(fn, 'rb')
+  magic = fd.readline().strip()
+  assert magic == 'P6'
+  HW = fd.readline().strip().split(' ')
+  H = int(HW[1])
+  W = int(HW[0])
+  max_val = int(fd.readline().strip())  
+  return H,W,max_val,fd
+

@@ -1,0 +1,160 @@
+SOF0 = 0xFFC0
+SOF1 = 0xFFC1
+SOF2 = 0xFFC2
+SOF3 = 0xFFC3
+SOF5 = 0xFFC5
+SOF6 = 0xFFC6
+SOF7 = 0xFFC7
+JPG = 0xFFC8
+SOF9 = 0xFFC9
+SOF10 = 0xFFCA
+SOF11 = 0xFFCB
+SOF13 = 0xFFCD
+SOF14 = 0xFFCE
+SOF15 = 0xFFCF
+DHT = 0xFFC4
+DAC = 0xFFCC
+RST0 = 0xFFD0
+RST1 = 0xFFD1
+RST2 = 0xFFD2
+RST3 = 0xFFD3
+RST4 = 0xFFD4
+RST5 = 0xFFD5
+RST6 = 0xFFD6
+RST7 = 0xFFD7
+SOI = 0xFFD8
+EOI = 0xFFD9
+SOS = 0xFFDA
+DQT = 0xFFDB
+DNL = 0xFFDC
+DRI = 0xFFDD
+DHP = 0xFFDE
+EXP = 0xFFDF
+APP0 = 0xFFE0
+APP1 = 0xFFE1
+APP2 = 0xFFE2
+APP3 = 0xFFE3
+APP4 = 0xFFE4
+APP5 = 0xFFE5
+APP6 = 0xFFE6
+APP7 = 0xFFE7
+APP8 = 0xFFE8
+APP9 = 0xFFE9
+APP10 = 0xFFEA
+APP11 = 0xFFEB
+APP12 = 0xFFEC
+APP13 = 0xFFED
+APP14 = 0xFFEE
+APP15 = 0xFFEF
+JPG0 = 0xFFF0
+JPG1 = 0xFFF1
+JPG2 = 0xFFF2
+JPG3 = 0xFFF3
+JPG4 = 0xFFF4
+JPG5 = 0xFFF5
+JPG6 = 0xFFF6
+JPG7 = 0xFFF7
+JPG8 = 0xFFF8
+JPG9 = 0xFFF9
+JPG10 = 0xFFFA
+JPG11 = 0xFFFB
+JPG12 = 0xFFFC
+JPG13 = 0xFFFD
+JPG14 = 0xFFFE
+JPG15 = 0xFF01
+
+class JPEGSyntax:
+
+  def pack_SOI(bits):
+    bits.pack(SOI, 16)
+
+  def pack_EOI(bits):
+    bits.pack(EOI, 16)
+
+  # https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format
+  def pack_JFIF(bits):
+    bits.pack(APP0, 16)
+    bits.pack(16, 16) # length
+    bits.pack(0x4A46494600, 40) # JFIF
+    bits.pack(0x0101, 16) # version
+    bits.pack(0x00, 8) # density
+    bits.pack(0x01, 16) # Xdensity
+    bits.pack(0x01, 16) # Ydensity
+    bits.pack(0x00, 8)
+    bits.pack(0x00, 8)
+
+  def pack_frame_header(bits, H, W, greyscale: bool = False):
+    bits.pack(SOF0, 16)
+    Nf = 3 if not greyscale else 1
+    Lf = 8 + 3 * Nf
+    Hs = 1
+    Vs = 1
+    bits.pack(Lf, 16)
+    bits.pack(8, 8) # P
+    bits.pack(H, 16) # Y
+    bits.pack(W, 16) # X
+    bits.pack(Nf, 8)
+    # luma
+    bits.pack(1, 8) # Ci
+    bits.pack(Hs, 4) # Hi
+    bits.pack(Vs, 4) # Vi
+    bits.pack(0, 8) # Tqi
+    if not greyscale:
+      # chroma Cb
+      bits.pack(2, 8) # Ci
+      bits.pack(Hs, 4) # Hi 
+      bits.pack(Vs, 4) # Vi
+      bits.pack(1, 8) # Tqi
+      # chroma Cr
+      bits.pack(3, 8) # Ci
+      bits.pack(Hs, 4) # Hi 
+      bits.pack(Vs, 4) # Vi
+      bits.pack(1, 8) # Tqi
+
+  def pack_scan_header(bits, greyscale: bool = False):
+    bits.pack(SOS, 16)
+    Ns = 3
+    Ls = 6 + 2 * Ns
+    bits.pack(Ls, 16)
+    bits.pack(Ns, 8)
+    # luma
+    bits.pack(1, 8) 
+    bits.pack(0, 4)
+    bits.pack(0, 4)
+    if not greyscale:
+      # chroma Cb
+      bits.pack(2, 8) 
+      bits.pack(1, 4)
+      bits.pack(1, 4)
+      # chroma Cr
+      bits.pack(3, 8) 
+      bits.pack(1, 4)
+      bits.pack(1, 4)        
+    bits.pack(0, 8) # Ss
+    bits.pack(63, 8) # Se
+    bits.pack(0, 4) # Ah
+    bits.pack(0, 4) # Al   
+
+  def pack_quant_table(bits, quant, zigzag, is_luma: bool):
+    Lq = 67 # 1 table
+    Pq = 0    
+    bits.pack(DQT, 16)
+    bits.pack(Lq, 16)
+    bits.pack(Pq, 4)
+    bits.pack(0 if is_luma else 1, 4) # Tq
+    for z in zigzag:
+      q = quant(*z)
+      bits.pack(q, 8)
+    
+  def pack_huffman_table(bits, huffbits, huffvals, is_dc: bool, ident):
+    Lh = 2 + len(huffbits) + len(huffvals) 
+    bits.pack(DHT, 16)
+    bits.pack(Lh, 16)
+    bits.pack(0 if is_dc else 1, 4) 
+    bits.pack(ident, 4)
+    it = iter(huffbits)
+    next(it)
+    for Li in it:
+      bits.pack(Li, 8)
+    for Vij in huffvals:
+      bits.pack(Vij, 8)    

@@ -1,0 +1,123 @@
+import sys
+from cola.blocks import *
+from ..common.huffman import *
+from ..common.tables import *
+from ..common.syntax import *
+from ..common.quant import *
+from ..common.dct import *
+from ..common.color import *
+from ...common.generic_bitstream import *
+from ...common.ppm import *
+
+# JPEG is a big-endian format, so we can just pack directly into the stream
+
+def driver():
+  # args
+  if len(sys.argv) < 3:
+    print f'Usage: jpeg.seq <ppm> <jpg> [<quality>]'
+    exit(1)
+  image_ppm = sys.argv[1]
+  image_jpg = sys.argv[2]
+  quality = 75
+  capacity = 1024
+  if len(sys.argv) >= 4:
+    quality = int(sys.argv[3])
+  # setup
+  luma_DC_bits,luma_DC_vals = make_luma_DC_huff()
+  chroma_DC_bits,chroma_DC_vals = make_chroma_DC_huff() 
+  luma_AC_bits,luma_AC_vals = make_luma_AC_huff()
+  chroma_AC_bits,chroma_AC_vals = make_chroma_AC_huff() 
+  luma_codes = generate_DC_AC(luma_DC_bits, luma_DC_vals, luma_AC_bits, luma_AC_vals)
+  chroma_codes = generate_DC_AC(chroma_DC_bits, chroma_DC_vals, chroma_AC_bits, chroma_AC_vals)
+  zigzag = init_zigzag()
+  luma_quant = make_luma_quant()  
+  chroma_quant = make_chroma_quant()  
+  last_Y = 0
+  last_Cb = 0
+  last_Cr = 0
+
+  # scale the quant matrices
+  scale_quant(luma_quant, quality)
+  scale_quant(chroma_quant, quality)
+
+  # read in data  
+  H,W,max_val,ppm_fd = read_ppm_header(image_ppm)
+  image = Block[byte,Tup3]((H,W,3))
+  ppm_fd.read(image)
+  jpg = open(image_jpg, 'wb')
+
+  # make bits
+  bits_MCU = Bitstream(capacity)
+  bits_MCU.fd = jpg
+  
+  # write initial header info
+  JPEGSyntax.pack_SOI(bits_MCU)
+  JPEGSyntax.pack_JFIF(bits_MCU)
+  JPEGSyntax.pack_quant_table(bits_MCU, luma_quant, zigzag, True)
+  JPEGSyntax.pack_quant_table(bits_MCU, chroma_quant, zigzag, False)
+  JPEGSyntax.pack_frame_header(bits_MCU, H, W)
+  JPEGSyntax.pack_huffman_table(bits_MCU, luma_DC_bits, luma_DC_vals, True, 0)
+  JPEGSyntax.pack_huffman_table(bits_MCU, luma_AC_bits, luma_AC_vals, False, 0)
+  JPEGSyntax.pack_huffman_table(bits_MCU, chroma_DC_bits, chroma_DC_vals, True, 1)
+  JPEGSyntax.pack_huffman_table(bits_MCU, chroma_AC_bits, chroma_AC_vals, False, 1)
+  JPEGSyntax.pack_scan_header(bits_MCU)
+  # main processing loop
+  # don't care about the location of this. It's basically scratch space
+  YCbCr = Block[int,Tup3]((3,8,8))
+  for r in range(0,H,8):
+    for c in range(0,W,8):
+      RGB = image[r:r+8,c:c+8,:]
+      if r+8 > H or c+8 > W:
+        # need padding
+        row_pad = 0
+        col_pad = 0
+        if r+8 > H:
+          row_pad = 8 - (H % 8)
+        if c+8 > W:
+          col_pad = 8 - (W % 8)
+        padded_RGB = Block[byte,Tup3](RGB)
+        padded_RGB[:,:,:] = byte(0)
+        # exclusive
+        last_valid_row = 8 - row_pad
+        last_valid_col = 8 - col_pad
+        valid = RGB[:last_valid_row,:last_valid_col,:]
+        v = padded_RGB[valid]
+        for coord in v.citer():
+          v[coord] = valid(*coord)
+        p = padded_RGB[last_valid_row:,:,:]
+        q = padded_RGB[:,last_valid_col:,:]
+        for i in range(p.get_dims()[0]):
+          for j in range(p.get_dims()[1]):
+            for k in range(p.get_dims()[2]):
+              p[i,j,k] = padded_RGB(last_valid_row-1,j,k)
+        for i in range(q.get_dims()[0]):
+          for j in range(q.get_dims()[1]):
+            for k in range(q.get_dims()[2]):
+              q[i,j,k] = padded_RGB(i,last_valid_col-1,k)
+        RGB2YCbCr_col_to_row_3D(padded_RGB[:,:,0], padded_RGB[:,:,1], padded_RGB[:,:,2], YCbCr[0,:,:], YCbCr[1,:,:], YCbCr[2,:,:])
+      else:
+        RGB2YCbCr_col_to_row_3D(RGB[:,:,0], RGB[:,:,1], RGB[:,:,2], YCbCr[0,:,:], YCbCr[1,:,:], YCbCr[2,:,:])
+      for coord in YCbCr.citer():
+        YCbCr[coord] = YCbCr(*coord) - 128
+      # lossy part
+      dct(YCbCr[0,:,:])
+      dct(YCbCr[1,:,:])
+      dct(YCbCr[2,:,:])
+      quant(YCbCr[0,:,:], luma_quant)
+      quant(YCbCr[1,:,:], chroma_quant)
+      quant(YCbCr[2,:,:], chroma_quant)
+      # compress
+      huffman_encode_block(YCbCr[0,:,:], last_Y, bits_MCU, zigzag, luma_codes)
+      huffman_encode_block(YCbCr[1,:,:], last_Cb, bits_MCU, zigzag, chroma_codes)
+      huffman_encode_block(YCbCr[2,:,:], last_Cr, bits_MCU, zigzag, chroma_codes)
+      last_Y = YCbCr(0,0,0)
+      last_Cb = YCbCr(1,0,0)
+      last_Cr = YCbCr(2,0,0)
+  # finish off bitstream
+  bits_MCU.complete_byte_and_stuff(byte(0xFF), byte(0))
+  JPEGSyntax.pack_EOI(bits_MCU)
+  bits_MCU.flush()
+  jpg.close()
+  jpg.flush()
+  
+driver()
