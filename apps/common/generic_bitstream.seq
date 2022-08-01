@@ -10,6 +10,7 @@ class Bitstream:
   bit_idx: int
   accum: u64
   total: int
+  fd: Optional[File]
 
   def __init__(self, capacity=2048):
     self.capacity = capacity 
@@ -31,6 +32,13 @@ class Bitstream:
     if self.byte_idx == 0:
       return
     fd.write(self.bits, self.byte_idx)
+    self.bits[0] = self.bits[self.byte_idx]
+    self.byte_idx = 0
+
+  def flush(self):
+    if self.byte_idx == 0:
+      return
+    self.fd.write(self.bits, self.byte_idx)
     self.bits[0] = self.bits[self.byte_idx]
     self.byte_idx = 0
 
@@ -78,6 +86,35 @@ class Bitstream:
         self.flush(fd)
       self.bit_idx -= 8
       self.accum <<= u64(8)
+
+  def pack_stuff_flush(self, val: int, nbits, stuff_on: byte, stuff_with: byte):
+    if nbits <= 0 or nbits >= 64:
+      return
+    self.total += nbits
+    # can pack up to 57 bits in one go through here
+    val2 = val
+    mask = (1 << nbits) - 1
+    val2 &= mask
+    shift_amt = 64 - nbits - self.bit_idx
+    val2 <<= shift_amt
+    self.accum |= u64(val2)
+    self.bit_idx += nbits
+    if self.space_available() < 49: # pack max 7 bytes with 1 stuff each
+      self.flush(~self.fd)
+    while self.bit_idx >= 8:
+      val3 = self.accum >> u64(56)
+      self.bits[self.byte_idx] = byte(val3)
+      self.byte_idx += 1
+      if byte(val3) == stuff_on:
+        self.bits[self.byte_idx] = stuff_with
+        self.byte_idx += 1        
+      self.bit_idx -= 8
+      self.accum <<= u64(8)
+
+  def complete_byte_and_stuff(self, stuff_on: byte, stuff_val: byte):
+    rem = self.bit_idx % 8
+    if rem > 0:
+      self.pack_stuff_flush(0xFF, 8-rem, stuff_on, stuff_val)
 
   def reset(self):
     self.byte_idx = 0
