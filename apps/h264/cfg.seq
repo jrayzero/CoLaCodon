@@ -1,3 +1,5 @@
+from ..common.cfg_utils import *
+
 @dataclass(init=False)
 class EncoderCfg:
   # Input
@@ -70,26 +72,6 @@ class EncoderCfg:
     s += f'disable_motion_estimation = : {self.disable_motion_estimation}\n'
     s += f'qp_init: {self.qp_init}\n'
     return s
-
-def parse_str(param,value):    
-  if len(value) == 0:
-    print f'Empty string found for {param}'
-    exit(-1)
-  return value
-
-def parse_bool(param,value):
-  value = value.lower()
-  if value != 'true' and value != 'false':
-    print f'Expected boolean, got {value} for {param}' 
-    exit(-1)
-  return value == 'true'
-
-def parse_int(param,value):
-  try:
-    return int(value)
-  except:
-    print f'Expected int, got {value} for {param}'
-    exit(-1)
   
 def parse_param(param, value, cfg):
   param = param.lower()
@@ -134,22 +116,3 @@ def parse_param(param, value, cfg):
     cfg.qp_init = parse_int(param,value)
   else:
     print f'Unknown cfg param: {param}'
-  
-def parse_config(cfg_fn: str):
-  fd = open(cfg_fn, 'r')
-  cfg = EncoderCfg()
-  for line in fd:
-    line = line.strip()
-    if len(line) == 0 or line[0] == '#':
-      continue
-    spl = line.split()
-    if len(spl) != 3:
-      print 'Configuration parameter should have form: <param> = <value>'
-      exit(-1)
-    if spl[1].strip() != '=':
-      print 'Configuration parameter should have form: <param> = <value>'
-      exit(-1)      
-    param,value = spl[0].strip(),spl[2].strip()
-    parse_param(param,value,cfg)
-  fd.close()
-  return cfg

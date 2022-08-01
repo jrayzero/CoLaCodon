@@ -1,0 +1,20 @@
+class Stats:
+  Y_psnr: float
+  Cb_psnr: float
+  Cr_psnr: float
+  total_nsec: int
+  greyscale: bool
+
+  def __init__(self):
+    self.Y_psnr = 0.0
+    self.Cb_psnr = 0.0
+    self.Cr_psnr = 0.0
+    self.total_nsec = 0
+    self.greyscale = False
+
+  def __str__(self):
+    s = f'Y psnr: {self.Y_psnr/float(self.nframes)}\n'
+    if not self.greyscale:
+      s += f'Cb psnr: {self.Cb_psnr/float(self.nframes)}\n'
+      s += f'Cr psnr: {self.Cr_psnr/float(self.nframes)}\n'
+    return s

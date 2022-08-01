@@ -1,0 +1,11 @@
+from cola.blocks import *
+
+def read_binary_netbpm_header(fn: str):
+  fd = open(fn, 'rb')
+  magic = fd.readline().strip()
+  HW = fd.readline().strip().split(' ')
+  H = int(HW[1])
+  W = int(HW[0])
+  max_val = int(fd.readline().strip())  
+  return H,W,max_val,fd,magic == 'P5'
+

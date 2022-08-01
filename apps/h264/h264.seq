@@ -8,6 +8,30 @@ from constants import *
 from nal_unit import *
 from slices import *
 from quant import *
+from ..common.cost import *
+from ..common.cfg_utils import *
+
+class Stats:
+  Y_psnr: float
+  Cb_psnr: float
+  Cr_psnr: float
+  total_nsec: int
+  nframes: int
+
+  def __init__(self, nframes):
+    self.Y_psnr = 0.0
+    self.Cb_psnr = 0.0
+    self.Cr_psnr = 0.0
+    self.total_nsec = 0
+    self.nframes = nframes
+
+  def __str__(self):
+    s = f'Y psnr: {self.Y_psnr/float(self.nframes)}\n'
+    s += f'Cb psnr: {self.Cb_psnr/float(self.nframes)}\n'
+    s += f'Cr psnr: {self.Cr_psnr/float(self.nframes)}\n'
+    s += f'nframes: {self.nframes}\n'
+    s += f'FPS: {float(self.total_nsec)/float(self.nframes)/1e9}'
+    return s
 
 def init_SPS(cfg):
   sps = SPS()
@@ -15,10 +39,7 @@ def init_SPS(cfg):
   sps.level_idc = cfg.level
   if cfg.profile == 66:
     sps.constraint_set1_flag = True
-  if not cfg.disable_motion_estimation:
-    assert False
-  else:
-    sps.pic_order_cnt_type = 0
+  sps.pic_order_cnt_type = 0
   return sps
 
 def init_PPS(cfg):
@@ -29,7 +50,7 @@ def init_PPS(cfg):
 def main():
   if len(sys.argv) < 2:
     print 'Usage: h264.seq <cfg>'
-  cfg = parse_config(sys.argv[1])
+  cfg = parse_config(sys.argv[1], parse_param, EncoderCfg)
   video = Video(init_SPS(cfg), cfg, Bitstream(32768), open(cfg.output_fn, 'wb'))
   video.cfg = cfg
   video.sps = init_SPS(cfg)
@@ -39,7 +60,9 @@ def main():
   quant_tables = QuantTables()
   frame_idx = 0
   encode_SPS(video.sps, video.cfg.height, video.cfg.width, video.bitstream, video.fd)
+  stats = Stats(cfg.nframes)
   # go through frames
+  start = _C.seq_time_monotonic()	
   for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
     print f'Frame: {frame_idx}'
     # build surrounding frame components
@@ -54,8 +77,13 @@ def main():
     encode_slice_payload(encoder_frame, video, quant_tables, slice_nal)
     finalize_nal_unit(video.bitstream, slice_nal, video.fd)
     frame_idx += 1
+    stats.Y_psnr += psnr(encoder_frame.Y_raw_frame, encoder_frame.Y_recons_frame)
+    stats.Cb_psnr += psnr(encoder_frame.Cb_raw_frame, encoder_frame.Cb_recons_frame)
+    stats.Cr_psnr += psnr(encoder_frame.Cr_raw_frame, encoder_frame.Cr_recons_frame)
+  stop = _C.seq_time_monotonic()
+  stats.total_nsec = (stop-start)
   yuv420.cleanup()
   video.fd.flush()
   video.fd.close()
-
+  print stats
 main()

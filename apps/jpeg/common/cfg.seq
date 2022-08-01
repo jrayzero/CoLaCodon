@@ -1,0 +1,41 @@
+from ...common.cfg_utils import *
+
+# Gets user input
+@dataclass(init=False)
+class JPEGCfg:
+  input_fn: str
+  output_fn: str
+  # Quantize
+  quality: int
+  # Other
+  force_greyscale: bool # this is for if you want to CONVERT to greyscale
+  capacity: int
+
+  def __init__(self):
+    self.input_fn = ''
+    self.output_fn = ''
+    self.quality = 75
+    self.force_greyscale = False
+    self.capacity = 1024
+
+  def __str__(self):    
+    s = f'quality: {self.quality}\n'
+    s += f'force_greyscale: {self.force_greyscale}\n'
+    s += f'capacity: {self.capacity}\n'
+    return s
+  
+def parse_param(param, value, cfg):
+  param = param.lower()
+  if param == 'input_fn':
+    cfg.input_fn = parse_str(param,value)
+  elif param == 'output_fn':
+    cfg.output_fn = parse_str(param,value)
+  elif param == 'quality':
+    cfg.quality = parse_int(param,value)
+  elif param == 'force_greyscale':
+    cfg.force_greyscale = parse_bool(param,value)
+  elif param == 'capacity':
+    cfg.capacity = parse_int(param,value)
+  else:
+    print f'Unknown cfg param: {param}'
+    exit(-1)

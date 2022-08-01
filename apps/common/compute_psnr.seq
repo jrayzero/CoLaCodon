@@ -1,0 +1,35 @@
+from cola.blocks import *
+from cost import *
+from netbpm import *
+from typedefs import *
+import sys
+
+def get_ppm(fn):
+  H,W,_,fd,greyscale=read_binary_netbpm_header(fn)
+  image = Block[byte,Tup3]((H,W,3 if not greyscale else 1))
+  fd.read(image)
+  fd.close()
+  return image,greyscale
+
+fn0 = sys.argv[1]
+fn1 = sys.argv[2]
+
+image0,g0 = get_ppm(fn0)
+image1,g1 = get_ppm(fn1)
+
+assert g0 == g1
+
+y0 = image0[:,:,0]
+cb0 = image0[:,:,1]
+cr0 = image0[:,:,2]
+y1 = image1[:,:,0]
+cb1 = image1[:,:,1]
+cr1 = image1[:,:,2]
+
+ypsnr = psnr(y0,y1)
+print f'Y psnr: {ypsnr}'
+if not g0:
+  Cbpsnr = psnr(cb0,cb1)
+  print f'Cb psnr: {Cbpsnr}'
+  Crpsnr = psnr(cr0,cr1)
+  print f'Cr psnr: {Crpsnr}'
