@@ -4,6 +4,28 @@ from encoder import *
 from h261_bitstream import *
 from ..common.yuv import *
 
+class Stats:
+  Y_psnr: float
+  Cb_psnr: float
+  Cr_psnr: float
+  total_nsec: int
+  nframes: int
+
+  def __init__(self, nframes):
+    self.Y_psnr = 0.0
+    self.Cb_psnr = 0.0
+    self.Cr_psnr = 0.0
+    self.total_nsec = 0
+    self.nframes = nframes
+
+  def __str__(self):
+    s = f'Y psnr: {self.Y_psnr/float(self.nframes)}\n'
+    s += f'Cb psnr: {self.Cb_psnr/float(self.nframes)}\n'
+    s += f'Cr psnr: {self.Cr_psnr/float(self.nframes)}\n'
+    s += f'nframes: {self.nframes}\n'
+    s += f'FPS: {float(self.total_nsec)/float(self.nframes)/1e9}'
+    return s
+
 def main():
   if len(sys.argv) < 2:
     print 'Usage: h261.seq <cfg>'
@@ -14,8 +36,10 @@ def main():
   bitstream = H261Bitstream(cfg.output_fn)
   state = H261State(cfg.qp_init, cfg.cif, bitstream)
   state.cfg = cfg
-  # go through frames  
   intra_frame = True
+  stats = Stats(cfg.nframes)
+  # go through frames
+  start = _C.seq_time_monotonic()	  
   for Y_raw_frame,Cb_raw_frame,Cr_raw_frame in yuv420:
     # Figure out whether intra or inter
     # inter frames can contain intra, but not vice versa
@@ -44,7 +68,12 @@ def main():
     gop_idx += 1
     gop_idx %= cfg.gop_size
     state.rframes = rframes
+    stats.Y_psnr += psnr(Y_raw_frame, Y_rframe)
+    stats.Cb_psnr += psnr(Cb_raw_frame, Cb_rframe)
+    stats.Cr_psnr += psnr(Cr_raw_frame, Cr_rframe)    
+  stop = _C.seq_time_monotonic()
+  stats.total_nsec = (stop-start)    
   yuv420.cleanup()
   bitstream.cleanup()
-
+  print stats
 main()

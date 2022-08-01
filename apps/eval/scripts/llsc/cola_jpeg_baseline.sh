@@ -9,6 +9,7 @@ flower=$bindir/jpeg_flower.cfg
 cathedral=$bindir/jpeg_cathedral.cfg
 
 dir=/home/gridsan/je23693/compression_benchmarks/tests/jpeg/cola/$testN/
+mkdir -p $dir
 git log -1 &>$dir/commit
 
 # compile
@@ -16,7 +17,6 @@ cd $bindir
 $cola/build/colac build -release jpeg.seq
 
 ##### ADD BENCHMARK HERE
-mkdir -p $dir
 rm -f $dir/flower.log
 rm -f $dir/cathedral.log
 rm -f $dir/spider.log
@@ -24,7 +24,7 @@ touch $dir/flower.log
 touch $dir/cathedral.log
 touch $dir/spider.log
 
-cp $cola/apps/eval/scripts/cola_jpeg_baseline.sh $dir # copy params
+cp $cola/apps/eval/scripts/llsc/cola_jpeg_baseline.sh $dir # copy params
 
 ##### ADD BENCHMARK HERE
 
