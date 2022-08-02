@@ -82,3 +82,4 @@ apps/h264/h264
 **/*.Y
 **/*.U
 **/*.V
+benchmarks/*
