@@ -1,0 +1,4 @@
+md5
+- flower: 686b38edeacb1fb560e7d4b3a119259a
+- cathedral: 6122ecb86fe2312c129de147bc9ca068
+- spider: 5401d1c19b73824d4467e8b733ca6400
