@@ -65,7 +65,7 @@ int docMode(const std::vector<const char *> &args, const std::string &argv0) {
 
 ProcessResult processSource(const std::vector<const char *> &args) {
   llvm::cl::opt<std::string> input(llvm::cl::Positional, llvm::cl::desc("<input file>"),
-                                   llvm::cl::init("-"));
+                                   llvm::cl::Required);
   llvm::cl::opt<OptMode> optMode(
       llvm::cl::desc("optimization mode"),
       llvm::cl::values(
@@ -80,6 +80,7 @@ ProcessResult processSource(const std::vector<const char *> &args) {
   llvm::cl::list<std::string> disabledOpts(
       "disable-opt", llvm::cl::desc("Disable the specified IR optimization"));
   llvm::cl::list<std::string> dsls("dsl", llvm::cl::desc("Use specified DSL"));
+  llvm::cl::opt<std::string> cfg("cfg", llvm::cl::desc("Use specified config file for compiling input file."));  
 
   llvm::cl::ParseCommandLineOptions(args.size(), args.data());
 
@@ -122,7 +123,7 @@ ProcessResult processSource(const std::vector<const char *> &args) {
   seq::PluginManager plm(&pm, isDebug);
 
   // load CoLa
-  CoLa colaDSL;
+  CoLa colaDSL(cfg);
   plm.load(&colaDSL);
 
   LOG_TIME("[T] ir-setup = {:.1f}",
