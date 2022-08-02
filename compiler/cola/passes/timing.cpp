@@ -90,7 +90,7 @@ void Timing::visit(Module *module) {
 						    {module->getStringType(),
 						     module->getIntType()}, {}, 
 						    colaUtilsModule));
-    reports->push_back(util::call(reporter, {module->getString(kv.second.first),
+    reports->push_back(util::call(reporter, {module->getString(kv.first),
 					     module->Nr<VarValue>(kv.second.second)}));
   }
   auto *reportFunc = makeEmptyFunc(module, "__report_timing");
@@ -124,6 +124,6 @@ void Timing::handle(CallInstr *instr) {
     InsertTimingCalls inserter(timerStart, timerAccum, func);
     body->accept(inserter);
     func->setBody(body);
-    LOG_IR("[{}] Inserted timing for function {}.", KEY, uname);
+    LOG_IR("[{}] Inserted timing for function {} ({}).", KEY, uname, mname);
   }
 }
