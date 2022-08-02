@@ -47,12 +47,15 @@ Timing::Timing(string cfgFile) {
       vector<string> tokens = splitString(line, "=");
       if (tokens.size() < 2) continue;
       string tok0 = toLower(trim(tokens[0]));
-      string tok1 = toLower(trim(tokens[1]));
+      string tok1 = trim(tokens[1]);
       if (tok0 == "time") {
 	funcsToTime.insert(tok1);
       }
     }
     cfgFd.close();
+  } else if (!cfgFile.empty()) {
+    cerr << "Could not open config file: " << cfgFile << endl;
+    exit(-1);
   }
 }
 
@@ -65,7 +68,11 @@ BodiedFunc *makeEmptyFunc(Module *module, string name) {
 }
 
 void Timing::visit(Module *module) {
+  for (auto t : funcsToTime) {
+    LOG_IR("[{}] Looking to time {}.", KEY, t);
+  }
   util::Operator::visit(module);
+  if (alreadyTimed.empty()) return;
   // need to create a new function that initializes all of the globals
   auto *inits = module->Nr<SeriesFlow>();
   for (auto kv : alreadyTimed) {
