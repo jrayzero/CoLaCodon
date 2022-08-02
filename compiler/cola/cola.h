@@ -10,7 +10,8 @@ struct CoLa : public DSL {
 public:
   explicit CoLa(string cfgFile) : cfgFile(cfgFile) { }
   string getName() const override { return "CoLa"; }
-  void addIRPasses(ir::transform::PassManager *pm, bool debug) override;
+  void addIRPasses(transform::PassManager *pm, bool debug) override;
 private:
+  void registerCommonPasses(transform::PassManager *pm);
   string cfgFile;
 };
