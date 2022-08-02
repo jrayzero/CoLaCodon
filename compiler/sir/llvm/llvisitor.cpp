@@ -276,7 +276,10 @@ void LLVMVisitor::verify() {
   seqassert(!broken, "module broken");
 }
 
-void LLVMVisitor::dump(const std::string &filename) { writeToLLFile(filename, false); }
+void LLVMVisitor::dump(const std::string &filename) { 
+  LOG_IR("Writing to LLVM dump file: {}", filename);
+  writeToLLFile(filename, false); 
+}
 
 void LLVMVisitor::applyDebugTransformations() {
   if (db.debug) {
@@ -379,6 +382,7 @@ void LLVMVisitor::runLLVMPipeline() {
   auto t = high_resolution_clock::now();
   verify();
   runLLVMOptimizationPasses();
+  dump("_dump_opt.ll");
   LOG_TIME("[T] llvm/opt = {:.1f}",
            duration_cast<milliseconds>(high_resolution_clock::now() - t).count() /
                1000.0);
