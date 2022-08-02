@@ -4,7 +4,7 @@ set -e
 testN=$1
 cola=/home/gridsan/je23693/CoLaCodon/
 bindir=/home/gridsan/je23693/CoLaCodon/apps/jpeg/baseline
-spider=$bindir/spider.cfg
+spider=$bindir/jpeg_spider.cfg
 flower=$bindir/jpeg_flower.cfg
 cathedral=$bindir/jpeg_cathedral.cfg
 
