@@ -93,3 +93,4 @@ def dct(obj):
     col[5,0] = descale(tmp5 + z2 + z4, 15)
     col[3,0] = descale(tmp6 + z2 + z3, 15)
     col[1,0] = descale(tmp7 + z1 + z4, 15) 
+  return

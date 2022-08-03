@@ -13,6 +13,7 @@ def quant(obj, table):
       v += (q >> 1)
       v //= q
     obj[coord] = int(v)
+  return
 
 def scale_quant(table, quality):
   assert 0 <= quality < 100

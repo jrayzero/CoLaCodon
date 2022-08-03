@@ -130,4 +130,5 @@ def huffman_encode_block(blk, last, bits, zigzag, huff_codes: HuffmanCodes):
       run = 0
   if run > 0:
     pack_and_stuff(bits, huff_codes.ac_ehufco[0], huff_codes.ac_ehufsz[0])
+  return
 
