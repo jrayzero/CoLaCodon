@@ -180,6 +180,7 @@ set(SEQ_HPPFILES
     compiler/cola/passes/utils.h
     compiler/cola/passes/modules.h
     compiler/cola/passes/clike.h
+    compiler/cola/passes/unnest.h
     )
 set(SEQ_CPPFILES
     compiler/dsl/plugins.cpp
@@ -260,6 +261,7 @@ set(SEQ_CPPFILES
     compiler/cola/passes/timing.cpp
     compiler/cola/passes/utils.cpp
     compiler/cola/passes/clike.cpp
+    compiler/cola/passes/unnest.cpp
     )
 add_library(seq SHARED ${SEQ_HPPFILES})
 target_sources(seq PRIVATE ${SEQ_CPPFILES} seq_rules.cpp omp_rules.cpp)

@@ -88,9 +88,10 @@ void Timing::visit(Module *module) {
   for (auto kv : alreadyTimed) {
     auto *reporter = CHECK(module->getOrRealizeFunc("report_time", 
 						    {module->getStringType(),
+						     module->getStringType(),
 						     module->getIntType()}, {}, 
 						    colaUtilsModule));
-    reports->push_back(util::call(reporter, {module->getString(kv.first),
+    reports->push_back(util::call(reporter, {module->getString(kv.first), module->getString(kv.second.first),
 					     module->Nr<VarValue>(kv.second.second)}));
   }
   auto *reportFunc = makeEmptyFunc(module, "__report_timing");

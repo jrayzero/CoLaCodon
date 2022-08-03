@@ -101,8 +101,8 @@ def timer():
   return _C.seq_time_monotonic()
 
 @cola
-def report_time(tag, time_ns):
-  print f'[TIME] {tag} took {time_ns/1e9}s.'
+def report_time(mname, uname, time_ns):
+  print f'[TIME] {uname} took {time_ns/1e9}s ({mname}).'
 
 @cola
 def sprinter(msg):

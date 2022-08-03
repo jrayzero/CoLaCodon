@@ -11,7 +11,7 @@ using namespace seq::ir;
 // In cfg file: time=<funcname>
 struct Timing : public transform::OperatorPass {
   static const string KEY;
-  string getKey() const override {return KEY; }
+  string getKey() const override { return KEY; }
   explicit Timing(string cfgFile);
 
   void handle(CallInstr *instr) override;
