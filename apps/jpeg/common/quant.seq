@@ -1,7 +1,7 @@
 # obj = 3d
 # table = 2d
 def quant(obj, table):
-  for coord in obj.citer():
+  for coord in obj:
     v = obj(*coord)
     q = table(coord[1],coord[2])*8
     if v < 0:
@@ -18,5 +18,5 @@ def quant(obj, table):
 def scale_quant(table, quality):
   assert 0 <= quality < 100
   scale = 5000 // quality if quality < 50 else 200 -quality*2
-  for coord in table.citer():
+  for coord in table:
     table[coord] = ((table(*coord) * scale + 50)//100)

@@ -71,100 +71,91 @@ def linearize[T](coord: T, dims: T):
 @cola
 def pad_str(e: E, m: int, X: type, E: type):
   amt = m-len(str(X(e)))+1    
-  return str(X(e)) + ''.join(' ' for _ in range(amt))  
+  return str(X(e)) + ' ' * amt
 
-class Block[E,T]:
+class VirtualStorage[E,T]:
+  # These are the parameters of the actual block of data 
+  dstarts: T
+  dstrides: T
+  ddims: T
+  dnunits: int
+  data: Ptr[E]
+  # These are the parameters of the view
+  # In the case of a "Block", these are the same as the above.
   starts: T
   strides: T
   dims: T
-  atoms: T
-  nunits: int
-  data: Ptr[E]
-
-class View[E,T]:
-  starts: T
-  strides: T
-  dims: T  
-  nunits: int
-  block: Block[E,T]
+  nunits: int # size of the virtual location
 
   @cola
-  def __init__(self, starts: T, strides: T, dims: T, block: Block[E,T]):
-    if not isinstance(T, tuple):
-      compile_error('T must be a tuple')
+  def __init__(self, dstarts: T, dstrides: T, ddims: T, starts: T, strides: T, dims: T, data: Ptr[E]):
+    nunits = 1
+    for d in dims:
+      nunits *= d
+    dnunits = 1
+    for d in ddims:
+      dnunits *= d
+    self.dstarts = dstarts
+    self.dstrides = dstrides
+    self.ddims = ddims
+    self.dnunits = dnunits
     self.starts = starts
     self.strides = strides
     self.dims = dims
-    self.block = block
-    nunits = 1
-    for d in self.dims:
-      nunits *= d
-    self.nunits = nunits 
+    self.data = data
+    self.nunits = nunits
+
+  def __init__(self, storage, data: Ptr[E]):
+    self.dstarts = storage.dstarts
+    self.dstrides = storage.dstrides
+    self.ddims = storage.ddims
+    self.dnunits = storage.dnunits
+    self.starts = storage.starts
+    self.strides = storage.strides
+    self.dims = storage.dims
+    self.data = data
+    self.nunits = storage.nunits
 
   @cola
-  def __init__(self, obj: Block[E,T]):
-    if not isinstance(obj, Block) and not isinstance(obj, View):
-      compile_error('Invalid type to View')
-    else:
-      self.starts = obj.get_starts()
-      self.strides = obj.get_strides()
-      self.dims = obj.get_dims()
-      self.nunits = len(obj)
-      if isinstance(obj,Block):
-        self.block = obj
-      else:
-        self.block = obj.get_block()
-
-  @cola
-  def __init__(self, obj: View[E,T]):
-    if not isinstance(obj, Block) and not isinstance(obj, View):
-      compile_error('Invalid type to View')
-    else:
-      self.starts = obj.get_starts()
-      self.strides = obj.get_strides()
-      self.dims = obj.get_dims()
-      self.nunits = len(obj)
-      if isinstance(obj,Block):
-        self.block = obj
-      else:
-        self.block = obj.get_block()
-
-  @cola
-  def __getitem__(self, idxs) -> View[E,T]:
-    if isinstance(idxs, View) or isinstance(idxs, Block):
-      return View(idxs.starts, idxs.strides, idxs.dims, self.get_block())
+  def __getitem__(self, idxs) -> VirtualStorage[E,T]:
+    if isinstance(idxs, VirtualStorage):
+      return VirtualStorage(self.dstarts, self.dstrides, self.ddims, idxs.starts, idxs.strides, 
+                            idxs.dims, self.data)
     elif isinstance(idxs, int) or isinstance(idxs, slice):
-      if staticlen(self.get_dims()) > 1:
-        p = pad(self, (idxs,))
-        return self[p]
+      if 1 < staticlen(self.dims):
+        return self[pad(self, (idxs,))]
       else:
-        starts = compute_starts(self.get_starts(), self.get_strides(), (idxs,))
-        strides = compute_strides(self.get_strides(), (idxs,))
-        dims = compute_dims(self.get_dims(), (idxs,))
-        return View(starts, strides, dims, self.get_block())
+        starts = compute_starts(self.starts, self.strides, (idxs,))
+        strides = compute_strides(self.strides, (idxs,))
+        dims = compute_dims(self.dims, (idxs,))
+        return VirtualStorage(self.dstarts, self.dstrides, self.ddims, starts, strides, dims, self.data)
     elif isinstance(idxs, tuple):
       if staticlen(idxs) > staticlen(self.dims):
         compile_error('Too many indices specified.')
       elif staticlen(idxs) < staticlen(self.dims):
         return self[pad(self, idxs)]
       else:
-        starts = compute_starts(self.get_starts(), self.get_strides(), idxs)
-        strides = compute_strides(self.get_strides(), idxs)
-        dims = compute_dims(self.get_dims(), idxs)
-        return View(starts, strides, dims, self.get_block())
+        starts = compute_starts(self.starts, self.strides, idxs)
+        strides = compute_strides(self.strides, idxs)
+        dims = compute_dims(self.dims, idxs)
+        return VirtualStorage(self.dstarts, self.dstrides, self.ddims, starts, strides, dims, self.data)
 
   @cola
   def __setitem__(self, idxs, val: E):
-    view = self[idxs]
-    for i in range(len(view)):
-      coord = delinearize(i, view.get_dims())
-      coord = compute_starts(view.get_starts(), view.get_strides(), coord)
+    rel = self[idxs]
+    for coord in rel:
+      # make it absolute
+      coord = compute_starts(rel.starts, rel.strides, coord)
       # now relative to the block
-      rcoord = tup_fdiv(tup_sub(coord, self.get_block().get_starts()), 
-                        self.get_block().get_strides())
-      lidx = linearize(rcoord, self.get_block().get_dims())
-      self.get_block().data[lidx] = val
-      
+      rcoord = tup_fdiv(tup_sub(coord, self.dstarts), 
+                        self.dstrides)
+      lidx = linearize(rcoord, self.ddims)
+      if lidx >= self.dnunits:
+        # TODO make into a raise error
+        print f'Bad idxs {idxs} ({lidx})'
+        assert False 
+      self.data[lidx] = val      
+
   @cola
   def __call__(self, *idxs) -> E:
     if staticlen(idxs) == 0:
@@ -179,100 +170,28 @@ class View[E,T]:
         if not isinstance(i, int):
           compile_error('Must be integer index')
       # get relative to self
-      coord = compute_starts(self.get_starts(), self.get_strides(), idxs)
+      coord = compute_starts(self.starts, self.strides, idxs)
       # now relative to the block
-      rcoord = tup_fdiv(tup_sub(coord, self.get_block().get_starts()), 
-                        self.get_block().get_strides())
-      return self.get_block()(*rcoord)
+      rcoord = tup_fdiv(tup_sub(coord, self.dstarts), 
+                        self.dstrides)
+      lidx = linearize(rcoord, self.ddims)
+      if lidx >= self.dnunits:
+        # TODO make into a raise error
+        print f'Bad idxs {idxs} {lidx} {coord} {rcoord} {self.ddims}'
+        assert False 
+      return self.data[lidx]    
 
   @cola
-  def get_starts(self):
-    return self.starts
-
-  @cola
-  def get_strides(self):
-    return self.strides
-
-  @cola
-  def get_dims(self):
-    return self.dims
-
-  @cola
-  def __len__(self):
-    return self.nunits
-
-  @cola
-  def get_block(self):
-    return self.block
-
-  @cola
-  def max_str_len(self, X: type):
-    m = 0
-    for s in self:
-      l = len(str(X(s)))
-      if l > m:
-        m = l
-    return m
-
-  @cola
-  def str_like(self, X: type):
-    if staticlen(self.get_dims()) > 3:
-      compile_error('Can only string print for 1D, 2D, and 3D blocks')
-    m = self.max_str_len(X)
-    s = ''
-    if staticlen(self.get_dims()) == 1:
-      for i in range(len(self)):
-        s += pad_str(self(i), m, X)
-    elif staticlen(self.get_dims()) == 2:
-      for i in range(self.get_dims()[0]):
-        for j in range(self.get_dims()[1]):
-          s += pad_str(self(i,j), m, X)
-        s += '\n'
-    else:
-      for i in range(self.get_dims()[0]):
-        s += f'i = {i}\n'
-        for j in range(self.get_dims()[1]):      
-          for k in range(self.get_dims()[2]):
-            s += pad_str(self(i,j,k), m, X)
-          s += '\n'
-        s += '\n'    
-    return s
-
-  @cola
-  def __str__(self):
-    t =  '(' + ','.join('int' for _ in range(len(self.get_dims()))) + ')'
-    s =  'View[' + t + ']:\n'
-    t =  '(' + ','.join(str(i) for i in self.get_starts()) + ')'
-    s += '  starts: ' + t + '\n'
-    t =  '(' + ','.join(str(i) for i in self.get_strides()) + ')'
-    s += '  strides: ' + t + '\n'
-    t =  '(' + ','.join(str(i) for i in self.get_dims()) + ')'
-    s += '  dims: ' + t + '\n'
-    return s
-
-  @cola
-  def __iter__(self) -> Generator[E]:
-    for i in range(len(self)):
-      coord = delinearize(i, self.get_dims())
-      yield self(*coord)
-
-  @cola
-  def citer(self) -> Generator[T]:
-    for i in range(len(self)):
-      coord = delinearize(i, self.get_dims())
+  def __iter__(self) -> Generator[T]:
+    for i in range(self.nunits):
+      coord = delinearize(i, self.dims)
       yield coord
 
   @cola
-  def viter(self) -> Generator[View[E,T]]:
-    for i in range(len(self)):
-      coord = delinearize(i, self.get_dims())
-      yield self[coord]    
-
-  @cola
-  def _grid_inner(self, idx: Static[int], grid_dims: T) -> Generator[View[E,T]]:
+  def _grid_inner(self, idx: Static[int], grid_dims: T) -> Generator[VirtualStorage[E,T]]:
     d = grid_dims[idx]
-    nsplits = self.get_dims()[idx] // d
-    if self.get_dims()[idx] % d != 0:
+    nsplits = self.dims[idx] // d
+    if self.dims[idx] % d != 0:
       nsplits += 1
     for n in range(nsplits):
       region = tuple_fill(slice(), idx) + (slice(n*d,n*d+d,1),) + tuple_fill(slice(),staticlen(grid_dims)-idx-1)
@@ -283,20 +202,20 @@ class View[E,T]:
         yield from split._grid_inner(idx+1,grid_dims)      
       
   @cola
-  def grid(self, grid_dims: T) -> Generator[View[E,T]]:
+  def grid(self, grid_dims: T) -> Generator[VirtualStorage[E,T]]:
     yield from self._grid_inner(0, grid_dims)
 
   # check if this view is completely within other
   @cola
   def within(self, other):
-    y,x = self.get_starts()
-    oy,ox = other.get_starts()
+    y,x = self.starts
+    oy,ox = other.starts
     if y < oy or x < ox:
       return False # origin outside
-    dy,dx = self.get_dims()
-    sy,sx = self.get_strides()
-    ody,odx = other.get_dims()
-    osy,osx = other.get_strides()
+    dy,dx = self.dims
+    sy,sx = self.strides
+    ody,odx = other.dims
+    osy,osx = other.strides
     if (dy*sy+y > ody*osy+oy) or (dx*sx+x > odx*osx+ox):
       return False
     else:
@@ -305,15 +224,15 @@ class View[E,T]:
   # returns with absolute value (so no stride considered)
   @cola
   def starts_relative_to(self, other):
-    return tup_sub(self.get_starts(), other.get_starts())
+    return tup_sub(self.starts, other.starts)
 
   @cola
   def exists(self):
     # need to see if the data in the block exists, which means [start,start+dim) is in bounds
     # relative to the block
-    lower_bound_valid = tup_gte_reduce(self.get_starts(), self.get_block().get_starts())
-    upper_bound_self = tup_add(self.get_starts(), tup_mul(self.get_dims(),self.get_strides()))
-    upper_bound_block = tup_add(self.get_block().get_starts(), tup_mul(self.get_block().get_dims(),self.get_block().get_strides()))
+    lower_bound_valid = tup_gte_reduce(self.starts, self.dstarts)
+    upper_bound_self = tup_add(self.starts, tup_mul(self.dims,self.strides))
+    upper_bound_block = tup_add(self.dstarts, tup_mul(self.ddims,self.dstrides))
     upper_bound_valid = tup_lte_reduce(upper_bound_self, upper_bound_block)
     all_valid = lower_bound_valid and upper_bound_valid
     return all_valid  
@@ -322,242 +241,267 @@ class View[E,T]:
   @cola
   def logically_exists(self):
     exists = True
-    for start in self.get_starts():
+    for start in self.starts:
       exists &= (start >= 0)
     return exists
-
-@extend  
-class Block:
-
-  @cola
-  def __init__(self, dims: T):
-    self.__init__(tuple_fill(0, staticlen(dims)), tuple_fill(1, staticlen(dims)), dims, tuple_fill(1, staticlen(dims)))
-
-  @cola
-  def __init__(self, dims: T, init: list[E]):
-    self.__init__(tuple_fill(0, staticlen(dims)), tuple_fill(1, staticlen(dims)), dims, tuple_fill(1, staticlen(dims)), init)
-
-  @cola
-  def __init__(self, obj):
-    if isinstance(obj, Block):
-      self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(),
-                    obj.get_atoms())
-    elif isinstance(obj, View):
-      self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(),
-                    obj.get_block().get_atoms())      
-    else:
-      compile_error('Invalid type to Block.init')    
-
-  @cola
-  def __init__(self, starts: T, strides: T, dims: T, atoms: T):
-    if not isinstance(T, tuple):
-      compile_error('T must be a tuple')
-    self.starts = starts
-    self.strides = strides
-    self.dims = dims
-    self.atoms = atoms
-    nunits = 1
-    for d in self.dims:
-      nunits *= d
-    self.nunits = nunits
-    self.data = Ptr[E](nunits)
-  
-  @cola
-  def __init__(self, starts: T, strides: T, dims: T, atoms: T, init: list[E]):
-    if not isinstance(T, tuple):
-      compile_error('T must be a tuple')
-    self.starts = starts
-    self.strides = strides
-    self.dims = dims
-    self.atoms = atoms
-    nunits = 1
-    for d in self.dims:
-      nunits *= d
-    self.nunits = nunits
-    self.data = Ptr[E](nunits)
-    for i in range(nunits):
-      self.data[i] = init[i]
-
-  @cola
-  def get_starts(self):
-    return self.starts
-
-  @cola
-  def get_strides(self):
-    return self.strides
-
-  @cola
-  def get_dims(self):
-    return self.dims
-
-  @cola
-  def get_atoms(self):
-    return self.atoms
-
-  @cola
-  def __len__(self):
-    return self.nunits
-
-  @cola
-  def __getitem__(self, idxs) -> View[E,T]:
-    return View(self)[idxs]
-
-  @cola
-  def __call__(self, *idxs) -> E:
-    if staticlen(idxs) == 0:
-      compile_error('idxs is an empty tuple. Did you use * with an integer argument?')
-    elif staticlen(idxs) != staticlen(self.dims):
-      compile_error('Invalid number of idxs')
-    elif staticlen(idxs) < staticlen(self.dims):
-      p = pad_call(self, *idxs) 
-      return self.__call__(*p)
-    else:
-      for i in idxs:
-        if not isinstance(i, int):
-          compile_error('Must be integer index')
-      lidx = linearize(idxs, self.get_dims())
-      if lidx >= len(self):
-        # TODO make into a raise error
-        print f'Bad idxs {idxs}'
-        assert False
-      return self.data[lidx]
-
-  @cola
-  def __setitem__(self, idxs, val: E):
-    view = self[idxs]
-    slices = tuple(slice() for _ in self.get_dims())
-    if staticlen(slices) == 1:
-      view[slices[0]] = val
-    else:
-      view[slices] = val
 
   @cola
   def max_str_len(self, X: type):
     m = 0
-    for s in self:
-      l = len(str(X(s)))
+    for coord in self:
+      s = X(0)
+      if isinstance(coord, tuple):
+        s = X(self(*coord))
+      else:
+        s = X(self(coord))
+      l = len(str(s))
       if l > m:
         m = l
+    print f'm is {m}'
     return m
 
   @cola
   def str_like(self, X: type):
-    if staticlen(self.get_dims()) > 3:
+    if staticlen(self.dims) > 3:
       compile_error('Can only string print for 1D, 2D, and 3D blocks')
     m = self.max_str_len(X)
     s = ''
-    if staticlen(self.get_dims()) == 1:
+    if staticlen(self.dims) == 1:
       for i in range(len(self)):
-        s += pad_str(self.data[i], m, X)
-    elif staticlen(self.get_dims()) == 2:
-      for i in range(self.get_dims()[0]):
-        for j in range(self.get_dims()[1]):
-          s += pad_str(self.data[i*self.get_dims()[1]+j], m, X)
+        s += pad_str(self(i), m, X)
+    elif staticlen(self.dims) == 2:
+      for i in range(self.dims[0]):
+        for j in range(self.dims[1]):
+          s += pad_str(self(i,j), m, X)
         s += '\n'
     else:
-      for i in range(self.get_dims()[0]):
+      for i in range(self.dims[0]):
         s += f'i = {i}\n'
-        for j in range(self.get_dims()[1]):      
-          for k in range(self.get_dims()[2]):
-            s += pad_str(self.data[i*self.get_dims()[1]*self.get_dims()[2]+j*self.get_dims()[2] + k], m, X)
+        for j in range(self.dims[1]):      
+          for k in range(self.dims[2]):
+            q = f'{pad_str(self(i,j,k), m, X)}'
+            s += q
           s += '\n'
-        s += '\n'
+        s += '\n'    
     return s
 
   @cola
   def __str__(self):
-    t =  '(' + ','.join('int' for _ in range(len(self.get_dims()))) + ')'
-    e = ''
-    if isinstance(E,byte):
-      e = 'byte'
-    elif isinstance(E,i32):
-      e = 'int32'
-    elif isinstance(E,int):
-      e = 'int64'
-    elif isinstance(E,float):
-      e = 'double'
-    else:
-      e = 'UNK'
-    s =  'Block[' + e + ',' + t + ']:\n'
-    t =  '(' + ','.join(str(i) for i in self.get_starts()) + ')'
+    t =  '(' + ','.join('int' for _ in range(len(self.dims))) + ')'
+    s =  'VirtualStorage[' + t + ']:\n'
+    t =  '(' + ','.join(str(i) for i in self.starts) + ')'
     s += '  starts: ' + t + '\n'
-    t =  '(' + ','.join(str(i) for i in self.get_strides()) + ')'
+    t =  '(' + ','.join(str(i) for i in self.strides) + ')'
     s += '  strides: ' + t + '\n'
-    t =  '(' + ','.join(str(i) for i in self.get_dims()) + ')'
+    t =  '(' + ','.join(str(i) for i in self.dims) + ')'
     s += '  dims: ' + t + '\n'
-    t =  '(' + ','.join(str(i) for i in self.get_atoms()) + ')'
-    s += '  atoms: ' + t + '\n'
     return s
 
   @cola
-  def __iter__(self) -> Generator[E]:
-    yield from View(self)
+  def get_starts(self) -> T:
+    return self.starts
 
   @cola
-  def citer(self) -> Generator[T]:
-    for i in range(len(self)):
-      coord = delinearize(i, self.get_dims())
-      yield coord
-      
-  @cola
-  def viter(self) -> Generator[View[E,T]]:
-    for i in range(len(self)):
-      coord = delinearize(i, self.get_dims())
-      yield self[coord]
+  def get_strides(self) -> T:
+    return self.strides
 
   @cola
-  def _grid_inner(self, idx: Static[int], grid_dims: T) -> Generator[View[E,T]]:
-    d = grid_dims[idx]
-    nsplits = self.get_dims()[idx] // d
-    if self.get_dims()[idx] % d != 0:
-      nsplits += 1
-    for n in range(nsplits):
-      region = tuple_fill(slice(), idx) + (slice(n*d,n*d+d,1),) + tuple_fill(slice(),staticlen(grid_dims)-idx-1)
-      split = self[region]
-      if idx == staticlen(grid_dims) - 1:
-        yield split
-      else:
-        yield from split._grid_inner(idx+1,grid_dims)      
-      
-  @cola
-  def grid(self, grid_dims: T) -> Generator[View[E,T]]:
-    yield from self._grid_inner(0, grid_dims)
+  def get_dims(self) -> T:
+    return self.dims
 
-  # check if this block is completely within other
+class Block[E,T]:
+  storage: VirtualStorage[E,T]
+
+class View[E,T]:
+  storage: VirtualStorage[E,T]
+
+@extend
+class Block:
+  
   @cola
-  def within(self, other):
-    y,x = self.get_starts()
-    oy,ox = other.get_starts()
-    if y < oy or x < ox:
-      return False # origin outside
-    dy,dx = self.get_dims()
-    sy,sx = self.get_strides()
-    ody,odx = other.get_dims()
-    osy,osx = other.get_strides()
-    if (dy*sy+y > ody*osy+oy) or (dx*sx+x > odx*osx+ox):
-      return False
+  def __init__(self, dims: T):
+    self.__init__(tuple_fill(0, staticlen(dims)), tuple_fill(1, staticlen(dims)), dims)
+
+  @cola
+  def __init__(self, dims: T, init: list[E]):
+    self.__init__(tuple_fill(0, staticlen(dims)), tuple_fill(1, staticlen(dims)), dims, init)
+
+  @cola
+  def __init__(self, obj):
+    if isinstance(obj, Block):
+      self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims())
+    elif isinstance(obj, View):
+      self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims())
     else:
-      return True
-
-  # returns with absolute value (so no stride considered)
-  @cola
-  def starts_relative_to(self, other):
-    return tup_sub(self.get_starts(), other.get_starts())
+      compile_error('Invalid type to Block.init')    
 
   @cola
-  def exists(self):
-    return True
+  def __init__(self, starts: T, strides: T, dims: T):
+    if not isinstance(T, tuple):
+      compile_error('T must be a tuple')
+    nunits = 1
+    for d in dims:
+      nunits *= d
+    data = Ptr[E](nunits)
+    self.storage = VirtualStorage[E,T](starts, strides, dims, starts, strides, dims, data)
+  
+  @cola
+  def __init__(self, starts: T, strides: T, dims: T, init: list[E]):
+    if not isinstance(T, tuple):
+      compile_error('T must be a tuple')
+    nunits = 1
+    for d in dims:
+      nunits *= d
+    data = Ptr[E](nunits)
+    for i in range(nunits):
+      data[i] = init[i]
+    self.storage = VirtualStorage[E,T](starts, strides, dims, starts, strides, dims, data)
 
   @cola
-  def logically_exists(self):
-    return True
+  def str_like(self, X: type):
+    return self.storage.str_like(X)
+
+  @cola
+  def get_starts(self):
+    return self.storage.starts
+
+  @cola
+  def get_strides(self):
+    return self.storage.strides
+
+  @cola
+  def get_dims(self):
+    return self.storage.dims
+
+  @cola
+  def get_dstarts(self):
+    return self.storage.dstarts
+
+  @cola
+  def get_dstrides(self):
+    return self.storage.dstrides
+
+  @cola
+  def get_ddims(self):
+    return self.storage.ddims
+
+  @cola
+  def __len__(self):
+    return self.storage.nunits
+
+  @cola
+  def __getitem__(self, idxs):
+    if isinstance(idxs, Block) or isinstance(idxs, View):
+      return self.storage[idxs.storage]
+    else:
+      return self.storage[idxs]
+
+  @cola
+  def __setitem__(self, idxs, obj):
+    if isinstance(idxs, Block) or isinstance(idxs, View):
+      self.storage[idxs.storage] = obj
+    else:
+      self.storage[idxs] = obj    
+
+  @cola
+  def __call__(self, *idxs) -> E:
+    return self.storage(*idxs)
+
+  @cola
+  def __iter__(self):
+    yield from self.storage
+
+  @cola
+  def grid(self, grid_dims):
+    for vs in self.storage.grid(grid_dims):
+      yield View(vs)
+
+@extend
+class View:
+
+  @cola
+  def __init__(self, starts: T, strides: T, dims: T, dstarts: T, dstrides: T, ddims: T, data: Ptr[E]):
+    if not isinstance(T, tuple):
+      compile_error('T must be a tuple')
+    self.storage = VirtualStorage(starts, strides, dims, dstarts, dstrides, ddims, data)
+
+  @cola
+  def __init__(self, obj: Block[E,T]):
+    self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(), obj.get_dstarts(), obj.get_dstrides(), obj.get_ddims(), obj.storage.data)
+
+  @cola
+  def __init__(self, obj: View[E,T]):
+    self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(), obj.get_dstarts(), obj.get_dstrides(), obj.get_ddims(), obj.storage.data)
+
+  @cola
+  def __init__(self, obj: VirtualStorage[E,T]):
+    self.storage = obj
+
+  @cola
+  def str_like(self, X: type):
+    return self.storage.str_like(X)
+
+  @cola
+  def get_starts(self):
+    return self.storage.starts
+
+  @cola
+  def get_strides(self):
+    return self.storage.strides
+
+  @cola
+  def get_dims(self):
+    return self.storage.dims
+
+  @cola
+  def get_dstarts(self):
+    return self.storage.dstarts
+
+  @cola
+  def get_dstrides(self):
+    return self.storage.dstrides
+
+  @cola
+  def get_ddims(self):
+    return self.storage.ddims
+
+  @cola
+  def __len__(self):
+    return self.storage.nunits
+
+  @cola
+  def __getitem__(self, idxs):
+    if isinstance(idxs, Block) or isinstance(idxs, View):
+      return self.storage[idxs.storage]
+    else:
+      return self.storage[idxs]
+
+  @cola
+  def __setitem__(self, idxs, obj):
+    if isinstance(idxs, Block) or isinstance(idxs, View):
+      self.storage[idxs.storage] = obj
+    else:
+      self.storage[idxs] = obj
+
+  @cola
+  def __call__(self, *idxs) -> E:
+    return self.storage(*idxs)
+
+  @cola
+  def __iter__(self):
+    yield from self.storage
+
+  @cola
+  def grid(self, grid_dims):
+    for vs in self.storage.grid(grid_dims):
+      yield View(vs)
 
 @extend
 class File:
 
   def read(self, block: Block[byte,T], T: type):
     self._ensure_open()
-    ret = _C.fread(block.data, 1, len(block), self.fp)
+    ret = _C.fread(block.storage.data, 1, len(block), self.fp)
     self._errcheck("error in read")
     return ret
 

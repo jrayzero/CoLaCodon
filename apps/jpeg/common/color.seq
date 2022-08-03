@@ -1,7 +1,7 @@
 from cola.blocks import *
 
 def RGB2YCbCr_col_to_row_3D(R, G, B, Y, Cb, Cr, greyscale=False):
-  for coord in R.citer():
+  for coord in R:
     r = float(R(*coord))
     g = float(G(*coord))
     b = float(B(*coord))
