@@ -1,8 +1,14 @@
 #include "cola.h"
 #include "passes/timing.h"
+#include "passes/unnest.h"
 
 void CoLa::registerCommonPasses(transform::PassManager *pm) {
   pm->registerPass(make_unique<Timing>(cfgFile));
+}
+
+void unnest(transform::PassManager *pm) {
+  pm->registerPass(make_unique<Unnest>());
+  pm->registerPass(make_unique<CheckUnnested>());
 }
 
 void CoLa::addIRPasses(transform::PassManager *pm, bool debug) {
@@ -10,6 +16,7 @@ void CoLa::addIRPasses(transform::PassManager *pm, bool debug) {
     cerr << "Using config file: " << cfgFile << endl;
   registerCommonPasses(pm);
   if (debug)
-    return;
+    return;  
+  unnest(pm);
 }
 
