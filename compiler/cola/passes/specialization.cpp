@@ -11,7 +11,6 @@ void SpecializeIterators::handle(CallInstr *instr) {
   if (!func) return;
   if (!isColaFunc(func)) return;
   if (func->getUnmangledName() != Module::ITER_MAGIC_NAME) return;
-  cout << "Found cola func " << func->getName() << endl;
   if (specialized.count(func->getName()) != 0) return;
   // only actually care about the VirtualStorage version. The block/view iter are
   // just proxies and I think LLVM just gets rid of them
