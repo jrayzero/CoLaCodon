@@ -28,3 +28,25 @@ string toLower(string s);
 // create a new global var
 Var *getGlobalVar(Module *m, Type *t);
 bool isGeneratorType(Type *t);
+bool isColaFunc(Func *f);
+Type *getBlockType(Module *module, vector<Generic> generics);
+Type *getViewType(Module *module, vector<Generic> generics);
+Type *getVirtualStorageType(Module *module, vector<Generic> generics);
+bool isBlockType(Value *value);
+bool isBlockType(Type *t, Module *module);
+bool isViewType(Value *value);
+bool isViewType(Type *t, Module *module);
+bool isVirtualStorageType(Value *value);
+bool isVirtualStorageType(Type *t, Module *module);
+Func *getMetadataFunc(Value *self, string name);
+Value *getDims(Value *value);
+
+
+// Get the dimensionality of a block/view/storage
+template <typename T>
+int getNdims(T *obj, int idx = 1) {
+  auto *tup = obj->getType()->getGenerics()[idx].getTypeValue();
+  seqassert(cast<RecordType>(tup), "Not a tuple!");
+  int N = cast<RecordType>(tup)->getNumFields();
+  return N;
+}

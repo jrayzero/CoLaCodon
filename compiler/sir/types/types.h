@@ -248,6 +248,8 @@ public:
   Type *getMemberType(const std::string &n) const override;
   int getMemberIndex(const std::string &n) const override;
 
+  int getNumFields() const { return fields.size(); }
+
   const_iterator begin() const override { return fields.begin(); }
   const_iterator end() const override { return fields.end(); }
   const_reference front() const override { return fields.front(); }

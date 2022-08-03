@@ -22,7 +22,7 @@ void Unnest::visit(FlowInstr *instr) {
   string s = clike.format(instr);
   instr->replaceAll(module->Nr<FlowInstr>(body, value));
   string s2 = clike.format(instr);
-  LOG_IR("[{}:flow]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
+  //  LOG_IR("[{}:flow]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
 }
 
 void Unnest::visit(WhileFlow *flow) {   
@@ -61,7 +61,7 @@ void Unnest::visit(WhileFlow *flow) {
     string s = clike.format(flow);
     flow->replaceAll(replacement);
     string s2 = clike.format(flow);
-    LOG_IR("[{}:while]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
+    //    LOG_IR("[{}:while]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
   }
 }
 
@@ -86,7 +86,7 @@ void Unnest::visit(ForFlow *flow) {
     string s = clike.format(flow);
     flow->replaceAll(replacement);
     string s2 = clike.format(flow);
-    LOG_IR("[{}:for]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
+    //    LOG_IR("[{}:for]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
   }
 }
 
@@ -114,7 +114,7 @@ void Unnest::visit(ImperativeForFlow *flow) {
     string s = clike.format(flow);
     flow->replaceAll(replacement);
     string s2 = clike.format(flow);
-    LOG_IR("[{}:imperative]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
+    //    LOG_IR("[{}:imperative]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
   }
 }
 
@@ -148,7 +148,7 @@ void Unnest::visit(IfFlow *flow) {
     string s = clike.format(flow);
     flow->replaceAll(replacement);
     string s2 = clike.format(flow);
-    LOG_IR("[{}:if]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
+    //    LOG_IR("[{}:if]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
   }
 }
 
@@ -197,7 +197,7 @@ void Unnest::visit(TryCatchFlow *flow) {
   string s = clike.format(flow);
   flow->replaceAll(tryCatch);
   string s2 = clike.format(flow);  
-  LOG_IR("[{}]:trycatch\nBefore\n{}\nAfter\n{}", KEY, s, s2);
+  //  LOG_IR("[{}]:trycatch\nBefore\n{}\nAfter\n{}", KEY, s, s2);
 }
 
 void Unnest::visit(PipelineFlow *flow) {
@@ -218,7 +218,7 @@ bool alreadyUnnested(Value *val) {
   series->push_back(cast<BodiedFunc>(module->getMainFunc())->getBody());
   cast<BodiedFunc>(module->getMainFunc())->setBody(series);
   ctx.pop();
-}*/
+  }*/
 
 void Unnest::visit(AssignInstr *instr) {
   auto *module = instr->getModule();
@@ -233,7 +233,7 @@ void Unnest::visit(AssignInstr *instr) {
   string s = clike.format(instr);
   instr->replaceAll(module->Nr<AssignInstr>(instr->getLhs(), val));
   string s2 = clike.format(instr);
-  LOG_IR("[{}:assign]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
+  //  LOG_IR("[{}:assign]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
 }
 
 void Unnest::visit(CallInstr *instr) {
@@ -256,7 +256,7 @@ void Unnest::visit(CallInstr *instr) {
   string s = clike.format(instr);
   instr->replaceAll(module->Nr<CallInstr>(instr->getCallee(), move(liftedArgs)));
   string s2 = clike.format(instr);
-  LOG_IR("[{}:call]\nBefore\n{}\nAfter\n{}", KEY, s, s2);  
+  //  LOG_IR("[{}:call]\nBefore\n{}\nAfter\n{}", KEY, s, s2);  
 }
 
 void Unnest::visit(ExtractInstr *instr) {
@@ -269,7 +269,7 @@ void Unnest::visit(ExtractInstr *instr) {
     instr->replaceAll(module->Nr<ExtractInstr>(util::makeVar(instr->getVal(), ctx.top(),
 							     cast<BodiedFunc>(getParentFunc())), instr->getField()));
     string s2 = clike.format(instr);
-    LOG_IR("[{}:extract]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
+    //    LOG_IR("[{}:extract]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
   }
 }
 
@@ -298,7 +298,7 @@ void Unnest::visit(InsertInstr *instr) {
   string s = clike.format(instr);
   instr->replaceAll(module->Nr<InsertInstr>(lhs, instr->getField(), rhs));
   string s2 = clike.format(instr);
-  LOG_IR("[{}:insert]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
+  //  LOG_IR("[{}:insert]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
 }
 
 void Unnest::visit(ReturnInstr *instr) {
@@ -308,11 +308,11 @@ void Unnest::visit(ReturnInstr *instr) {
   if (!alreadyUnnested(instr->getValue())) {
     process(instr->getValue());
     auto *val = util::makeVar(instr->getValue(), ctx.top(), cast<BodiedFunc>(getParentFunc()));
-  CLike clike;
-  string s = clike.format(instr);
-  instr->replaceAll(module->Nr<ReturnInstr>(val));
-  string s2 = clike.format(instr);
-  LOG_IR("[{}:return]\nBefore\n{}\nAfter\n{}", KEY, s, s2);    
+    CLike clike;
+    string s = clike.format(instr);
+    instr->replaceAll(module->Nr<ReturnInstr>(val));
+    string s2 = clike.format(instr);
+    //  LOG_IR("[{}:return]\nBefore\n{}\nAfter\n{}", KEY, s, s2);    
   }
 }
 
@@ -323,11 +323,11 @@ void Unnest::visit(YieldInstr *instr) {
   if (!alreadyUnnested(instr->getValue())) {
     process(instr->getValue());
     auto *val = util::makeVar(instr->getValue(), ctx.top(), cast<BodiedFunc>(getParentFunc()));
-  CLike clike;
-  string s = clike.format(instr);
-  instr->replaceAll(module->Nr<YieldInstr>(val));
-  string s2 = clike.format(instr);
-  LOG_IR("[{}:yield]\nBefore\n{}\nAfter\n{}", KEY, s, s2);    
+    CLike clike;
+    string s = clike.format(instr);
+    instr->replaceAll(module->Nr<YieldInstr>(val));
+    string s2 = clike.format(instr);
+    //  LOG_IR("[{}:yield]\nBefore\n{}\nAfter\n{}", KEY, s, s2);    
   }
 }
 
@@ -338,11 +338,11 @@ void Unnest::visit(ThrowInstr *instr) {
   if (!alreadyUnnested(instr->getValue())) {
     process(instr->getValue());
     auto *val = util::makeVar(instr->getValue(), ctx.top(), cast<BodiedFunc>(getParentFunc()));
-  CLike clike;
-  string s = clike.format(instr);
-  instr->replaceAll(module->Nr<ThrowInstr>(val));
-  string s2 = clike.format(instr);
-  LOG_IR("[{}:throw]\nBefore\n{}\nAfter\n{}", KEY, s, s2);    
+    CLike clike;
+    string s = clike.format(instr);
+    instr->replaceAll(module->Nr<ThrowInstr>(val));
+    string s2 = clike.format(instr);
+    //  LOG_IR("[{}:throw]\nBefore\n{}\nAfter\n{}", KEY, s, s2);    
   }
 }
 

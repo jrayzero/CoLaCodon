@@ -1,5 +1,6 @@
 #include <cctype>
 #include "utils.h"
+#include "modules.h"
 #include "sir/util/irtools.h"
 #include "sir/util/cloning.h"
 
@@ -54,4 +55,59 @@ Var *getGlobalVar(Module *m, Type *t) {
 
 bool isGeneratorType(Type *t) {
   return cast<GeneratorType>(t);
+}
+
+bool isColaFunc(Func *f) {
+  return util::hasAttribute(f, colaAttr);
+}
+
+Type *getBlockType(Module *module, vector<Generic> generics) {
+  return module->getOrRealizeType("Block", move(generics), colaBlocksModule);
+}
+
+Type *getViewType(Module *module, vector<Generic> generics) {
+  return module->getOrRealizeType("View", move(generics), colaBlocksModule);
+}
+
+Type *getVirtualStorageType(Module *module, vector<Generic> generics) {
+  return module->getOrRealizeType("VirtualStorage", move(generics), colaBlocksModule);
+}
+
+bool isBlockType(Value *value) {
+  return isBlockType(value->getType(), value->getModule());
+}
+
+bool isBlockType(Type *type, Module *module) {
+  if (type->getGenerics().size() != 2) return false;
+  if (!type->getGenerics()[0].isType() || !type->getGenerics()[1].isType()) return false;
+  return type->is(getBlockType(module, type->getGenerics()));
+}
+
+bool isViewType(Value *value) {
+  return isViewType(value->getType(), value->getModule());
+}
+
+bool isViewType(Type *type, Module *module) {
+  if (type->getGenerics().size() != 2) return false;
+  if (!type->getGenerics()[0].isType() || !type->getGenerics()[1].isType()) return false;
+  return type->is(getViewType(module, type->getGenerics()));
+}
+
+bool isVirtualStorageType(Value *value) {
+  return isVirtualStorageType(value->getType(), value->getModule());
+}
+
+bool isVirtualStorageType(Type *type, Module *module) {
+  if (type->getGenerics().size() != 2) return false;
+  if (!type->getGenerics()[0].isType() || !type->getGenerics()[1].isType()) return false;
+  return type->is(getVirtualStorageType(module, type->getGenerics()));
+}
+
+Func *getMetadataFunc(Value *self, string name) {
+  auto *module = self->getModule();
+  return CHECK(module->getOrRealizeMethod(self->getType(), name, {self->getType()}));
+}
+
+Value *getDims(Value *value) {
+  return util::call(getMetadataFunc(value, "get_dims"), {value});
 }

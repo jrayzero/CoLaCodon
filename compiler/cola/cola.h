@@ -12,6 +12,5 @@ public:
   string getName() const override { return "CoLa"; }
   void addIRPasses(transform::PassManager *pm, bool debug) override;
 private:
-  void registerCommonPasses(transform::PassManager *pm);
   string cfgFile;
 };
