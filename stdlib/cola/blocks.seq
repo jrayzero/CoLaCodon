@@ -400,43 +400,52 @@ class Block:
     self.storage = VirtualStorage[E,T](starts, strides, dims, starts, strides, dims, data)
 
   @cola
+  @pure
   def str_like(self, X: type):
     return self.storage.str_like(X)
 
   @cola
+  @pure
   def get_starts(self):
     return self.storage.starts
 
   @cola
+  @pure
   def get_strides(self):
     return self.storage.strides
 
   @cola
+  @pure
   def get_dims(self):
     return self.storage.dims
 
   @cola
+  @pure
   def get_dstarts(self):
     return self.storage.dstarts
 
   @cola
+  @pure
   def get_dstrides(self):
     return self.storage.dstrides
 
   @cola
+  @pure
   def get_ddims(self):
     return self.storage.ddims
 
   @cola
+  @pure
   def __len__(self):
     return self.storage.nunits
 
   @cola
-  def __getitem__(self, idxs):
+  @pure
+  def __getitem__(self, idxs) -> View[E,T]:
     if isinstance(idxs, Block) or isinstance(idxs, View):
-      return self.storage[idxs.storage]
+      return View(self.storage[idxs.storage])
     else:
-      return self.storage[idxs]
+      return View(self.storage[idxs])
 
   @cola
   def __setitem__(self, idxs, obj):
@@ -446,14 +455,17 @@ class Block:
       self.storage[idxs] = obj    
 
   @cola
+  @pure
   def __call__(self, *idxs) -> E:
     return self.storage(*idxs)
 
   @cola
+  @pure
   def __iter__(self):
     yield from self.storage
 
   @cola
+  @pure
   def grid(self, grid_dims):
     for vs in self.storage.grid(grid_dims):
       yield View(vs)
@@ -462,14 +474,12 @@ class Block:
 class View:
 
   @cola
-  def make(starts: T, strides: T, dims: T, dstarts: T, dstrides: T, ddims: T, data: Ptr[E]):
-    return View[E,T](starts, strides, dims, dstarts, dstrides, ddims, data)
-
-  @cola
+  @pure
   def make(obj: Block[E,T]):
     return View[E,T](obj)
 
   @cola
+  @pure
   def make(obj: View[E,T]):
     return View[E,T](obj)
 
@@ -491,43 +501,57 @@ class View:
     self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(), obj.get_dstarts(), obj.get_dstrides(), obj.get_ddims(), obj.storage.data)
 
   @cola
+  @cola_private
+  def __init__(self, obj: VirtualStorage[E,T]):
+    self.storage = obj
+
+  @cola
+  @pure
   def str_like(self, X: type):
     return self.storage.str_like(X)
 
   @cola
+  @pure
   def get_starts(self):
     return self.storage.starts
 
   @cola
+  @pure
   def get_strides(self):
     return self.storage.strides
 
   @cola
+  @pure
   def get_dims(self):
     return self.storage.dims
 
   @cola
+  @pure
   def get_dstarts(self):
     return self.storage.dstarts
 
   @cola
+  @pure
   def get_dstrides(self):
     return self.storage.dstrides
 
   @cola
+  @pure
   def get_ddims(self):
     return self.storage.ddims
 
   @cola
+  @pure
   def __len__(self):
     return self.storage.nunits
 
   @cola
-  def __getitem__(self, idxs):
+  @pure
+  def __getitem__(self, idxs) -> View[E,T]:
     if isinstance(idxs, Block) or isinstance(idxs, View):
-      return self.storage[idxs.storage]
+      return View(self.storage[idxs.storage])
     else:
-      return self.storage[idxs]
+      return View(self.storage[idxs])
 
   @cola
   def __setitem__(self, idxs, obj):
@@ -537,14 +561,17 @@ class View:
       self.storage[idxs] = obj
 
   @cola
+  @pure
   def __call__(self, *idxs) -> E:
     return self.storage(*idxs)
 
   @cola
+  @pure
   def __iter__(self):
     yield from self.storage
 
   @cola
+  @pure
   def grid(self, grid_dims):
     for vs in self.storage.grid(grid_dims):
       yield View(vs)
