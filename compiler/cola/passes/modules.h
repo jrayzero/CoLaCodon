@@ -9,3 +9,4 @@ using namespace std;
 const string colaUtilsModule = "std.cola.cola_utils";
 const string colaBlocksModule = "std.cola.blocks";
 const string colaAttr = "std.cola.cola_annots.cola";
+const string colaPrivateAttr = "std.cola.cola_annots.cola_private";

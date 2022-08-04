@@ -61,6 +61,10 @@ bool isColaFunc(Func *f) {
   return util::hasAttribute(f, colaAttr);
 }
 
+bool isColaPrivateFunc(Func *f) {
+  return util::hasAttribute(f, colaPrivateAttr);
+}
+
 Type *getBlockType(Module *module, vector<Generic> generics) {
   return module->getOrRealizeType("Block", move(generics), colaBlocksModule);
 }

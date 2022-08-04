@@ -29,6 +29,7 @@ string toLower(string s);
 Var *getGlobalVar(Module *m, Type *t);
 bool isGeneratorType(Type *t);
 bool isColaFunc(Func *f);
+bool isColaPrivateFunc(Func *f);
 Type *getBlockType(Module *module, vector<Generic> generics);
 Type *getViewType(Module *module, vector<Generic> generics);
 Type *getVirtualStorageType(Module *module, vector<Generic> generics);

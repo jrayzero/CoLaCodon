@@ -334,16 +334,39 @@ class View[E,T]:
 
 @extend
 class Block:
+
+  @cola
+  def make(dims: T):
+    return Block[E,T](dims)
+
+  @cola
+  def make(dims: T, init: list[E]):
+    return Block[E,T](dims)
+
+  @cola
+  def make(obj):
+    return Block[E,T](obj)
+
+  @cola
+  def make(starts: T, strides: T, dims: T):
+    return Block[E,T](starts, strides, dims)
+
+  @cola
+  def make(starts: T, strides: T, dims: T, init: List[E]):
+    return Block[E,T](starts, strides, dims, init)
   
   @cola
+  @cola_private
   def __init__(self, dims: T):
     self.__init__(tuple_fill(0, staticlen(dims)), tuple_fill(1, staticlen(dims)), dims)
 
   @cola
+  @cola_private
   def __init__(self, dims: T, init: list[E]):
     self.__init__(tuple_fill(0, staticlen(dims)), tuple_fill(1, staticlen(dims)), dims, init)
 
   @cola
+  @cola_private
   def __init__(self, obj):
     if isinstance(obj, Block):
       self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims())
@@ -353,6 +376,7 @@ class Block:
       compile_error('Invalid type to Block.init')    
 
   @cola
+  @cola_private
   def __init__(self, starts: T, strides: T, dims: T):
     if not isinstance(T, tuple):
       compile_error('T must be a tuple')
@@ -363,6 +387,7 @@ class Block:
     self.storage = VirtualStorage[E,T](starts, strides, dims, starts, strides, dims, data)
   
   @cola
+  @cola_private
   def __init__(self, starts: T, strides: T, dims: T, init: list[E]):
     if not isinstance(T, tuple):
       compile_error('T must be a tuple')
@@ -437,16 +462,31 @@ class Block:
 class View:
 
   @cola
+  def make(starts: T, strides: T, dims: T, dstarts: T, dstrides: T, ddims: T, data: Ptr[E]):
+    return View[E,T](starts, strides, dims, dstarts, dstrides, ddims, data)
+
+  @cola
+  def make(obj: Block[E,T]):
+    return View[E,T](obj)
+
+  @cola
+  def make(obj: View[E,T]):
+    return View[E,T](obj)
+
+  @cola
+  @cola_private
   def __init__(self, starts: T, strides: T, dims: T, dstarts: T, dstrides: T, ddims: T, data: Ptr[E]):
     if not isinstance(T, tuple):
       compile_error('T must be a tuple')
     self.storage = VirtualStorage(starts, strides, dims, dstarts, dstrides, ddims, data)
 
   @cola
+  @cola_private
   def __init__(self, obj: Block[E,T]):
     self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(), obj.get_dstarts(), obj.get_dstrides(), obj.get_ddims(), obj.storage.data)
 
   @cola
+  @cola_private
   def __init__(self, obj: View[E,T]):
     self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(), obj.get_dstarts(), obj.get_dstrides(), obj.get_ddims(), obj.storage.data)
 

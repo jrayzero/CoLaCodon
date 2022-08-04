@@ -6,8 +6,10 @@
 #include "passes/specialization.h"
 #include "passes/symbols.h"
 #include "passes/canon.h"
+#include "passes/checks.h"
 
 void registerCommonPasses(transform::PassManager *pm, string cfgFile) {
+  pm->registerPass(make_unique<CheckColaPrivate>());
   pm->registerPass(make_unique<Timing>(cfgFile));
 }
 
@@ -34,7 +36,7 @@ void lcfg(transform::PassManager *pm) {
 
 void CoLa::addIRPasses(transform::PassManager *pm, bool debug) {
   if (cfgFile != "") 
-    cerr << "Using config file: " << cfgFile << endl;
+    cerr << "Using config file: " << cfgFile << endl;  
   registerCommonPasses(pm, cfgFile);
   if (debug) {
     pm->registerPass(make_unique<SetSymbols>());

@@ -40,7 +40,7 @@ def driver():
   start = _C.seq_time_monotonic() 
   # read in data  
   H,W,max_val,ppm_fd,is_greyscale = read_binary_netbpm_header(image_ppm)
-  image = Block[byte,Tup3]((H,W,3 if not is_greyscale else 1))
+  image = Block[byte,Tup3].make((H,W,3 if not is_greyscale else 1))
   ppm_fd.read(image)
   jpg = open(image_jpg, 'wb')
   do_greyscale = cfg.force_greyscale or is_greyscale
@@ -60,7 +60,7 @@ def driver():
   JPEGSyntax.pack_scan_header(bits_MCU, do_greyscale)
   # main processing loop
   # don't care about the location of this. It's basically scratch space
-  YCbCr = Block[int,Tup3]((3 if not do_greyscale else 1,8,8))
+  YCbCr = Block[int,Tup3].make((3 if not do_greyscale else 1,8,8))
   for RGB in image.grid((8,8,3)):
     r,c = RGB.get_starts()[0], RGB.get_starts()[1]
     if r+8 > H or c+8 > W:
@@ -71,7 +71,7 @@ def driver():
         row_pad = 8 - (H % 8)
       if c+8 > W:
         col_pad = 8 - (W % 8)
-      padded_RGB = Block[byte,Tup3](RGB)
+      padded_RGB = Block[byte,Tup3].make(RGB)
       padded_RGB[:,:,:] = byte(0)
       # exclusive
       last_valid_row = 8 - row_pad

@@ -1,3 +1,7 @@
 @__attribute__
 def cola():
   pass
+
+@__attribute__
+def cola_private():
+  pass
