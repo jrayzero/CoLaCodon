@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "sir/sir.h"
+#include "sir/analyze/dataflow/reaching.h"
 
 using namespace std;
 using namespace seq;
@@ -49,6 +50,7 @@ Value *getDDims(Value *value);
 Value *getDStarts(Value *value);
 Value *getDStrides(Value *value);
 Value *getData(Value *value);
+vector<Value*> getReachingDefs(const analyze::dataflow::RDResult *rdefResult, Func *parentFunc, Var *var, VarValue *vv);
 
 // Get the dimensionality of a block/view/storage
 template <typename T>
@@ -58,3 +60,16 @@ int getNdims(T *obj, int idx = 1) {
   int N = cast<RecordType>(tup)->getNumFields();
   return N;
 }
+
+struct PrintFuncs : public transform::OperatorPass {
+  static const string KEY;
+  string getKey() const override { return KEY; }
+  
+  explicit PrintFuncs(string cfgFile);
+
+  void visit(CallInstr *instr) override;
+
+private:
+  set<string> names;
+  set<string> printed;
+};

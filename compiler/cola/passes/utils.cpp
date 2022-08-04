@@ -1,6 +1,9 @@
 #include <cctype>
+#include <iostream>
+#include <fstream>
 #include "utils.h"
 #include "modules.h"
+#include "clike.h"
 #include "sir/util/irtools.h"
 #include "sir/util/cloning.h"
 
@@ -154,4 +157,56 @@ bool isTupleType(Type *t, Module *module) {
   }
   auto *tupType = module->getTupleType(fieldTypes);
   return t->is(tupType);
+}
+
+vector<Value*> getReachingDefs(const analyze::dataflow::RDResult *rdefResult, Func *parentFunc, Var *var, VarValue *vv) {
+  auto c = rdefResult->cfgResult;
+  auto it = rdefResult->results.find(parentFunc->getId());
+  auto it2 = c->graphs.find(parentFunc->getId());
+  if (it == rdefResult->results.end() || it2 == c->graphs.end()) {
+    return {};
+  }
+  auto *rd = it->second.get();
+  auto *cfg = it2->second.get();
+  unordered_set<ir::id_t> rdefIds = rd->getReachingDefinitions(var, vv);
+  vector<Value*> rdefs;
+  for (ir::id_t id : rdefIds) {
+    rdefs.push_back(cfg->getValue(id));
+  }
+  return rdefs;
+}
+
+const string PrintFuncs::KEY = "cola-print-funcs-pass";
+
+PrintFuncs::PrintFuncs(string cfgFile) {
+  fstream cfgFd;
+  cfgFd.open(cfgFile, ios::in);
+  if (cfgFd.is_open()) {
+    string line;
+    while(getline(cfgFd, line)) {
+      vector<string> tokens = splitString(line, "=");
+      if (tokens.size() < 2) continue;
+      string tok0 = toLower(trim(tokens[0]));
+      string tok1 = trim(tokens[1]);
+      if (tok0 == "print") {
+	names.insert(tok1);
+      }
+    }
+    cfgFd.close();
+  } else if (!cfgFile.empty()) {
+    cerr << "Could not open config file: " << cfgFile << endl;
+    exit(-1);
+  }
+}
+
+void PrintFuncs::visit(CallInstr *instr) {
+  auto *func = util::getFunc(instr->getCallee());
+  if (!func) return;
+  auto mname = func->getName();
+  auto uname = func->getUnmangledName();
+  if (names.count(uname) == 0) return;
+  if (printed.count(mname) > 0) return;
+  printed.insert(mname);
+  CLike clike;
+  LOG_IR("[{}]\n{}", KEY, clike.format(func));
 }

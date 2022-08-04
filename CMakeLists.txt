@@ -185,6 +185,7 @@ set(SEQ_HPPFILES
     compiler/cola/passes/symbols.h
     compiler/cola/passes/canon.h
     compiler/cola/passes/checks.h
+    compiler/cola/passes/collapse.h	
     )
 set(SEQ_CPPFILES
     compiler/dsl/plugins.cpp
@@ -270,6 +271,7 @@ set(SEQ_CPPFILES
     compiler/cola/passes/symbols.cpp
     compiler/cola/passes/canon.cpp
     compiler/cola/passes/checks.cpp
+    compiler/cola/passes/collapse.cpp
     )
 add_library(seq SHARED ${SEQ_HPPFILES})
 target_sources(seq PRIVATE ${SEQ_CPPFILES} seq_rules.cpp omp_rules.cpp)

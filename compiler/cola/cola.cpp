@@ -7,6 +7,8 @@
 #include "passes/symbols.h"
 #include "passes/canon.h"
 #include "passes/checks.h"
+#include "passes/collapse.h"
+#include "passes/utils.h"
 
 void registerCommonPasses(transform::PassManager *pm, string cfgFile) {
   pm->registerPass(make_unique<CheckColaPrivate>());
@@ -17,35 +19,39 @@ void registerBasicOptPasses(transform::PassManager *pm) {
   pm->registerPass(make_unique<SpecializeIterators>());
 }
 
-void unnest(transform::PassManager *pm) {
-  pm->registerPass(make_unique<Unnest>());
-  pm->registerPass(make_unique<CheckUnnested>());
-}
-
-/*pair<string,string> cfgRd(transform::PassManager *pm) {
+pair<string,string> cfgRd(transform::PassManager *pm) {
   auto cfgKey = pm->registerAnalysis(make_unique<analyze::dataflow::CFAnalysis>());
-  auto rdKey = pm->registerAnalysis(make_unique<analyze::dataflow::RDAnalysis>(cfgKey),
-				    "", {cfgKey});
+  auto rdKey = pm->registerAnalysis(make_unique<analyze::dataflow::RDAnalysis>(cfgKey), {cfgKey});
   return {cfgKey, rdKey};
 }
 
-void lcfg(transform::PassManager *pm) {
-  auto keys = cfgRd(pm);
-  pm->registerPass(make_unique<ConstructLCFG>(), "", {keys.first, keys.second});
-}*/
+void removeTemporaries(transform::PassManager *pm, string cfgFile) {
+  pm->registerPass(make_unique<UnnestCertainCoLaFuncs>());
+  auto rdCfg = cfgRd(pm);
+  string cfgKey = rdCfg.first;
+  string rdKey = rdCfg.second;
+  pm->registerPass(make_unique<RemoveExtraneousViews>(), "", {}, {cfgKey,rdKey});
+  pm->registerPass(make_unique<PrintFuncs>(cfgFile));
+  pm->registerPass(make_unique<CopyPropViews>(rdKey), "", {cfgKey,rdKey}, {cfgKey,rdKey});  
+}
 
-void CoLa::addIRPasses(transform::PassManager *pm, bool debug) {
+
+void CoLa::addIRPasses(transform::PassManager *pm, bool debug) {  
   if (cfgFile != "") 
     cerr << "Using config file: " << cfgFile << endl;  
+  pm->registerPass(make_unique<PrintFuncs>(cfgFile));
   registerCommonPasses(pm, cfgFile);
   if (debug) {
     pm->registerPass(make_unique<SetSymbols>());
     return;  
   }
   registerBasicOptPasses(pm);
-  unnest(pm);
-  pm->registerPass(make_unique<CanonBlocks>());
-  pm->registerPass(make_unique<CanonViews>());
+  removeTemporaries(pm, cfgFile);
+
+//  pm->registerPass(make_unique<CanonBlocks>());
+//  pm->registerPass(make_unique<CanonViews>());
+  pm->registerStandardPasses(false);
   pm->registerPass(make_unique<SetSymbols>());
+  pm->registerPass(make_unique<PrintFuncs>(cfgFile));
 }
 

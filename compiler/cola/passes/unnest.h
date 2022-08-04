@@ -11,7 +11,6 @@ using namespace seq::ir;
 // Unnest all arguments so everything is in a three-address code form
 // While loops also modified so the condition is moved within the loop since
 // it has to run each time.
-
 struct Unnest : public transform::OperatorPass {
   static const string KEY;
   string getKey() const override { return KEY; }
@@ -25,6 +24,7 @@ struct Unnest : public transform::OperatorPass {
   void visit(FlowInstr *instr) override;
   void visit(SeriesFlow *flow) override;
   void visit(WhileFlow *flow) override;
+  void visit(TernaryInstr *instr) override { assert(false); } // need to add flowinstr context for branches
   void visit(ForFlow *flow) override;
   void visit(ImperativeForFlow *flow) override;
   void visit(IfFlow *flow) override;
@@ -34,7 +34,31 @@ protected:
   stack<SeriesFlow*> ctx;
 };
 
-struct CheckUnnested : public transform::OperatorPass {
+// Unnest/force uniquification of any arguments to the following cola functions:
+// View.make
+// View.__getitem__
+// View.__setitem__
+// View.__call__
+struct UnnestCertainCoLaFuncs : public transform::OperatorPass {
+  static const string KEY;
+  string getKey() const override { return KEY; }
+  void visit(CallInstr *instr) override;
+  // These all need to be handle in order to apply contexts to lift into
+  void visit(TernaryInstr *instr) override;
+  void visit(FlowInstr *instr) override;
+  void visit(SeriesFlow *flow) override;
+  void visit(WhileFlow *flow) override;
+  void visit(ForFlow *flow) override;
+  void visit(ImperativeForFlow *flow) override;
+  void visit(IfFlow *flow) override;
+  void visit(PipelineFlow *flow) override;
+protected:
+  stack<SeriesFlow*> ctx;
+};
+
+
+
+/*struct CheckUnnested : public transform::OperatorPass {
   static const string KEY;
   string getKey() const override { return KEY; }
 //  void handle(AssignInstr *instr) override;
@@ -50,3 +74,4 @@ struct CheckUnnested : public transform::OperatorPass {
   void handle(ImperativeForFlow *flow) override;
   void handle(IfFlow *flow) override;
 };
+*/

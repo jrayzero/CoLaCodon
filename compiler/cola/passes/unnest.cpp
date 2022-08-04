@@ -6,7 +6,8 @@
 #include "utils.h"
 
 const string Unnest::KEY = "cola-unnest-pass";
-const string CheckUnnested::KEY = "cola-check-unnested-pass";
+const string UnnestCertainCoLaFuncs::KEY = "cola-unnest-certain-cola-funcs-pass";
+//const string CheckUnnested::KEY = "cola-check-unnested-pass";
 
 void Unnest::visit(FlowInstr *instr) { 
   auto *module = instr->getModule();
@@ -241,8 +242,12 @@ void Unnest::visit(CallInstr *instr) {
   assert(!ctx.empty());
   vector<Value*> liftedArgs;
   bool lifted = false;
+  auto *func = util::getFunc(instr->getCallee());
+  // this info is necessary for CollapseHierarchy, so just stick it in here
+  bool needToUniquify = func && isColaFunc(func) &&     
+    (func->getUnmangledName() == Module::GETITEM_MAGIC_NAME || func->getUnmangledName() == "make");
   for (auto *arg : *instr) {
-    if (!alreadyUnnested(arg)) {
+    if (!alreadyUnnested(arg) || needToUniquify) {
       lifted = true;
       process(arg);
       liftedArgs.push_back(util::makeVar(arg, ctx.top(), 
@@ -386,7 +391,7 @@ void CheckUnnested::handle(ThrowInstr *instr) {
       seqassert(false, "");
     }
   }
-}*/
+}
 
 void CheckUnnested::handle(CallInstr *instr) { 
   for (auto *arg : *instr) {
@@ -447,4 +452,207 @@ void CheckUnnested::handle(IfFlow *flow) {
     cerr << s << endl;
     seqassert(false, "");
   }
+}
+*/
+
+void UnnestCertainCoLaFuncs::visit(FlowInstr *instr) { 
+  auto *module = instr->getModule();
+  auto *flowCtx = module->Nr<SeriesFlow>();
+  auto *valueCtx = module->Nr<SeriesFlow>();
+  CLike clike;
+  ctx.push(flowCtx);
+  process(instr->getFlow());  
+  ctx.pop();
+  ctx.push(valueCtx);
+  process(instr->getValue());
+  ctx.pop();
+  if (flowCtx->size() == 0 && valueCtx->size() == 0) return;
+  // if either context has any elements, shove them into a new flow
+  // for the flowinstr
+  auto *flow = module->Nr<SeriesFlow>();
+  for (auto *stmt : *flowCtx) {
+    flow->push_back(stmt);
+  }
+  flow->push_back(instr->getFlow());
+  for (auto *stmt : *valueCtx) {
+    flow->push_back(stmt);
+  }
+  string s = clike.format(instr);
+  instr->replaceAll(module->Nr<FlowInstr>(flow, instr->getValue()));
+  string s2 = clike.format(instr);
+  LOG_IR("[{}:flow]\nBefore\n{}\nAfter\n{}", KEY, s, s2);
+}
+
+void UnnestCertainCoLaFuncs::visit(WhileFlow *flow) {  
+  auto *module = flow->getModule();
+  // cond needs to be reevaluated every time, so put its context into a flowinstr
+  auto *condCtx = module->Nr<SeriesFlow>();
+  ctx.push(condCtx);
+  process(flow->getCond());
+  ctx.pop();
+  Value *newCond = nullptr;
+  bool changed = false;
+  if (condCtx->size() == 0) {
+    newCond = flow->getCond();
+  } else {
+    changed = true;
+    newCond = module->Nr<FlowInstr>(condCtx, flow->getCond());
+  }
+  auto *whileCtx = module->Nr<SeriesFlow>();
+  ctx.push(whileCtx);
+  process(flow->getBody());
+  ctx.pop();
+  if (whileCtx->size() > 0) changed = true;
+  if (!changed) return;
+  whileCtx->push_back(flow->getBody());
+  CLike clike;
+  string before = clike.format(flow);
+  flow->replaceAll(module->Nr<WhileFlow>(newCond, whileCtx));
+  string after = clike.format(flow);
+  LOG_IR("[{}:while]\nBefore\n{}\nAfter\n{}", KEY, before, after);
+}
+
+void UnnestCertainCoLaFuncs::visit(ForFlow *flow) {
+  auto *module = flow->getModule();
+  auto *iterCtx = module->Nr<SeriesFlow>();
+  bool changed = false;
+  ctx.push(iterCtx);
+  process(flow->getIter());
+  ctx.pop();
+  if (iterCtx->size() > 0) changed = true;
+  auto *forCtx = module->Nr<SeriesFlow>();
+  ctx.push(forCtx);
+  process(flow->getBody());
+  ctx.pop();
+  if (forCtx->size() > 0) changed = true;
+  if (!changed) return;  
+  forCtx->push_back(flow->getBody());
+  auto *forFlow = module->Nr<SeriesFlow>();
+  forFlow->push_back(iterCtx);
+  forFlow->push_back(module->Nr<ForFlow>(flow->getIter(), forCtx, flow->getVar()));
+  CLike clike;
+  string before = clike.format(flow);
+  flow->replaceAll(forFlow);
+  string after = clike.format(flow);
+  LOG_IR("[{}:for]\nBefore\n{}\nAfter\n{}", KEY, before, after);
+}
+
+void UnnestCertainCoLaFuncs::visit(ImperativeForFlow *flow) { 
+  auto *module = flow->getModule();
+  auto *valCtx = module->Nr<SeriesFlow>();
+  bool changed = false;
+  ctx.push(valCtx);
+  process(flow->getStart());
+  process(flow->getEnd());
+  ctx.pop();
+  if (valCtx->size() > 0) changed = true;
+  auto *forCtx = module->Nr<SeriesFlow>();
+  ctx.push(forCtx);
+  process(flow->getBody());
+  ctx.pop();
+  if (forCtx->size() > 0) changed = true;
+  if (!changed) return;  
+  forCtx->push_back(flow->getBody());
+  auto *forFlow = module->Nr<SeriesFlow>();
+  forFlow->push_back(valCtx);
+  forFlow->push_back(module->Nr<ImperativeForFlow>(flow->getStart(), flow->getStep(), flow->getEnd(), 
+						   forCtx, flow->getVar()));
+  CLike clike;
+  string before = clike.format(flow);
+  flow->replaceAll(forFlow);
+  string after = clike.format(flow);
+  LOG_IR("[{}:imperative]\nBefore\n{}\nAfter\n{}", KEY, before, after);
+}
+
+void UnnestCertainCoLaFuncs::visit(IfFlow *flow) { 
+  auto *module = flow->getModule();
+  auto *condCtx = module->Nr<SeriesFlow>();
+  bool changed = false;
+  ctx.push(condCtx);
+  process(flow->getCond());
+  ctx.pop();
+  if (condCtx->size() > 0) changed = true;
+  auto *trueFlowCtx = module->Nr<SeriesFlow>();
+  auto *falseFlowCtx = module->Nr<SeriesFlow>();
+  ctx.push(trueFlowCtx);
+  process(flow->getTrueBranch());
+  ctx.pop();
+  if (flow->getFalseBranch()) {
+    ctx.push(falseFlowCtx);
+    process(flow->getFalseBranch());
+    ctx.pop();
+  }
+  if (trueFlowCtx->size() > 0 || falseFlowCtx->size() > 0) changed = true;
+  if (!changed) return;
+  trueFlowCtx->push_back(flow->getTrueBranch());
+  falseFlowCtx->push_back(flow->getFalseBranch());
+  auto *ifFlow = module->Nr<SeriesFlow>();
+  ifFlow->push_back(condCtx);
+  ifFlow->push_back(module->Nr<IfFlow>(flow->getCond(), trueFlowCtx, falseFlowCtx));
+  CLike clike;
+  string before = clike.format(flow);
+  flow->replaceAll(ifFlow);
+  string after = clike.format(flow);
+  LOG_IR("[{}:ifflow]\nBefore\n{}\nAfter\n{}", KEY, before, after);
+}
+
+void UnnestCertainCoLaFuncs::visit(SeriesFlow *flow) {
+  auto *stmts = flow->getModule()->Nr<SeriesFlow>();
+  for (auto *stmt : *flow) {
+    auto *s = flow->getModule()->Nr<SeriesFlow>();
+    ctx.push(s);
+    process(stmt);
+    for (auto *s2 : *s)
+      stmts->push_back(s2);
+    stmts->push_back(stmt);
+    ctx.pop();
+  }
+  flow->replaceAll(stmts);
+}
+
+void UnnestCertainCoLaFuncs::visit(PipelineFlow *flow) {
+  cerr << "Pipelines not currently supported in CoLa" << endl;
+  exit(-1);
+}
+
+void UnnestCertainCoLaFuncs::visit(TernaryInstr *instr) {
+  auto *module = instr->getModule();
+  auto *trueCtx = module->Nr<SeriesFlow>();
+  auto *falseCtx = module->Nr<SeriesFlow>();
+  process(instr->getCond()); // goes in containing context
+  ctx.push(trueCtx);
+  process(instr->getTrueValue());
+  ctx.pop();
+  ctx.push(falseCtx);
+  process(instr->getFalseValue());
+  ctx.pop();
+  if (trueCtx->size() == 0 && falseCtx->size() == 0) return;
+  auto *trueFlowInstr = module->Nr<FlowInstr>(trueCtx, instr->getTrueValue());
+  auto *falseFlowInstr = module->Nr<FlowInstr>(falseCtx, instr->getFalseValue());
+  auto *ternary = module->Nr<TernaryInstr>(instr->getCond(), trueFlowInstr, falseFlowInstr);
+  CLike clike;
+  string before = clike.format(instr);
+  instr->replaceAll(ternary);
+  string after = clike.format(instr);
+  LOG_IR("[{}] {} -> {}", KEY, before, after);
+}
+
+void UnnestCertainCoLaFuncs::visit(CallInstr *instr) {
+  auto *module = instr->getModule();
+  assert(!ctx.empty());
+  vector<Value*> liftedArgs;
+  auto *func = util::getFunc(instr->getCallee());
+  bool needToUniquify = func && isColaFunc(func) &&     
+    (func->getUnmangledName() == Module::GETITEM_MAGIC_NAME || func->getUnmangledName() == "make");
+  if (!needToUniquify) return;
+  for (auto *arg : *instr) {
+    process(arg);
+    liftedArgs.push_back(util::makeVar(arg, ctx.top(), 
+				       cast<BodiedFunc>(getParentFunc())));
+  }
+  CLike clike;
+  string s = clike.format(instr);
+  instr->replaceAll(module->Nr<CallInstr>(instr->getCallee(), move(liftedArgs)));
+  string s2 = clike.format(instr);
+  LOG_IR("[{}:call]\nBefore\n{}\nAfter\n{}", KEY, s, s2);  
 }
