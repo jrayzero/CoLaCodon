@@ -111,3 +111,43 @@ Func *getMetadataFunc(Value *self, string name) {
 Value *getDims(Value *value) {
   return util::call(getMetadataFunc(value, "get_dims"), {value});
 }
+
+Value *getStarts(Value *value) {
+  return util::call(getMetadataFunc(value, "get_starts"), {value});
+}
+
+Value *getStrides(Value *value) {
+  return util::call(getMetadataFunc(value, "get_strides"), {value});
+}
+
+Value *getDDims(Value *value) {
+  return util::call(getMetadataFunc(value, "get_ddims"), {value});
+}
+
+Value *getDStarts(Value *value) {
+  return util::call(getMetadataFunc(value, "get_dstarts"), {value});
+}
+
+Value *getDStrides(Value *value) {
+  return util::call(getMetadataFunc(value, "get_dstrides"), {value});
+}
+
+Value *getData(Value *value) {
+  return util::call(getMetadataFunc(value, "get_data"), {value});
+}
+
+bool isTupleType(Value *value) {
+  auto *module = value->getModule();
+  return isTupleType(value->getType(), module);
+}
+
+bool isTupleType(Type *t, Module *module) {
+  auto *record = cast<RecordType>(t);
+  if (!record) return false;
+  vector<Type*> fieldTypes;
+  for (auto field : *record) {
+    fieldTypes.push_back(field.getType());
+  }
+  auto *tupType = module->getTupleType(fieldTypes);
+  return t->is(tupType);
+}

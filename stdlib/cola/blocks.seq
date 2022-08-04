@@ -297,6 +297,7 @@ class VirtualStorage[E,T]:
     s += '  dims: ' + t + '\n'
     return s
 
+  # TODO make all of these private
   @cola
   def get_starts(self) -> T:
     return self.starts
@@ -308,6 +309,22 @@ class VirtualStorage[E,T]:
   @cola
   def get_dims(self) -> T:
     return self.dims
+
+  @cola
+  def get_dstarts(self) -> T:
+    return self.dstarts
+
+  @cola
+  def get_dstrides(self) -> T:
+    return self.dstrides
+
+  @cola
+  def get_ddims(self) -> T:
+    return self.ddims
+
+  @cola
+  def get_data(self) -> Ptr[E]:
+    return self.data
 
 class Block[E,T]:
   storage: VirtualStorage[E,T]
@@ -432,10 +449,6 @@ class View:
   @cola
   def __init__(self, obj: View[E,T]):
     self.__init__(obj.get_starts(), obj.get_strides(), obj.get_dims(), obj.get_dstarts(), obj.get_dstrides(), obj.get_ddims(), obj.storage.data)
-
-  @cola
-  def __init__(self, obj: VirtualStorage[E,T]):
-    self.storage = obj
 
   @cola
   def str_like(self, X: type):

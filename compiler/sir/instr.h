@@ -204,6 +204,10 @@ public:
   /// @return a pointer to the last argument
   const Value *back() const { return args.back(); }
 
+  Value *getArg(int argIdx) { return args[argIdx]; }
+
+  const Value *getArg(int argIdx) const { return args[argIdx]; }
+
   /// Inserts an argument at the given position.
   /// @param pos the position
   /// @param v the argument

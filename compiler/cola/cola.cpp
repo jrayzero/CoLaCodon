@@ -5,6 +5,7 @@
 #include "passes/unnest.h"
 #include "passes/specialization.h"
 #include "passes/symbols.h"
+#include "passes/canon.h"
 
 void registerCommonPasses(transform::PassManager *pm, string cfgFile) {
   pm->registerPass(make_unique<Timing>(cfgFile));
@@ -41,6 +42,8 @@ void CoLa::addIRPasses(transform::PassManager *pm, bool debug) {
   }
   registerBasicOptPasses(pm);
   unnest(pm);
+  pm->registerPass(make_unique<CanonBlocks>());
+  pm->registerPass(make_unique<CanonViews>());
   pm->registerPass(make_unique<SetSymbols>());
 }
 

@@ -36,11 +36,18 @@ bool isBlockType(Value *value);
 bool isBlockType(Type *t, Module *module);
 bool isViewType(Value *value);
 bool isViewType(Type *t, Module *module);
+bool isTupleType(Value *value);
+bool isTupleType(Type *t, Module *module);
 bool isVirtualStorageType(Value *value);
 bool isVirtualStorageType(Type *t, Module *module);
 Func *getMetadataFunc(Value *self, string name);
 Value *getDims(Value *value);
-
+Value *getStarts(Value *value);
+Value *getStrides(Value *value);
+Value *getDDims(Value *value);
+Value *getDStarts(Value *value);
+Value *getDStrides(Value *value);
+Value *getData(Value *value);
 
 // Get the dimensionality of a block/view/storage
 template <typename T>
