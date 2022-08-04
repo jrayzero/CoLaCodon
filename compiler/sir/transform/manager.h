@@ -154,9 +154,10 @@ public:
     return std::find(disabled.begin(), disabled.end(), key) != disabled.end();
   }
 
+  void registerStandardPasses(bool debug = false);
+
 private:
   void runPass(Module *module, const std::string &name);
-  void registerStandardPasses(bool debug = false);
   void runAnalysis(Module *module, const std::string &name);
   void invalidate(const std::string &key);
 };
